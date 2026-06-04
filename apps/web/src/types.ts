@@ -11,6 +11,7 @@ export type User = {
   firstName?: string | null;
   lastName?: string | null;
   displayName?: string | null;
+  email?: string | null;
   photoUrl?: string | null;
   role: Role;
   ratingPoints: number;

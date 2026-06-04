@@ -46,6 +46,7 @@ model User {
   firstName     String?
   lastName      String?
   displayName   String?
+  email         String?
   photoUrl      String?
   role          Role           @default(USER)
   ratingPoints  Int            @default(0)

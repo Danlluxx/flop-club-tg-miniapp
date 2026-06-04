@@ -9,9 +9,13 @@ export const meRouter = express.Router();
 export const currentRulesVersion = "2026-05-22";
 const profileSchema = z.object({
   displayName: z.string().trim().min(2).max(48).optional(),
+  email: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().email("Некорректный email").max(254).nullable().optional()
+  ),
   photoUrl: z.string().max(600000).optional()
-}).refine((value) => value.displayName || value.photoUrl, {
-  message: "displayName or photoUrl is required"
+}).refine((value) => value.displayName !== undefined || value.email !== undefined || value.photoUrl !== undefined, {
+  message: "displayName, email or photoUrl is required"
 });
 
 meRouter.post("/rules/accept", requireAuth, async (req, res, next) => {
@@ -37,7 +41,7 @@ meRouter.patch("/profile", requireAuth, async (req, res, next) => {
       where: { id: req.user!.id },
       data
     });
-    console.log(`[profile:update] user=${user.id} displayName=${user.displayName} photo=${Boolean(data.photoUrl)}`);
+    console.log(`[profile:update] user=${user.id} displayName=${user.displayName} email=${Boolean(data.email)} photo=${Boolean(data.photoUrl)}`);
     res.json(user);
   } catch (error) {
     next(error);

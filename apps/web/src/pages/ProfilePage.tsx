@@ -117,6 +117,8 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [nameEditorOpen, setNameEditorOpen] = useState(false);
   const [displayNameValue, setDisplayNameValue] = useState(displayName(user));
+  const [emailEditorOpen, setEmailEditorOpen] = useState(false);
+  const [emailValue, setEmailValue] = useState(user.email ?? "");
   const { showToast } = useToast();
   const active = data?.filter((item) => item.status === "ACTIVE") ?? [];
   const past = data?.filter((item) => item.status !== "ACTIVE") ?? [];
@@ -127,6 +129,8 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
   const statusProgress = getStatusProgress(ratingPoints);
   const cleanName = displayNameValue.trim().replace(/\s+/g, " ");
   const canSaveName = cleanName.length >= 2 && cleanName.length <= 48 && cleanName !== name;
+  const cleanEmail = emailValue.trim();
+  const canSaveEmail = cleanEmail !== (user.email ?? "");
 
   const updateName = useMutation({
     mutationFn: () => api.updateProfile({ displayName: cleanName }),
@@ -145,6 +149,17 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
       onUserUpdated(updatedUser);
       setAvatarMenuOpen(false);
       showToast("Аватар обновлён");
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
+  const updateEmail = useMutation({
+    mutationFn: () => api.updateProfile({ email: cleanEmail || null }),
+    onSuccess: (updatedUser) => {
+      onUserUpdated(updatedUser);
+      setEmailValue(updatedUser.email ?? "");
+      setEmailEditorOpen(false);
+      showToast(updatedUser.email ? "Email обновлён" : "Email удалён");
     },
     onError: (error) => showToast(error.message, "error")
   });
@@ -254,21 +269,56 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
 
       <div className="profile-info-card">
         <p className="profile-info-label">Email</p>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="profile-chip">
-            <Mail className="h-5 w-5" />
-            Не указан
-          </span>
-          <button className="profile-edit tap" type="button">Изменить</button>
+        <div className="profile-info-row">
+          {emailEditorOpen ? (
+            <>
+              <input
+                value={emailValue}
+                onChange={(event) => setEmailValue(event.target.value)}
+                className="profile-email-input"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="email@example.com"
+                autoFocus
+              />
+              <button
+                className="profile-edit tap"
+                type="button"
+                disabled={!canSaveEmail || updateEmail.isPending}
+                onClick={() => updateEmail.mutate()}
+              >
+                Сохранить
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="profile-chip">
+                <Mail className="h-5 w-5" />
+                <span className="truncate">{user.email || "Не указан"}</span>
+              </span>
+              <button
+                className="profile-edit tap"
+                type="button"
+                onClick={() => {
+                  setEmailValue(user.email ?? "");
+                  setEmailEditorOpen(true);
+                }}
+              >
+                Изменить
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <div className="profile-info-card">
         <p className="profile-info-label">Telegram</p>
-        <span className="profile-chip mt-3">
-          <Send className="h-5 w-5" />
-          {user.username || user.telegramId}
-        </span>
+        <div className="profile-info-row">
+          <span className="profile-chip">
+            <Send className="h-5 w-5" />
+            <span className="truncate">{user.username || user.telegramId}</span>
+          </span>
+        </div>
       </div>
 
       <AwardsShelf awards={awards} />

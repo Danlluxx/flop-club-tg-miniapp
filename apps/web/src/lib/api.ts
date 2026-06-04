@@ -92,7 +92,7 @@ export const api = {
   register: (id: string) => request<Registration>(`/api/tournaments/${id}/register`, { method: "POST" }),
   cancel: (id: string) => request<Registration>(`/api/tournaments/${id}/register`, { method: "DELETE" }),
   acceptRules: () => request<User>("/api/me/rules/accept", { method: "POST" }),
-  updateProfile: (data: { displayName?: string; photoUrl?: string }) =>
+  updateProfile: (data: { displayName?: string; email?: string | null; photoUrl?: string }) =>
     request<User>("/api/me/profile", { method: "PATCH", body: JSON.stringify(data) }),
   completeIntro: () => request<User>("/api/me/intro/complete", { method: "POST" }),
   myRegistrations: () => request<Registration[]>("/api/me/registrations"),
