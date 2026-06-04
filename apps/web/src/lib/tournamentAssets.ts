@@ -1,4 +1,5 @@
 const tournamentSlugs: Record<string, string> = {
+  "FLOP GRAND OPENING": "flop-grand-final",
   "FLOP GRAND OPENNING": "flop-grand-final",
   "Flop Butterfly": "flop-butterfly",
   "Flop Bounty": "flop-bounty",

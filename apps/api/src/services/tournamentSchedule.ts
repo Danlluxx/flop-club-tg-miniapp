@@ -8,7 +8,8 @@ const baseCycleDate = "2026-06-01";
 const firstScheduledTournamentDate = "2026-06-04";
 
 export const descriptions: Record<string, string> = {
-  "FLOP GRAND OPENNING": "Официальное открытие Flop Club в Барнауле.",
+  "FLOP GRAND OPENING": "Открытие FLOP CLUB: бесплатный вход, фуршет, атмосфера и первый турнир в истории клуба.",
+  "FLOP GRAND OPENNING": "Открытие FLOP CLUB: бесплатный вход, фуршет, атмосфера и первый турнир в истории клуба.",
   "Flop Classic": "Классический турнир для комфортной игры и стабильного рейтинга.",
   "Flop Bounty": "Динамичный формат с наградой за выбивание игроков.",
   "Flop Deep Stack": "Больше фишек, больше решений, больше настоящего покера.",
@@ -28,6 +29,7 @@ export const descriptions: Record<string, string> = {
 };
 
 export const ratingPools: Record<string, number> = {
+  "FLOP GRAND OPENING": 0,
   "FLOP GRAND OPENNING": 0,
   "Flop Classic": 10000,
   "Flop Bounty": 10000,
@@ -48,6 +50,7 @@ export const ratingPools: Record<string, number> = {
 };
 
 export const tournamentProfiles: Record<string, TournamentProfile> = {
+  "FLOP GRAND OPENING": TournamentProfile.BASE,
   "FLOP GRAND OPENNING": TournamentProfile.BASE,
   "Flop Classic": TournamentProfile.BASE,
   "Flop Bounty": TournamentProfile.KNOCKOUT,
@@ -107,9 +110,9 @@ const specialEvents: Record<string, { title: string; buyIn: number; reEntry: num
     ratingPool: ratingPools["Flop Phoenix"]
   },
   "2026-06-05": {
-    title: "FLOP GRAND OPENNING",
+    title: "FLOP GRAND OPENING",
     buyIn: 0,
-    reEntry: 0,
+    reEntry: 500,
     ratingPool: 0
   },
   "2026-06-06": {
