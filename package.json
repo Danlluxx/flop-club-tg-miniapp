@@ -1,0 +1,19 @@
+{
+  "name": "flop-club-tg",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @flop-club/api & npm run dev --workspace @flop-club/web",
+    "build": "npm run build --workspace @flop-club/api && npm run build --workspace @flop-club/web",
+    "lint": "npm run lint --workspace @flop-club/api && npm run lint --workspace @flop-club/web",
+    "prisma:generate": "npm run prisma:generate --workspace @flop-club/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace @flop-club/api",
+    "seed": "npm run seed --workspace @flop-club/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

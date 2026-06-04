@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TournamentStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+  FINISHED
+}
+
+enum RegistrationStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum ParticipantLiveStatus {
+  IN_GAME
+  ELIMINATED
+}
+
+enum TournamentProfile {
+  BASE
+  FREEZE
+  PHOENIX
+  TURBO_ACTION
+  DEEP_SPECIAL
+  KNOCKOUT
+  FINAL
+}
+
+model User {
+  id            String         @id @default(cuid())
+  telegramId    String         @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  displayName   String?
+  photoUrl      String?
+  role          Role           @default(USER)
+  ratingPoints  Int            @default(0)
+  knockouts     Int            @default(0)
+  rulesAcceptedAt DateTime?
+  rulesVersion  String?
+  introCompletedAt DateTime?
+  registrations Registration[]
+  ratingResults TournamentRatingResult[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Tournament {
+  id                String         @id @default(cuid())
+  title             String
+  description       String
+  startsAt          DateTime
+  location          String
+  buyIn             Int
+  reEntry           Int            @default(1000)
+  prizePool         Int
+  ratingPool        Int            @default(10000)
+  entriesCount      Int?
+  profile           TournamentProfile @default(BASE)
+  lateRegistrationEndsAt DateTime?
+  addOnEnabled      Boolean        @default(false)
+  addOnPrice        Int            @default(0)
+  maxParticipants   Int
+  status            TournamentStatus @default(OPEN)
+  allowCancellation Boolean        @default(true)
+  registrations     Registration[]
+  ratingResults     TournamentRatingResult[]
+  knockouts         Knockout[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([startsAt])
+  @@index([status])
+}
+
+model Registration {
+  id           String             @id @default(cuid())
+  userId       String
+  tournamentId String
+  status       RegistrationStatus @default(ACTIVE)
+  liveStatus   ParticipantLiveStatus @default(IN_GAME)
+  tableNumber  Int?
+  seatNumber   Int?
+  finishPlace  Int?
+  entryNumber  Int                @default(1)
+  addOnCount   Int                @default(0)
+  eliminatedAt DateTime?
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  knockoutsMade Knockout[]        @relation("KnockoutKiller")
+  knockoutReceived Knockout?      @relation("KnockoutEliminated")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([tournamentId])
+  @@index([userId])
+  @@index([tournamentId, liveStatus])
+  @@index([tournamentId, finishPlace])
+  @@index([tournamentId, tableNumber, seatNumber])
+}
+
+model Knockout {
+  id                       String       @id @default(cuid())
+  tournamentId             String
+  eliminatedRegistrationId String       @unique
+  killerRegistrationId     String?
+  tournament               Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  eliminatedRegistration   Registration @relation("KnockoutEliminated", fields: [eliminatedRegistrationId], references: [id], onDelete: Cascade)
+  killerRegistration       Registration? @relation("KnockoutKiller", fields: [killerRegistrationId], references: [id], onDelete: SetNull)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  @@index([tournamentId])
+  @@index([killerRegistrationId])
+}
+
+model TournamentRatingResult {
+  id           String     @id @default(cuid())
+  tournamentId String
+  userId       String
+  place        Int
+  percent      Int
+  points       Int
+  knockouts    Int        @default(0)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([tournamentId, place])
+  @@unique([tournamentId, userId])
+  @@index([userId])
+}
