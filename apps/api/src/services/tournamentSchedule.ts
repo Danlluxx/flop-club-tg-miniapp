@@ -8,6 +8,7 @@ const baseCycleDate = "2026-06-01";
 const firstScheduledTournamentDate = "2026-06-04";
 
 export const descriptions: Record<string, string> = {
+  "FLOP GRAND OPENNING": "Официальное открытие Flop Club в Барнауле.",
   "Flop Classic": "Классический турнир для комфортной игры и стабильного рейтинга.",
   "Flop Bounty": "Динамичный формат с наградой за выбивание игроков.",
   "Flop Deep Stack": "Больше фишек, больше решений, больше настоящего покера.",
@@ -27,6 +28,7 @@ export const descriptions: Record<string, string> = {
 };
 
 export const ratingPools: Record<string, number> = {
+  "FLOP GRAND OPENNING": 0,
   "Flop Classic": 10000,
   "Flop Bounty": 10000,
   "Flop Deep Stack": 15000,
@@ -46,6 +48,7 @@ export const ratingPools: Record<string, number> = {
 };
 
 export const tournamentProfiles: Record<string, TournamentProfile> = {
+  "FLOP GRAND OPENNING": TournamentProfile.BASE,
   "Flop Classic": TournamentProfile.BASE,
   "Flop Bounty": TournamentProfile.KNOCKOUT,
   "Flop Deep Stack": TournamentProfile.DEEP_SPECIAL,
@@ -96,6 +99,26 @@ const cycle = [
 ] as const;
 
 const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "17:00", "17:00"] as const;
+const specialEvents: Record<string, { title: string; buyIn: number; reEntry: number; ratingPool: number }> = {
+  "2026-06-04": {
+    title: "Flop Phoenix",
+    buyIn: 0,
+    reEntry,
+    ratingPool: ratingPools["Flop Phoenix"]
+  },
+  "2026-06-05": {
+    title: "FLOP GRAND OPENNING",
+    buyIn: 0,
+    reEntry: 0,
+    ratingPool: 0
+  },
+  "2026-06-06": {
+    title: "Flop Black Edition",
+    buyIn: 0,
+    reEntry,
+    ratingPool: ratingPools["Flop Black Edition"]
+  }
+};
 
 export function slug(value: string) {
   return value.toLowerCase().replaceAll(" ", "-");
@@ -125,9 +148,11 @@ function mondayIndexFromCycleOffset(offset: number) {
 
 export function scheduledTournamentForDate(dateKeyValue: string): Prisma.TournamentCreateManyInput {
   const cycleOffset = ((daysBetween(baseCycleDate, dateKeyValue) % cycle.length) + cycle.length) % cycle.length;
-  const title = cycle[cycleOffset];
   const weekdayIndex = mondayIndexFromCycleOffset(cycleOffset);
-  const buyIn = weekdayIndex >= 4 ? 1000 : 500;
+  const eventOverride = specialEvents[dateKeyValue];
+  const title = eventOverride?.title ?? cycle[cycleOffset];
+  const buyIn = eventOverride?.buyIn ?? (weekdayIndex >= 4 ? 1000 : 500);
+  const eventReEntry = eventOverride?.reEntry ?? reEntry;
   const startsAt = new Date(`${dateKeyValue}T${timesByWeekday[weekdayIndex]}:00+07:00`);
   const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
   const profile = tournamentProfiles[title] ?? TournamentProfile.BASE;
@@ -140,9 +165,9 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
     startsAt,
     location,
     buyIn,
-    reEntry,
+    reEntry: eventReEntry,
     prizePool: buyIn * maxParticipants,
-    ratingPool: ratingPools[title] ?? 10000,
+    ratingPool: eventOverride?.ratingPool ?? ratingPools[title] ?? 10000,
     profile,
     lateRegistrationEndsAt,
     addOnEnabled,
