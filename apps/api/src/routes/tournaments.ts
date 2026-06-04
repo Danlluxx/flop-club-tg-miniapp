@@ -4,7 +4,7 @@ import { Prisma, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { TOURNAMENT_MAX_PARTICIPANTS, cancelRegistration, getTournament, registerForTournament, tournamentInclude } from "../services/tournaments.js";
-import { ensureScheduledTournaments } from "../services/tournamentSchedule.js";
+import { dateKey, ensureScheduledTournaments } from "../services/tournamentSchedule.js";
 import { notFound } from "../utils/errors.js";
 
 export const tournamentsRouter = express.Router();
@@ -94,8 +94,27 @@ tournamentsRouter.patch("/:id", requireAuth, requireAdmin, async (req, res, next
 tournamentsRouter.delete("/:id", requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const id = String(req.params.id);
-    await getTournament(id);
-    await prisma.tournament.delete({ where: { id } });
+    const tournament = await getTournament(id);
+    await prisma.$transaction(async (tx) => {
+      if (/^\d{4}-\d{2}-\d{2}-/.test(id)) {
+        await tx.deletedScheduledTournament.upsert({
+          where: { dateKey: dateKey(tournament.startsAt) },
+          update: {
+            tournamentId: id,
+            title: tournament.title,
+            deletedByUserId: req.user!.id,
+            deletedAt: new Date()
+          },
+          create: {
+            dateKey: dateKey(tournament.startsAt),
+            tournamentId: id,
+            title: tournament.title,
+            deletedByUserId: req.user!.id
+          }
+        });
+      }
+      await tx.tournament.delete({ where: { id } });
+    });
     console.log(`[tournament:delete] admin=${req.user!.id} tournament=${id}`);
     res.status(204).send();
   } catch (error) {

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/Toast";
 import type { TournamentStatus } from "../../types";
+import { barnaulDateTimeInputToIso, toBarnaulDateTimeInput } from "../../lib/barnaulDate";
 
 type FormState = {
   title: string;
@@ -47,7 +48,7 @@ export function TournamentForm() {
     setForm({
       title: data.title,
       description: data.description,
-      startsAt: data.startsAt.slice(0, 16),
+      startsAt: toBarnaulDateTimeInput(data.startsAt),
       location: data.location,
       buyIn: String(data.buyIn),
       reEntry: String(data.reEntry),
@@ -63,7 +64,7 @@ export function TournamentForm() {
     mutationFn: () => {
       const payload = {
         ...form,
-        startsAt: new Date(form.startsAt).toISOString(),
+        startsAt: barnaulDateTimeInputToIso(form.startsAt),
         buyIn: Number(form.buyIn),
         reEntry: Number(form.reEntry),
         prizePool: Number(form.prizePool),

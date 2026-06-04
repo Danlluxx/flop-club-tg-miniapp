@@ -5,7 +5,7 @@ const location = "Flop Club, Барнаул";
 const maxParticipants = 50;
 const reEntry = 1000;
 const baseCycleDate = "2026-06-01";
-const firstScheduledTournamentDate = "2026-06-04";
+const firstScheduledTournamentDate = "2026-06-05";
 
 export const descriptions: Record<string, string> = {
   "FLOP GRAND OPENING": "Открытие FLOP CLUB: бесплатный вход, фуршет, атмосфера и первый турнир в истории клуба.",
@@ -29,8 +29,8 @@ export const descriptions: Record<string, string> = {
 };
 
 export const ratingPools: Record<string, number> = {
-  "FLOP GRAND OPENING": 0,
-  "FLOP GRAND OPENNING": 0,
+  "FLOP GRAND OPENING": 15000,
+  "FLOP GRAND OPENNING": 15000,
   "Flop Classic": 10000,
   "Flop Bounty": 10000,
   "Flop Deep Stack": 15000,
@@ -50,8 +50,8 @@ export const ratingPools: Record<string, number> = {
 };
 
 export const tournamentProfiles: Record<string, TournamentProfile> = {
-  "FLOP GRAND OPENING": TournamentProfile.BASE,
-  "FLOP GRAND OPENNING": TournamentProfile.BASE,
+  "FLOP GRAND OPENING": TournamentProfile.DEEP_SPECIAL,
+  "FLOP GRAND OPENNING": TournamentProfile.DEEP_SPECIAL,
   "Flop Classic": TournamentProfile.BASE,
   "Flop Bounty": TournamentProfile.KNOCKOUT,
   "Flop Deep Stack": TournamentProfile.DEEP_SPECIAL,
@@ -103,17 +103,11 @@ const cycle = [
 
 const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "17:00", "17:00"] as const;
 const specialEvents: Record<string, { title: string; buyIn: number; reEntry: number; ratingPool: number }> = {
-  "2026-06-04": {
-    title: "Flop Phoenix",
+  "2026-06-05": {
+    title: "FLOP GRAND OPENNING",
     buyIn: 0,
     reEntry,
-    ratingPool: ratingPools["Flop Phoenix"]
-  },
-  "2026-06-05": {
-    title: "FLOP GRAND OPENING",
-    buyIn: 0,
-    reEntry: 500,
-    ratingPool: 0
+    ratingPool: ratingPools["Flop Prime Event"]
   },
   "2026-06-06": {
     title: "Flop Black Edition",
@@ -127,7 +121,7 @@ export function slug(value: string) {
   return value.toLowerCase().replaceAll(" ", "-");
 }
 
-function dateKey(date: Date) {
+export function dateKey(date: Date) {
   return new Date(date.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
@@ -196,9 +190,20 @@ export function generateScheduledTournaments(from: Date, to: Date) {
 export async function ensureScheduledTournaments(from: Date, to: Date) {
   const tournaments = generateScheduledTournaments(from, to);
   if (!tournaments.length) return;
+  const deletedDates = await prisma.deletedScheduledTournament.findMany({
+    where: {
+      dateKey: {
+        in: tournaments.map((tournament) => dateKey(tournament.startsAt as Date))
+      }
+    },
+    select: { dateKey: true }
+  });
+  const deletedDateKeys = new Set(deletedDates.map((item) => item.dateKey));
+  const activeTournaments = tournaments.filter((tournament) => !deletedDateKeys.has(dateKey(tournament.startsAt as Date)));
+  if (!activeTournaments.length) return;
 
   await prisma.tournament.createMany({
-    data: tournaments,
+    data: activeTournaments,
     skipDuplicates: true
   });
 }

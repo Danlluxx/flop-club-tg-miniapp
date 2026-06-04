@@ -88,6 +88,14 @@ model Tournament {
   @@index([status])
 }
 
+model DeletedScheduledTournament {
+  dateKey   String   @id
+  tournamentId String?
+  title     String?
+  deletedAt DateTime @default(now())
+  deletedByUserId String?
+}
+
 model Registration {
   id           String             @id @default(cuid())
   userId       String

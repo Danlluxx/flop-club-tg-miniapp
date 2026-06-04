@@ -214,7 +214,7 @@ const rules: Record<string, TournamentRule> = {
     ]
   },
   "FLOP GRAND OPENING": {
-    title: "FLOP GRAND OPENING",
+    title: "FLOP GRAND OPENNING",
     short: "Открытие FLOP CLUB: бесплатный вход, фуршет, атмосфера и первый турнир в истории клуба.",
     rule: "Первый официальный турнир в честь открытия FLOP CLUB.",
     features: [
@@ -232,7 +232,7 @@ const rules: Record<string, TournamentRule> = {
     ]
   },
   "FLOP GRAND OPENNING": {
-    title: "FLOP GRAND OPENING",
+    title: "FLOP GRAND OPENNING",
     short: "Открытие FLOP CLUB: бесплатный вход, фуршет, атмосфера и первый турнир в истории клуба.",
     rule: "Первый официальный турнир в честь открытия FLOP CLUB.",
     features: [

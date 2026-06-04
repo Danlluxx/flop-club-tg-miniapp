@@ -4,6 +4,7 @@ import { Edit3, Trash2, Users } from "lucide-react";
 import { api } from "../../lib/api";
 import { StatusBadge } from "../../components/StatusBadge";
 import { useToast } from "../../components/Toast";
+import { formatBarnaulDateTime } from "../../lib/barnaulDate";
 
 export function AdminTournaments() {
   const queryClient = useQueryClient();
@@ -14,6 +15,8 @@ export function AdminTournaments() {
     onSuccess: async () => {
       showToast("Турнир удалён");
       await queryClient.invalidateQueries({ queryKey: ["admin", "tournaments"] });
+      await queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      await queryClient.invalidateQueries({ queryKey: ["home", "nextTournament"] });
     },
     onError: (error) => showToast(error.message, "error")
   });
@@ -31,7 +34,7 @@ export function AdminTournaments() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-bold">{item.title}</h3>
-                <p className="mt-1 text-sm text-slate-400">{new Date(item.startsAt).toLocaleString("ru-RU")}</p>
+                <p className="mt-1 text-sm text-slate-400">{formatBarnaulDateTime(item.startsAt)}</p>
               </div>
               <StatusBadge status={item.status} />
             </div>
