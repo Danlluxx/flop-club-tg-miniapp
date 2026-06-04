@@ -10,10 +10,15 @@ apps/
   api/                 Node.js + Express + Prisma
   api/prisma/          schema, migrations, seed
 Dockerfile             backend Docker image
+Dockerfile.api         production API image for VPS
+Dockerfile.web         production frontend image for VPS
 docker-compose.yml     локальный PostgreSQL
+docker-compose.prod.yml production VPS stack
+deploy/                Caddy/Nginx config and VPS guide
 railway.json           Railway backend deploy
 vercel.json            Vercel frontend deploy
 .env.example
+.env.production.example
 ```
 
 Frontend работает с backend через REST API. Авторизация идет через Telegram `initData`; backend проверяет подпись через `BOT_TOKEN`, создает/обновляет пользователя и выдает JWT.
@@ -101,6 +106,28 @@ Frontend:
 ```env
 VITE_API_URL="https://your-api-domain"
 VITE_SUPPORT_URL="https://t.me/flopclub"
+```
+
+## Deploy: VPS + Docker Compose
+
+Основной production-вариант без Railway/Vercel: один VPS, Docker Compose, PostgreSQL, API, frontend и HTTPS через Caddy.
+
+Подробная инструкция находится здесь: [deploy/VPS_DEPLOY.md](/Users/danlluxx/flop-club-tg/deploy/VPS_DEPLOY.md).
+
+Коротко:
+
+```bash
+git clone https://github.com/Danlluxx/flop-club-tg-miniapp.git
+cd flop-club-tg-miniapp
+cp .env.production.example .env.production
+nano .env.production
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
+
+После запуска:
+
+```bash
+curl https://your-domain/health
 ```
 
 ## Deploy: Backend на Railway
