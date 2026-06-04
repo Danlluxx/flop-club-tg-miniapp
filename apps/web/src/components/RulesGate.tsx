@@ -57,17 +57,17 @@ export function RulesGate({ onAccepted }: { onAccepted: (user: User) => void }) 
     <section className="rules-screen">
       <div ref={contentRef} onScroll={updateReadState} className="rules-copy">
         <div className="mx-auto max-w-md px-5 pb-52 pt-8">
-          <p className="text-[11px] font-bold uppercase tracking-[0.34em] text-electric">Flop Club / Barnaul</p>
+          <p className="rules-kicker">Flop Club / Barnaul</p>
           <h1 className="rules-title mt-5">Пользовательское соглашение</h1>
 
-          <h2 className="mt-16 text-3xl font-black leading-tight">Правила посещения и участия в мероприятиях Flop Club</h2>
-          <p className="mt-7 text-xl font-bold leading-snug">
+          <h2 className="rules-section-title mt-12">Правила посещения и участия в мероприятиях Flop Club</h2>
+          <p className="rules-lead">
             Эти правила помогают поддерживать порядок, безопасность и уважительную атмосферу на мероприятиях Клуба.
           </p>
-          <p className="mt-7 text-xl font-bold leading-snug">
+          <p className="rules-lead">
             Открывая Приложение, записываясь на турнир и подтверждая принятие правил, Пользователь соглашается соблюдать положения этой редакции.
           </p>
-          <p className="mt-8 text-xl font-black">Редакция от 22 мая 2026 г.</p>
+          <p className="rules-date">Редакция от 22 мая 2026 г.</p>
 
           <h2 className="rules-heading">Термины и определения</h2>
           <p className="rules-paragraph">В настоящих Правилах используются следующие значения:</p>

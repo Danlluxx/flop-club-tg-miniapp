@@ -60,7 +60,7 @@ export function IntroCarousel({ onCompleted }: { onCompleted: (user: User) => vo
     <section className="intro-screen">
       <article className="intro-slide" key={slide.titleLines.join(" ")}>
         <div className="intro-copy">
-          <p className="text-[11px] font-black uppercase tracking-[0.38em] text-electric">{slide.kicker}</p>
+          <p className="intro-kicker">{slide.kicker}</p>
           <h1 className="intro-title">
             {slide.titleLines.map((line) => (
               <span key={line}>{line}</span>
