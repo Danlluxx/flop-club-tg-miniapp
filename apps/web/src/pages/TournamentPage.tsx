@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { haptic } from "../lib/telegram";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/Toast";
+import { CheckInQr } from "../components/CheckInQr";
 import { tournamentEventImage } from "../lib/tournamentAssets";
 import { tournamentLegalNote, tournamentPriceFeatures, tournamentRuleFor } from "../lib/tournamentRules";
 
@@ -118,6 +119,8 @@ export function TournamentPage() {
           <p>{tournamentLegalNote}</p>
         </div>
       </div>
+
+      {data.myRegistration ? <CheckInQr registration={data.myRegistration} /> : null}
 
       {isRegistered ? (
         <button onClick={() => cancel.mutate()} disabled={cancel.isPending} className="tap w-full rounded-full border border-rose-400/40 bg-rose-400/15 px-5 py-4 font-black text-rose-100">

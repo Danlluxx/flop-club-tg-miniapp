@@ -2,12 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Armchair } from "lucide-react";
 import { api } from "../lib/api";
-import { StatusBadge } from "../components/StatusBadge";
 
 export function MyPage() {
   const { data, isLoading } = useQuery({ queryKey: ["me", "registrations"], queryFn: api.myRegistrations });
-  const active = data?.filter((item) => item.status === "ACTIVE") ?? [];
-  const history = data?.filter((item) => item.status !== "ACTIVE") ?? [];
+  const active = data?.filter((item) => item.status === "ACTIVE" && item.tournament?.status !== "FINISHED" && item.tournament?.status !== "CANCELLED") ?? [];
+  const history = data?.filter((item) => item.status !== "ACTIVE" || item.tournament?.status === "FINISHED" || item.tournament?.status === "CANCELLED") ?? [];
 
   return (
     <section className="space-y-5">
@@ -23,11 +22,15 @@ export function MyPage() {
           <Link key={item.id} to={`/tournaments/${item.tournament.id}`} className="app-panel tap block p-4">
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-bold">{item.tournament.title}</h3>
-              <StatusBadge status={item.tournament.status} />
             </div>
             <p className="mt-2 text-sm text-slate-400">{new Date(item.tournament.startsAt).toLocaleString("ru-RU")}</p>
+            <div className={`mt-3 inline-flex rounded-full px-3 py-2 text-xs font-black uppercase ${
+              item.checkedInAt ? "bg-emerald/15 text-emerald" : "bg-amber-300/15 text-amber-200"
+            }`}>
+              {item.checkedInAt ? "Участвует" : "Записан"}
+            </div>
             {item.tableNumber && item.seatNumber && (
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-electric/30 bg-electric/10 px-3 py-2 text-sm font-bold text-white">
+              <div className="ml-2 mt-3 inline-flex items-center gap-2 rounded-full border border-electric/30 bg-electric/10 px-3 py-2 text-sm font-bold text-white">
                 <Armchair className="h-4 w-4 text-electric" />
                 Стол {item.tableNumber} · бокс {item.seatNumber}
               </div>

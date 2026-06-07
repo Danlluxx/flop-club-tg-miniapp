@@ -19,6 +19,21 @@ export type LeaderboardParams = {
   search?: string;
 };
 
+export type AdminStats = {
+  totalTournaments: number;
+  activeTournaments: number;
+  totalRegistrations: number;
+  totalUsers: number;
+  averageFillRate: number;
+  dailyFillRates: Array<{
+    date: string;
+    tournaments: number;
+    registrations: number;
+    capacity: number;
+    averageFillRate: number;
+  }>;
+};
+
 let token = localStorage.getItem("flop.token");
 
 export function setToken(nextToken: string) {
@@ -97,13 +112,11 @@ export const api = {
   completeIntro: () => request<User>("/api/me/intro/complete", { method: "POST" }),
   myRegistrations: () => request<Registration[]>("/api/me/registrations"),
   myAwards: () => request<ClubAward[]>("/api/me/awards"),
-  stats: () =>
-    request<{ totalTournaments: number; activeTournaments: number; totalRegistrations: number; averageFillRate: number }>(
-      "/api/admin/stats"
-    ),
+  stats: () => request<AdminStats>("/api/admin/stats"),
   participants: (id: string) => request<Registration[]>(`/api/tournaments/${id}/participants`),
   addParticipant: (id: string, data: unknown) =>
     request<Registration>(`/api/admin/tournaments/${id}/participants`, { method: "POST", body: JSON.stringify(data) }),
+  adminCheckIn: (token: string) => request<Registration>("/api/admin/check-in", { method: "POST", body: JSON.stringify({ token }) }),
   removeRegistration: (id: string) => request<Registration>(`/api/admin/registrations/${id}`, { method: "DELETE" }),
   liveState: (id: string) => request<TournamentLiveState>(`/api/admin/tournaments/${id}/live`),
   moveLiveSeat: (tournamentId: string, registrationId: string, data: { tableNumber: number; seatNumber: number }) =>

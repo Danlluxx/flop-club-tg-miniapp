@@ -6,6 +6,7 @@ import { ArrowRight, CalendarClock, ChevronRight, HelpCircle, MapPin, Spade } fr
 import { Link } from "react-router-dom";
 import { RatingBoard } from "../components/RatingBoard";
 import { api } from "../lib/api";
+import { startOfBarnaulDayIso } from "../lib/barnaulDate";
 import { getPlayerStatus, getStatusProgress } from "../lib/playerStatuses";
 import { tournamentEventImage } from "../lib/tournamentAssets";
 import type { Tournament, User } from "../types";
@@ -23,9 +24,10 @@ function initials(user: User) {
 
 function nextTournamentQuery() {
   const now = new Date();
+  const from = startOfBarnaulDayIso(now);
   const params = new URLSearchParams();
-  params.set("from", now.toISOString());
-  params.set("to", addDays(now, 7).toISOString());
+  params.set("from", from);
+  params.set("to", addDays(new Date(from), 7).toISOString());
   params.set("status", "OPEN");
   return `?${params.toString()}`;
 }

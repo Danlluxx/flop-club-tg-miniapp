@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { addDays, endOfDay } from "date-fns";
+import { addDays } from "date-fns";
 import { api } from "../lib/api";
+import { endOfBarnaulDayIso, startOfBarnaulDayIso } from "../lib/barnaulDate";
 import { SkeletonCard } from "../components/Skeleton";
 import { TournamentCard } from "../components/TournamentCard";
 
@@ -9,16 +10,17 @@ const filters = ["today", "open", "all"] as const;
 const labels = { today: "Сегодня", open: "Открытые", all: "Неделя" };
 
 export function TournamentsPage() {
-  const [filter, setFilter] = useState<(typeof filters)[number]>("all");
+  const [filter, setFilter] = useState<(typeof filters)[number]>("today");
   const query = useMemo(() => {
     const now = new Date();
+    const from = startOfBarnaulDayIso(now);
     const params = new URLSearchParams();
-    params.set("from", now.toISOString());
-    params.set("to", addDays(now, 7).toISOString());
+    params.set("from", from);
+    params.set("to", addDays(new Date(from), 7).toISOString());
 
     if (filter === "open") params.set("status", "OPEN");
     if (filter === "today") {
-      params.set("to", endOfDay(now).toISOString());
+      params.set("to", endOfBarnaulDayIso(now));
     }
 
     return `?${params.toString()}`;

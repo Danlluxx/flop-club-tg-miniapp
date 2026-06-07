@@ -7,8 +7,9 @@ import type { ClubAward } from "../types";
 
 function AwardTile({ award }: { award: ClubAward }) {
   return (
-    <div className={award.unlocked ? "awards-page-tile awards-page-tile-open" : "awards-page-tile"} title={award.title}>
+    <div className={award.unlocked ? "awards-page-tile awards-page-tile-open" : "awards-page-tile"} title={award.title} tabIndex={0}>
       <img src={awardImage(award.title, award.unlocked)} alt={award.title} />
+      <span>{award.title}</span>
     </div>
   );
 }
@@ -32,6 +33,10 @@ export function AwardsPage() {
       <div className="awards-counter">
         {unlockedCount} / {awards.length}
       </div>
+
+      <p className="awards-page-note">
+        Награды за турниры можно открыть, выиграв соответствующий турнир Flop Club.
+      </p>
     </section>
   );
 }

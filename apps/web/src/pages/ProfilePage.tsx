@@ -4,7 +4,6 @@ import { CalendarClock, Camera, ChevronRight, Folder, Images, Mail, Save, Send, 
 import { Link } from "react-router-dom";
 import { RatingBoard } from "../components/RatingBoard";
 import { RatingIcon } from "../components/RatingIcon";
-import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/Toast";
 import type { ClubAward, Registration, User } from "../types";
 import { api } from "../lib/api";
@@ -68,7 +67,6 @@ function RegistrationList({ items, emptyText }: { items: Registration[]; emptyTe
                 {new Date(item.tournament.startsAt).toLocaleString("ru-RU")}
               </p>
             </div>
-            <StatusBadge status={item.tournament.status} />
           </div>
           {item.tableNumber && item.seatNumber && (
             <p className="mt-3 text-sm font-bold text-electric">Стол {item.tableNumber} · бокс {item.seatNumber}</p>
@@ -120,8 +118,8 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
   const [emailEditorOpen, setEmailEditorOpen] = useState(false);
   const [emailValue, setEmailValue] = useState(user.email ?? "");
   const { showToast } = useToast();
-  const active = data?.filter((item) => item.status === "ACTIVE") ?? [];
-  const past = data?.filter((item) => item.status !== "ACTIVE") ?? [];
+  const active = data?.filter((item) => item.status === "ACTIVE" && item.tournament?.status !== "FINISHED" && item.tournament?.status !== "CANCELLED") ?? [];
+  const past = data?.filter((item) => item.status !== "ACTIVE" || item.tournament?.status === "FINISHED" || item.tournament?.status === "CANCELLED") ?? [];
   const name = displayName(user);
   const ratingPoints = user.ratingPoints ?? 0;
   const currentStatus = getPlayerStatus(ratingPoints);

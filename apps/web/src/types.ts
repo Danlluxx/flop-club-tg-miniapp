@@ -51,6 +51,8 @@ export type Registration = {
   tournamentId: string;
   status: RegistrationStatus;
   liveStatus: ParticipantLiveStatus;
+  checkInToken: string;
+  checkedInAt?: string | null;
   tableNumber?: number | null;
   seatNumber?: number | null;
   finishPlace?: number | null;

@@ -8,21 +8,25 @@ import { registerForTournament } from "../services/tournaments.js";
 import { applyTournamentRatingResults, getRatingAwards } from "../services/rating.js";
 import { autoReseatTournament, formFinalTable, getTournamentLiveState, moveLiveSeat, recordElimination } from "../services/liveTournament.js";
 import { buildGameDayRatingWorkbook } from "../services/dayReport.js";
+import { dateKey } from "../services/tournamentSchedule.js";
 
 export const adminRouter = express.Router();
 adminRouter.use(requireAuth, requireAdmin);
 
 adminRouter.get("/stats", async (_req, res, next) => {
   try {
-    const [totalTournaments, activeTournaments, totalRegistrations, tournaments] = await Promise.all([
+    const [totalTournaments, activeTournaments, totalRegistrations, totalUsers, tournaments] = await Promise.all([
       prisma.tournament.count(),
       prisma.tournament.count({ where: { status: TournamentStatus.OPEN } }),
       prisma.registration.count({ where: { status: RegistrationStatus.ACTIVE } }),
+      prisma.user.count(),
       prisma.tournament.findMany({
         select: {
+          startsAt: true,
           maxParticipants: true,
           _count: { select: { registrations: { where: { status: RegistrationStatus.ACTIVE } } } }
-        }
+        },
+        orderBy: { startsAt: "asc" }
       })
     ]);
 
@@ -30,7 +34,26 @@ adminRouter.get("/stats", async (_req, res, next) => {
       ? tournaments.reduce((sum, item) => sum + item._count.registrations / item.maxParticipants, 0) / tournaments.length
       : 0;
 
-    res.json({ totalTournaments, activeTournaments, totalRegistrations, averageFillRate });
+    const dailyFillMap = new Map<string, { tournaments: number; registrations: number; capacity: number; fillRateSum: number }>();
+    for (const tournament of tournaments) {
+      const key = dateKey(tournament.startsAt);
+      const current = dailyFillMap.get(key) ?? { tournaments: 0, registrations: 0, capacity: 0, fillRateSum: 0 };
+      current.tournaments += 1;
+      current.registrations += tournament._count.registrations;
+      current.capacity += tournament.maxParticipants;
+      current.fillRateSum += tournament._count.registrations / tournament.maxParticipants;
+      dailyFillMap.set(key, current);
+    }
+
+    const dailyFillRates = [...dailyFillMap.entries()].map(([date, item]) => ({
+      date,
+      tournaments: item.tournaments,
+      registrations: item.registrations,
+      capacity: item.capacity,
+      averageFillRate: item.fillRateSum / item.tournaments
+    }));
+
+    res.json({ totalTournaments, activeTournaments, totalRegistrations, totalUsers, averageFillRate, dailyFillRates });
   } catch (error) {
     next(error);
   }
@@ -65,6 +88,40 @@ const moveSeatSchema = z.object({
 const knockoutSchema = z.object({
   eliminatedRegistrationId: z.string().min(1),
   killerRegistrationId: z.string().min(1).optional().nullable()
+});
+
+const checkInSchema = z.object({
+  token: z.string().min(8)
+});
+
+function normalizeCheckInToken(token: string) {
+  return token.trim().replace(/^flop-checkin:/i, "");
+}
+
+adminRouter.post("/check-in", async (req, res, next) => {
+  try {
+    const payload = checkInSchema.parse(req.body);
+    const checkInToken = normalizeCheckInToken(payload.token);
+    const registration = await prisma.registration.findUnique({
+      where: { checkInToken },
+      include: { user: true, tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.status !== RegistrationStatus.ACTIVE) {
+      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
+    }
+
+    const checkedInAt = registration.checkedInAt ?? new Date();
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { checkedInAt },
+      include: { user: true, tournament: true }
+    });
+    console.log(`[admin:check-in] registration=${updated.id} tournament=${updated.tournamentId} user=${updated.userId}`);
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
 });
 
 adminRouter.post("/tournaments/:id/participants", async (req, res, next) => {

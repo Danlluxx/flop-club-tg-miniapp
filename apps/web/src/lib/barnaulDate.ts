@@ -26,6 +26,18 @@ export function barnaulDateTimeInputToIso(value: string) {
   return new Date(`${value}:00+07:00`).toISOString();
 }
 
+export function barnaulDateKey(value: string | Date = new Date()) {
+  return toBarnaulDateTimeInput(value).slice(0, 10);
+}
+
+export function startOfBarnaulDayIso(value: string | Date = new Date()) {
+  return new Date(`${barnaulDateKey(value)}T00:00:00+07:00`).toISOString();
+}
+
+export function endOfBarnaulDayIso(value: string | Date = new Date()) {
+  return new Date(`${barnaulDateKey(value)}T23:59:59.999+07:00`).toISOString();
+}
+
 export function formatBarnaulDateTime(value: string | Date) {
   return new Intl.DateTimeFormat("ru-RU", {
     timeZone,

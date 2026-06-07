@@ -102,6 +102,8 @@ model Registration {
   tournamentId String
   status       RegistrationStatus @default(ACTIVE)
   liveStatus   ParticipantLiveStatus @default(IN_GAME)
+  checkInToken String             @unique @default(uuid())
+  checkedInAt  DateTime?
   tableNumber  Int?
   seatNumber   Int?
   finishPlace  Int?
@@ -118,6 +120,7 @@ model Registration {
   @@index([tournamentId])
   @@index([userId])
   @@index([tournamentId, liveStatus])
+  @@index([tournamentId, checkedInAt])
   @@index([tournamentId, finishPlace])
   @@index([tournamentId, tableNumber, seatNumber])
 }
