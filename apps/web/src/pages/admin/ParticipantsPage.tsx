@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Armchair, Download, PlusCircle, Save, Shuffle, Skull, Trophy, Trash2, UsersRound, Zap } from "lucide-react";
+import { Armchair, Download, PlusCircle, Save, Shuffle, Skull, Trophy, Trash2, UsersRound } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/Toast";
@@ -11,7 +11,6 @@ export function ParticipantsPage() {
   const [telegramId, setTelegramId] = useState("");
   const [username, setUsername] = useState("");
   const [entriesCount, setEntriesCount] = useState("");
-  const [ratingDraft, setRatingDraft] = useState<Record<string, { place: string; knockouts: string }>>({});
   const [seatDraft, setSeatDraft] = useState<Record<string, { tableNumber: string; seatNumber: string }>>({});
   const [eliminatedRegistrationId, setEliminatedRegistrationId] = useState("");
   const [killerRegistrationId, setKillerRegistrationId] = useState("");
@@ -30,26 +29,6 @@ export function ParticipantsPage() {
   useEffect(() => {
     if (!data || !ratingInfo) return;
     setEntriesCount(String(ratingInfo.entriesCount ?? data.length));
-    const registrationByUser = new Map(data.map((item) => [item.userId, item.id]));
-    const nextDraft: Record<string, { place: string; knockouts: string }> = {};
-    for (const result of ratingInfo.results) {
-      const registrationId = registrationByUser.get(result.userId);
-      if (registrationId) {
-        nextDraft[registrationId] = { place: String(result.place), knockouts: String(result.knockouts) };
-      }
-    }
-    if (!ratingInfo.results.length && ratingInfo.awards.length) {
-      const maxPlace = ratingInfo.awards.length;
-      for (const registration of data) {
-        if (registration.finishPlace && registration.finishPlace <= maxPlace) {
-          nextDraft[registration.id] = {
-            place: String(registration.finishPlace),
-            knockouts: "0"
-          };
-        }
-      }
-    }
-    setRatingDraft(nextDraft);
   }, [data, ratingInfo]);
 
   useEffect(() => {
@@ -69,6 +48,7 @@ export function ParticipantsPage() {
   const inGameParticipants = liveState?.inGame ?? [];
   const isKnockoutTournament = liveState?.tournament.profile === "KNOCKOUT";
   const reportDate = liveState?.tournament.startsAt ? new Date(liveState.tournament.startsAt).toISOString().slice(0, 10) : "";
+  const nextFinishPlace = eliminatedRegistrationId ? inGameParticipants.length : null;
 
   async function invalidateTournamentLive() {
     await Promise.all([
@@ -156,16 +136,26 @@ export function ParticipantsPage() {
 
   const saveRating = useMutation({
     mutationFn: () => {
-      const results = Object.entries(ratingDraft)
-        .filter(([, value]) => value.place.trim())
-        .map(([registrationId, value]) => ({
-          registrationId,
-          place: Number(value.place),
-          knockouts: Number(value.knockouts || 0)
-        }));
+      const maxRatingPlace = ratingInfo?.awards.length ?? 0;
+      const knockoutsByRegistration = new Map<string, number>();
+      for (const knockout of liveState?.knockouts ?? []) {
+        const killerId = knockout.killerRegistrationId;
+        if (killerId) {
+          knockoutsByRegistration.set(killerId, (knockoutsByRegistration.get(killerId) ?? 0) + 1);
+        }
+      }
+
+      const results = participants
+        .filter((item) => item.finishPlace && item.finishPlace <= maxRatingPlace)
+        .map((item) => ({
+          registrationId: item.id,
+          place: item.finishPlace!,
+          knockouts: knockoutsByRegistration.get(item.id) ?? 0
+        }))
+        .sort((a, b) => a.place - b.place);
 
       if (!results.length) {
-        throw new Error("Укажите хотя бы одно место в рейтинге");
+        throw new Error("Сначала зафиксируйте вылеты игроков");
       }
 
       return api.saveRatingResults(id, {
@@ -283,7 +273,7 @@ export function ParticipantsPage() {
         >
           <p className="flex items-center gap-2 text-base font-black">
             <Skull className="h-5 w-5 text-rose-300" />
-            Вылет игрока
+            Игрок выбыл
           </p>
           <select
             className="w-full rounded-2xl border border-white/10 bg-graphite px-3 py-3 text-sm font-semibold text-white outline-none focus:border-rose-400"
@@ -296,6 +286,11 @@ export function ParticipantsPage() {
               <option key={item.id} value={item.id}>{participantName(item)}</option>
             ))}
           </select>
+          {nextFinishPlace ? (
+            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm font-bold text-rose-100">
+              После фиксации игрок автоматически получит {nextFinishPlace} место.
+            </div>
+          ) : null}
           {isKnockoutTournament ? (
             <select
               className="w-full rounded-2xl border border-white/10 bg-graphite px-3 py-3 text-sm font-semibold text-white outline-none focus:border-rose-400"
@@ -309,7 +304,7 @@ export function ParticipantsPage() {
             </select>
           ) : null}
           <button className="app-button-primary w-full" disabled={elimination.isPending || !eliminatedRegistrationId}>
-            Зафиксировать
+            Игрок выбыл
           </button>
         </form>
 
@@ -341,7 +336,7 @@ export function ParticipantsPage() {
               Рейтинг турнира
             </p>
             <p className="mt-1 text-sm font-bold text-slate-400">
-              Очки получает верхние 20% участников.
+              Очки получает верхние 20% участников. Места берутся автоматически из вылетов.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -469,33 +464,6 @@ export function ParticipantsPage() {
                 </button>
               </div>
             ) : null}
-
-            <div className={isKnockoutTournament ? "grid grid-cols-2 gap-2" : "grid grid-cols-1 gap-2"}>
-              <label className="relative">
-                <Trophy className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
-                <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-10 pr-3 text-sm font-bold outline-none focus:border-rose-400"
-                  type="number"
-                  min={1}
-                  placeholder="Место"
-                  value={ratingDraft[item.id]?.place ?? ""}
-                  onChange={(event) => setRatingDraft((draft) => ({ ...draft, [item.id]: { place: event.target.value, knockouts: draft[item.id]?.knockouts ?? "" } }))}
-                />
-              </label>
-              {isKnockoutTournament ? (
-                <label className="relative">
-                  <Zap className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
-                  <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-10 pr-3 text-sm font-bold outline-none focus:border-rose-400"
-                    type="number"
-                    min={0}
-                    placeholder="Нокауты"
-                    value={ratingDraft[item.id]?.knockouts ?? ""}
-                    onChange={(event) => setRatingDraft((draft) => ({ ...draft, [item.id]: { place: draft[item.id]?.place ?? "", knockouts: event.target.value } }))}
-                  />
-                </label>
-              ) : null}
-            </div>
           </div>
         ))}
       </div>
