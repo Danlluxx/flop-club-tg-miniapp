@@ -24,7 +24,16 @@ adminRouter.get("/stats", async (_req, res, next) => {
         select: {
           startsAt: true,
           maxParticipants: true,
-          _count: { select: { registrations: { where: { status: RegistrationStatus.ACTIVE } } } }
+          _count: {
+            select: {
+              registrations: {
+                where: {
+                  status: RegistrationStatus.ACTIVE,
+                  checkedInAt: { not: null }
+                }
+              }
+            }
+          }
         },
         orderBy: { startsAt: "asc" }
       })
