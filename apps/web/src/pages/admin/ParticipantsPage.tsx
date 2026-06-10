@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Armchair, Download, PlusCircle, Save, Shuffle, Skull, Trophy, Trash2, UsersRound } from "lucide-react";
 import { useParams } from "react-router-dom";
@@ -8,8 +8,6 @@ import type { Registration } from "../../types";
 
 export function ParticipantsPage() {
   const { id = "" } = useParams();
-  const [telegramId, setTelegramId] = useState("");
-  const [username, setUsername] = useState("");
   const [entriesCount, setEntriesCount] = useState("");
   const [seatDraft, setSeatDraft] = useState<Record<string, { tableNumber: string; seatNumber: string }>>({});
   const [eliminatedRegistrationId, setEliminatedRegistrationId] = useState("");
@@ -57,17 +55,6 @@ export function ParticipantsPage() {
       queryClient.invalidateQueries({ queryKey: ["tournament", id] })
     ]);
   }
-
-  const add = useMutation({
-    mutationFn: () => api.addParticipant(id, { telegramId, username }),
-    onSuccess: async () => {
-      setTelegramId("");
-      setUsername("");
-      showToast("Участник добавлен");
-      await invalidateTournamentLive();
-    },
-    onError: (error) => showToast(error.message, "error")
-  });
 
   const remove = useMutation({
     mutationFn: api.removeRegistration,
@@ -174,11 +161,6 @@ export function ParticipantsPage() {
     onError: (error) => showToast(error.message, "error")
   });
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    add.mutate();
-  }
-
   function participantName(item: Registration) {
     return item.user?.displayName || [item.user?.firstName, item.user?.lastName].filter(Boolean).join(" ") || item.user?.username || item.user?.telegramId || "Игрок";
   }
@@ -188,12 +170,6 @@ export function ParticipantsPage() {
       <div className="flex items-center justify-between">
         <h2 className="page-title text-[3rem]">Участники</h2>
       </div>
-
-      <form onSubmit={submit} className="app-panel space-y-3 p-4">
-        <input className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-3" placeholder="Telegram ID" value={telegramId} onChange={(e) => setTelegramId(e.target.value)} />
-        <input className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-3" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-        <button className="app-button-primary w-full">Добавить вручную</button>
-      </form>
 
       <section className="app-panel space-y-4 p-4">
         <div className="flex items-start justify-between gap-3">

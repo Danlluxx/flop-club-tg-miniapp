@@ -7,13 +7,28 @@ type CheckInQrProps = {
   registration: Registration;
 };
 
+function buildCheckInUrl(token: string) {
+  const botUsername = String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "FlopClubBot").replace(/^@/, "");
+  const appName = String(import.meta.env.VITE_TELEGRAM_APP_NAME || "").replace(/^\/|\/$/g, "");
+  const startParam = encodeURIComponent(`checkin_${token}`);
+
+  if (botUsername) {
+    const botPath = appName ? `${botUsername}/${appName}` : botUsername;
+    return `https://t.me/${botPath}?startapp=${startParam}`;
+  }
+
+  const url = new URL(window.location.origin);
+  url.searchParams.set("checkInToken", token);
+  return url.toString();
+}
+
 export function CheckInQr({ registration }: CheckInQrProps) {
   const [qrUrl, setQrUrl] = useState("");
   const isCheckedIn = Boolean(registration.checkedInAt);
 
   useEffect(() => {
     let alive = true;
-    QRCode.toDataURL(`flop-checkin:${registration.checkInToken}`, {
+    QRCode.toDataURL(buildCheckInUrl(registration.checkInToken), {
       errorCorrectionLevel: "M",
       margin: 1,
       width: 220,
@@ -37,7 +52,7 @@ export function CheckInQr({ registration }: CheckInQrProps) {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">QR на входе</p>
           <h2 className="mt-2 text-xl font-black text-white">{isCheckedIn ? "Вы участвуете" : "Покажите администратору"}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-400">
-            {isCheckedIn ? "Приход уже подтвержден." : "После скана статус изменится с “Записан” на “Участвует”."}
+            {isCheckedIn ? "Приход уже подтвержден." : "Менеджер сканирует QR обычной камерой, приложение подтвердит участие."}
           </p>
         </div>
         <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-black ${

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { BrowserRouter } from "react-router-dom";
 import { api, setToken } from "./lib/api";
-import { getInitData, initTelegram } from "./lib/telegram";
+import { getInitData, getStartParam, initTelegram } from "./lib/telegram";
 import type { User } from "./types";
 import { Layout } from "./components/Layout";
 import { ToastProvider } from "./components/Toast";
@@ -21,6 +21,7 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminTournaments } from "./pages/admin/AdminTournaments";
 import { TournamentForm } from "./pages/admin/TournamentForm";
 import { ParticipantsPage } from "./pages/admin/ParticipantsPage";
+import { AdminCheckInPage } from "./pages/admin/AdminCheckInPage";
 import { currentRulesVersion, RulesGate } from "./components/RulesGate";
 import { NameGate } from "./components/NameGate";
 import { IntroCarousel } from "./components/IntroCarousel";
@@ -32,11 +33,22 @@ function AdminOnly({ user, children }: { user: User; children: React.ReactNode }
   return children;
 }
 
+function checkInTokenFromStartParam(startParam: string) {
+  if (!startParam.startsWith("checkin_")) return "";
+  return startParam.slice("checkin_".length);
+}
+
 function AppRoutes({ user, onUserUpdated }: { user: User; onUserUpdated: (user: User) => void }) {
+  const [searchParams] = useSearchParams();
+  const checkInToken = searchParams.get("checkInToken") || checkInTokenFromStartParam(getStartParam());
+
   return (
     <Routes>
       <Route element={<Layout user={user} />}>
-        <Route index element={<HomePage user={user} />} />
+        <Route
+          index
+          element={checkInToken ? <AdminOnly user={user}><AdminCheckInPage token={checkInToken} /></AdminOnly> : <HomePage user={user} />}
+        />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/tournaments/:id" element={<TournamentPage />} />
         <Route path="/rating" element={<RatingPage user={user} />} />
@@ -51,6 +63,7 @@ function AppRoutes({ user, onUserUpdated }: { user: User; onUserUpdated: (user: 
         <Route path="/admin/tournaments/new" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />
         <Route path="/admin/tournaments/:id/edit" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />
         <Route path="/admin/tournaments/:id/participants" element={<AdminOnly user={user}><ParticipantsPage /></AdminOnly>} />
+        <Route path="/check-in/:token" element={<AdminOnly user={user}><AdminCheckInPage /></AdminOnly>} />
       </Route>
     </Routes>
   );

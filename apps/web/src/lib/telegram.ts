@@ -15,6 +15,15 @@ export function getInitData() {
   return WebApp.initData || import.meta.env.VITE_DEV_INIT_DATA || "";
 }
 
+export function getStartParam() {
+  try {
+    const unsafe = WebApp as typeof WebApp & { initDataUnsafe?: { start_param?: string } };
+    return unsafe.initDataUnsafe?.start_param || "";
+  } catch {
+    return "";
+  }
+}
+
 export function haptic(type: "success" | "error" | "warning" = "success") {
   try {
     WebApp.HapticFeedback.notificationOccurred(type);
