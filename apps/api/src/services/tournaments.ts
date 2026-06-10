@@ -51,48 +51,48 @@ export async function registerForTournament(userId: string, tournamentId: string
       assertReEntryAllowed(tournament.profile, previousActiveEntries);
     }
 
-    const occupiedSeats = await tx.registration.findMany({
-      where: {
-        tournamentId,
-        status: RegistrationStatus.ACTIVE,
-        liveStatus: "IN_GAME",
-        tableNumber: { not: null },
-        seatNumber: { not: null }
-      },
-      select: { tableNumber: true, seatNumber: true }
-    });
-    const occupied = new Set(occupiedSeats.map((seat) => `${seat.tableNumber}:${seat.seatNumber}`));
-    let tableNumber: number | undefined;
-    let seatNumber: number | undefined;
-
-    for (let place = 0; place < seatLimit; place += 1) {
-      const table = Math.floor(place / SEATS_PER_TABLE) + 1;
-      const seat = (place % SEATS_PER_TABLE) + 1;
-      if (!occupied.has(`${table}:${seat}`)) {
-        tableNumber = table;
-        seatNumber = seat;
-        break;
-      }
-    }
-
-    if (!tableNumber || !seatNumber) {
-      throw new AppError(409, "Tournament is full", "TOURNAMENT_FULL");
-    }
-
     const registration = await tx.registration.create({
       data: {
         userId,
         tournamentId,
-        tableNumber,
-        seatNumber,
         entryNumber: previousActiveEntries + 1
       }
     });
     console.log(
-      `[registration:create] user=${userId} tournament=${tournamentId} table=${tableNumber} seat=${seatNumber} entry=${registration.entryNumber}`
+      `[registration:create] user=${userId} tournament=${tournamentId} seat=pending entry=${registration.entryNumber}`
     );
     return registration;
   });
+}
+
+export async function assignNextAvailableSeat(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+  maxParticipants: number,
+  registrationId?: string
+) {
+  const seatLimit = Math.min(maxParticipants, TOURNAMENT_MAX_PARTICIPANTS);
+  const occupiedSeats = await tx.registration.findMany({
+    where: {
+      tournamentId,
+      ...(registrationId ? { id: { not: registrationId } } : {}),
+      status: RegistrationStatus.ACTIVE,
+      liveStatus: "IN_GAME",
+      checkedInAt: { not: null },
+      tableNumber: { not: null },
+      seatNumber: { not: null }
+    },
+    select: { tableNumber: true, seatNumber: true }
+  });
+  const occupied = new Set(occupiedSeats.map((seat) => `${seat.tableNumber}:${seat.seatNumber}`));
+
+  for (let place = 0; place < seatLimit; place += 1) {
+    const tableNumber = Math.floor(place / SEATS_PER_TABLE) + 1;
+    const seatNumber = (place % SEATS_PER_TABLE) + 1;
+    if (!occupied.has(`${tableNumber}:${seatNumber}`)) return { tableNumber, seatNumber };
+  }
+
+  throw new AppError(409, "Tournament is full", "TOURNAMENT_FULL");
 }
 
 export async function cancelRegistration(userId: string, tournamentId: string, isAdmin = false) {

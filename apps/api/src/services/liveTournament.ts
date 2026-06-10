@@ -30,7 +30,7 @@ export async function moveLiveSeat(tournamentId: string, registrationId: string,
   await prisma.$transaction(async (tx) => {
     const registration = await tx.registration.findUnique({ where: { id: registrationId } });
     if (!registration || registration.tournamentId !== tournamentId) throw notFound("Registration");
-    if (registration.status !== RegistrationStatus.ACTIVE || registration.liveStatus !== "IN_GAME") {
+    if (registration.status !== RegistrationStatus.ACTIVE || registration.liveStatus !== "IN_GAME" || !registration.checkedInAt) {
       throw new AppError(409, "Only active in-game participants can be moved", "PARTICIPANT_NOT_IN_GAME");
     }
 
@@ -40,6 +40,7 @@ export async function moveLiveSeat(tournamentId: string, registrationId: string,
         id: { not: registrationId },
         status: RegistrationStatus.ACTIVE,
         liveStatus: "IN_GAME",
+        checkedInAt: { not: null },
         tableNumber,
         seatNumber
       }
@@ -70,7 +71,7 @@ export async function formFinalTable(tournamentId: string) {
   await prisma.$transaction(async (tx) => {
     await ensureTournamentExists(tx, tournamentId);
     const registrations = await tx.registration.findMany({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" },
+      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } },
       orderBy: [{ tableNumber: "asc" }, { seatNumber: "asc" }, { createdAt: "asc" }]
     });
 
@@ -83,7 +84,7 @@ export async function formFinalTable(tournamentId: string) {
 
     const shuffled = shuffle(registrations);
     await tx.registration.updateMany({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" },
+      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } },
       data: { tableNumber: null, seatNumber: null }
     });
 
@@ -110,7 +111,7 @@ export async function recordElimination(
 
     const eliminated = await tx.registration.findUnique({ where: { id: eliminatedRegistrationId } });
     if (!eliminated || eliminated.tournamentId !== tournamentId) throw notFound("Eliminated registration");
-    if (eliminated.status !== RegistrationStatus.ACTIVE || eliminated.liveStatus !== "IN_GAME") {
+    if (eliminated.status !== RegistrationStatus.ACTIVE || eliminated.liveStatus !== "IN_GAME" || !eliminated.checkedInAt) {
       throw new AppError(409, "Participant is already eliminated or cancelled", "PARTICIPANT_NOT_IN_GAME");
     }
 
@@ -122,14 +123,14 @@ export async function recordElimination(
 
       const killer = await tx.registration.findUnique({ where: { id: killerRegistrationId } });
       if (!killer || killer.tournamentId !== tournamentId) throw notFound("Killer registration");
-      if (killer.status !== RegistrationStatus.ACTIVE || killer.liveStatus !== "IN_GAME") {
+      if (killer.status !== RegistrationStatus.ACTIVE || killer.liveStatus !== "IN_GAME" || !killer.checkedInAt) {
         throw new AppError(409, "Killer must be active in game", "KILLER_NOT_IN_GAME");
       }
       killerId = killer.id;
     }
 
     const inGameCountBefore = await tx.registration.count({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" }
+      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } }
     });
     const finishPlace = Math.max(1, inGameCountBefore);
 
@@ -159,7 +160,7 @@ export async function recordElimination(
     });
 
     const remaining = await tx.registration.findMany({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" },
+      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } },
       orderBy: { createdAt: "asc" }
     });
     if (remaining.length === 1 && remaining[0].finishPlace === null) {
@@ -185,7 +186,7 @@ async function ensureTournamentExists(tx: Prisma.TransactionClient, tournamentId
 
 async function balanceSeats(tx: Prisma.TransactionClient, tournamentId: string) {
   const registrations = await tx.registration.findMany({
-    where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" },
+    where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } },
     select: { id: true, tableNumber: true, seatNumber: true, createdAt: true },
     orderBy: [{ tableNumber: "asc" }, { seatNumber: "asc" }, { createdAt: "asc" }]
   });
@@ -401,7 +402,7 @@ async function buildLiveState(tx: Prisma.TransactionClient, tournamentId: string
     })
   ]);
 
-  const inGame = registrations.filter((registration) => registration.liveStatus === "IN_GAME");
+  const inGame = registrations.filter((registration) => registration.liveStatus === "IN_GAME" && registration.checkedInAt);
   const eliminated = registrations.filter((registration) => registration.liveStatus === "ELIMINATED");
   const bySeat = new Map(inGame.map((registration) => [`${registration.tableNumber}:${registration.seatNumber}`, registration]));
 

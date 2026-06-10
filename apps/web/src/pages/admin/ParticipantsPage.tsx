@@ -165,6 +165,12 @@ export function ParticipantsPage() {
     return item.user?.displayName || [item.user?.firstName, item.user?.lastName].filter(Boolean).join(" ") || item.user?.username || item.user?.telegramId || "Игрок";
   }
 
+  function participantState(item: Registration) {
+    if (item.liveStatus === "ELIMINATED") return { label: "выбыл", className: "bg-slate-500/15 text-slate-400" };
+    if (item.checkedInAt) return { label: "в игре", className: "bg-emerald/15 text-emerald" };
+    return { label: "записан", className: "bg-amber-300/15 text-amber-200" };
+  }
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
@@ -366,15 +372,13 @@ export function ParticipantsPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="truncate font-bold">{participantName(item)}</p>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-[0.65rem] font-black uppercase ${
-                    item.liveStatus === "ELIMINATED" ? "bg-slate-500/15 text-slate-400" : "bg-emerald/15 text-emerald"
-                  }`}>
-                    {item.liveStatus === "ELIMINATED" ? "выбыл" : "в игре"}
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[0.65rem] font-black uppercase ${participantState(item).className}`}>
+                    {participantState(item).label}
                   </span>
                 </div>
                 <p className="truncate text-sm text-slate-400">@{item.user?.username ?? "no_username"} · {item.user?.telegramId}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-bold">
-                  {item.tableNumber && item.seatNumber ? (
+                  {item.checkedInAt && item.tableNumber && item.seatNumber ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-electric">
                       <Armchair className="h-3.5 w-3.5" />
                       Стол {item.tableNumber}, бокс {item.seatNumber}
@@ -392,7 +396,7 @@ export function ParticipantsPage() {
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
-                {liveState?.tournament.addOnEnabled && item.liveStatus === "IN_GAME" && item.addOnCount < 1 ? (
+                {liveState?.tournament.addOnEnabled && item.liveStatus === "IN_GAME" && item.checkedInAt && item.addOnCount < 1 ? (
                   <button
                     onClick={() => addOn.mutate(item.id)}
                     className="grid h-10 w-10 place-items-center rounded-full bg-violet/15 text-violet"
@@ -406,7 +410,7 @@ export function ParticipantsPage() {
               </div>
             </div>
 
-            {item.liveStatus === "IN_GAME" ? (
+            {item.liveStatus === "IN_GAME" && item.checkedInAt ? (
               <div className="grid grid-cols-[1fr_1fr_auto] gap-2 rounded-2xl border border-white/8 bg-white/[0.03] p-2">
                 <input
                   className="min-w-0 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-bold outline-none focus:border-rose-400"
