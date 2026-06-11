@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Armchair } from "lucide-react";
 import { api } from "../lib/api";
 
 export function MyPage() {
@@ -29,12 +28,6 @@ export function MyPage() {
             }`}>
               {item.checkedInAt ? "Участвует" : "Записан"}
             </div>
-            {item.tableNumber && item.seatNumber && (
-              <div className="ml-2 mt-3 inline-flex items-center gap-2 rounded-full border border-electric/30 bg-electric/10 px-3 py-2 text-sm font-bold text-white">
-                <Armchair className="h-4 w-4 text-electric" />
-                Стол {item.tableNumber} · бокс {item.seatNumber}
-              </div>
-            )}
           </Link>
         ))}
       </div>

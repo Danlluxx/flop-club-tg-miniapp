@@ -68,9 +68,6 @@ function RegistrationList({ items, emptyText }: { items: Registration[]; emptyTe
               </p>
             </div>
           </div>
-          {item.tableNumber && item.seatNumber && (
-            <p className="mt-3 text-sm font-bold text-electric">Стол {item.tableNumber} · бокс {item.seatNumber}</p>
-          )}
         </Link>
       ))}
       {items.length === 0 && <div className="profile-empty">{emptyText}</div>}

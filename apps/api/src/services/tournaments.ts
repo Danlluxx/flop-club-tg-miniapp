@@ -78,7 +78,6 @@ export async function assignNextAvailableSeat(
       ...(registrationId ? { id: { not: registrationId } } : {}),
       status: RegistrationStatus.ACTIVE,
       liveStatus: "IN_GAME",
-      checkedInAt: { not: null },
       tableNumber: { not: null },
       seatNumber: { not: null }
     },

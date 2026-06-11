@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { Armchair, ArrowLeft, CalendarDays, MapPin, Users, WalletCards } from "lucide-react";
+import { ArrowLeft, CalendarDays, MapPin, Users, WalletCards } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { haptic } from "../lib/telegram";
@@ -73,12 +73,6 @@ export function TournamentPage() {
             <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-electric" />{format(new Date(data.startsAt), "d MMMM yyyy, HH:mm", { locale: ru })}</div>
             <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-rose-400" />{data.location}</div>
             <div className="flex items-center gap-2"><Users className="h-4 w-4 text-violet" />{data._count.registrations} из {data.maxParticipants} участников</div>
-            {data.myRegistration?.tableNumber && data.myRegistration?.seatNumber && (
-              <div className="flex items-center gap-2 font-bold text-white">
-                <Armchair className="h-4 w-4 text-electric" />
-                Ваше место: стол {data.myRegistration.tableNumber}, бокс {data.myRegistration.seatNumber}
-              </div>
-            )}
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
