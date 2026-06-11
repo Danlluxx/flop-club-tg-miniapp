@@ -15,6 +15,9 @@ const schema = z.object({
   JWT_SECRET: z.string().min(24),
   FRONTEND_URL: z.string().url(),
   ADMIN_TELEGRAM_USERNAMES: z.string().default("danlluxx"),
+  TELEGRAM_REMINDER_CHAT_ID: z.string().optional(),
+  TOURNAMENT_REMINDER_BROADCAST_USERS: z.coerce.boolean().default(true),
+  TOURNAMENT_REMINDERS_ENABLED: z.coerce.boolean().default(true),
   ALLOW_CANCEL_AFTER_CLOSE: z.coerce.boolean().default(false),
   DEV_TELEGRAM_ID: z.string().optional(),
   DEV_TELEGRAM_USERNAME: z.string().optional()

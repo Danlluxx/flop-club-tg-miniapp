@@ -32,6 +32,15 @@ export type AdminStats = {
     capacity: number;
     averageFillRate: number;
   }>;
+  tournamentFillRates: Array<{
+    id: string;
+    title: string;
+    startsAt: string;
+    status: "OPEN" | "CLOSED" | "CANCELLED" | "FINISHED";
+    participants: number;
+    capacity: number;
+    fillRate: number;
+  }>;
 };
 
 let token = localStorage.getItem("flop.token");

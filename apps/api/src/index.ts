@@ -9,6 +9,7 @@ import { meRouter } from "./routes/me.js";
 import { adminRouter } from "./routes/admin.js";
 import { ratingRouter } from "./routes/rating.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { startTournamentReminderScheduler } from "./services/telegramReminders.js";
 
 const app = express();
 const allowedOrigins = new Set([
@@ -41,4 +42,5 @@ app.use(errorHandler);
 
 app.listen(config.PORT, () => {
   console.log(`[api] listening on :${config.PORT}`);
+  startTournamentReminderScheduler();
 });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Armchair, Download, PlusCircle, Save, Shuffle, Skull, Trophy, Trash2, UsersRound } from "lucide-react";
+import { Armchair, Download, PlusCircle, Save, Shuffle, Skull, Trophy, Trash2, UserCheck, UsersRound } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/Toast";
@@ -111,6 +111,18 @@ export function ParticipantsPage() {
     mutationFn: api.addOn,
     onSuccess: async () => {
       showToast("Add-on отмечен");
+      await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
+  const checkInParticipant = useMutation({
+    mutationFn: api.adminCheckIn,
+    onSuccess: async (registration) => {
+      const seat = registration.tableNumber && registration.seatNumber
+        ? `Стол ${registration.tableNumber}, бокс ${registration.seatNumber}`
+        : "Место назначено";
+      showToast(`Участник отмечен: ${seat}`);
       await invalidateTournamentLive();
     },
     onError: (error) => showToast(error.message, "error")
@@ -396,6 +408,18 @@ export function ParticipantsPage() {
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
+                {item.liveStatus === "IN_GAME" && !item.checkedInAt ? (
+                  <button
+                    onClick={() => checkInParticipant.mutate(item.checkInToken)}
+                    className="tap inline-flex h-10 items-center gap-1.5 rounded-full bg-emerald/15 px-3 text-xs font-black text-emerald disabled:opacity-50"
+                    type="button"
+                    disabled={checkInParticipant.isPending}
+                    aria-label="Отметить участника"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    Отметить
+                  </button>
+                ) : null}
                 {liveState?.tournament.addOnEnabled && item.liveStatus === "IN_GAME" && item.checkedInAt && item.addOnCount < 1 ? (
                   <button
                     onClick={() => addOn.mutate(item.id)}

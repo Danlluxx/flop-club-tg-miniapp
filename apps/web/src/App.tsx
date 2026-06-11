@@ -22,6 +22,7 @@ import { AdminTournaments } from "./pages/admin/AdminTournaments";
 import { TournamentForm } from "./pages/admin/TournamentForm";
 import { ParticipantsPage } from "./pages/admin/ParticipantsPage";
 import { AdminCheckInPage } from "./pages/admin/AdminCheckInPage";
+import { AdminFillRatesPage } from "./pages/admin/AdminFillRatesPage";
 import { currentRulesVersion, RulesGate } from "./components/RulesGate";
 import { NameGate } from "./components/NameGate";
 import { IntroCarousel } from "./components/IntroCarousel";
@@ -59,6 +60,7 @@ function AppRoutes({ user, onUserUpdated }: { user: User; onUserUpdated: (user: 
         <Route path="/my" element={<MyPage />} />
         <Route path="/profile" element={<ProfilePage user={user} onUserUpdated={onUserUpdated} />} />
         <Route path="/admin" element={<AdminOnly user={user}><AdminDashboard /></AdminOnly>} />
+        <Route path="/admin/fill-rates" element={<AdminOnly user={user}><AdminFillRatesPage /></AdminOnly>} />
         <Route path="/admin/tournaments" element={<AdminOnly user={user}><AdminTournaments /></AdminOnly>} />
         <Route path="/admin/tournaments/new" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />
         <Route path="/admin/tournaments/:id/edit" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />

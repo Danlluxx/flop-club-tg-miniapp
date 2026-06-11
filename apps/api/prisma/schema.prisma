@@ -81,11 +81,23 @@ model Tournament {
   registrations     Registration[]
   ratingResults     TournamentRatingResult[]
   knockouts         Knockout[]
+  reminders         TournamentReminder[]
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   @@index([startsAt])
   @@index([status])
+}
+
+model TournamentReminder {
+  id           String     @id @default(cuid())
+  tournamentId String
+  kind         String
+  sentAt       DateTime   @default(now())
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, kind])
+  @@index([sentAt])
 }
 
 model DeletedScheduledTournament {

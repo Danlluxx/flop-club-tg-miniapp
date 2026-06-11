@@ -22,7 +22,10 @@ adminRouter.get("/stats", async (_req, res, next) => {
       prisma.user.count(),
       prisma.tournament.findMany({
         select: {
+          id: true,
+          title: true,
           startsAt: true,
+          status: true,
           maxParticipants: true,
           _count: {
             select: {
@@ -39,8 +42,21 @@ adminRouter.get("/stats", async (_req, res, next) => {
       })
     ]);
 
+    const tournamentFillRates = tournaments.map((tournament) => {
+      const participants = tournament._count.registrations;
+      return {
+        id: tournament.id,
+        title: tournament.title,
+        startsAt: tournament.startsAt,
+        status: tournament.status,
+        participants,
+        capacity: tournament.maxParticipants,
+        fillRate: tournament.maxParticipants > 0 ? participants / tournament.maxParticipants : 0
+      };
+    });
+
     const averageFillRate = tournaments.length
-      ? tournaments.reduce((sum, item) => sum + item._count.registrations / item.maxParticipants, 0) / tournaments.length
+      ? tournamentFillRates.reduce((sum, item) => sum + item.fillRate, 0) / tournamentFillRates.length
       : 0;
 
     const dailyFillMap = new Map<string, { tournaments: number; registrations: number; capacity: number; fillRateSum: number }>();
@@ -62,7 +78,7 @@ adminRouter.get("/stats", async (_req, res, next) => {
       averageFillRate: item.fillRateSum / item.tournaments
     }));
 
-    res.json({ totalTournaments, activeTournaments, totalRegistrations, totalUsers, averageFillRate, dailyFillRates });
+    res.json({ totalTournaments, activeTournaments, totalRegistrations, totalUsers, averageFillRate, dailyFillRates, tournamentFillRates });
   } catch (error) {
     next(error);
   }

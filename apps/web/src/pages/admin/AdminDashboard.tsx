@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Settings } from "lucide-react";
+import { ArrowRight, Plus, Settings } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { api } from "../../lib/api";
 
 export function AdminDashboard() {
   const { data, isLoading } = useQuery({ queryKey: ["admin", "stats"], queryFn: api.stats });
-  const dailyFillRates = data?.dailyFillRates ?? [];
+  const tournamentFillRates = data?.tournamentFillRates ?? [];
 
   return (
     <section className="space-y-4">
@@ -35,22 +35,25 @@ export function AdminDashboard() {
       <div className="app-panel p-4">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Заполнение по дням</p>
-            <p className="mt-1 text-sm font-semibold text-slate-400">Среднее по турнирам каждого дня</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Заполнение турниров</p>
+            <p className="mt-1 text-sm font-semibold text-slate-400">По занятым местам за столами</p>
           </div>
+          <Link to="/admin/fill-rates" className="tap grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/8 text-white" aria-label="Все турниры по заполнению">
+            <ArrowRight className="h-5 w-5" />
+          </Link>
         </div>
         <div className="mt-4 space-y-3">
           {isLoading && <p className="text-sm text-slate-400">Загрузка…</p>}
-          {!isLoading && dailyFillRates.length === 0 && <p className="text-sm text-slate-400">Данных пока нет.</p>}
-          {dailyFillRates.slice(0, 10).map((item) => {
-            const percent = Math.round(item.averageFillRate * 100);
+          {!isLoading && tournamentFillRates.length === 0 && <p className="text-sm text-slate-400">Данных пока нет.</p>}
+          {tournamentFillRates.slice(0, 5).map((item) => {
+            const percent = Math.round(item.fillRate * 100);
             return (
-              <div key={item.date} className="rounded-[1.25rem] bg-white/[0.04] p-3">
+              <Link key={item.id} to={`/admin/tournaments/${item.id}/participants`} className="tap block rounded-[1.25rem] bg-white/[0.04] p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-white">{format(parseISO(item.date), "d MMMM", { locale: ru })}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-white">{item.title}</p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                      {item.tournaments} турн. · {item.registrations}/{item.capacity}
+                      {format(parseISO(item.startsAt), "d MMMM", { locale: ru })} · {item.participants}/{item.capacity}
                     </p>
                   </div>
                   <p className="text-xl font-black text-white">{percent}%</p>
@@ -58,7 +61,7 @@ export function AdminDashboard() {
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
                   <div className="h-full rounded-full bg-gradient-to-r from-electric to-rose-400" style={{ width: `${Math.min(percent, 100)}%` }} />
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
