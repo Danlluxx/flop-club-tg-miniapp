@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Edit3, Trash2, Users } from "lucide-react";
 import { api } from "../../lib/api";
@@ -9,7 +10,17 @@ import { formatBarnaulDateTime } from "../../lib/barnaulDate";
 export function AdminTournaments() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const [tab, setTab] = useState<"active" | "finished">("active");
   const { data, isLoading } = useQuery({ queryKey: ["admin", "tournaments"], queryFn: () => api.tournaments() });
+  const activeTournaments = useMemo(
+    () => (data ?? []).filter((item) => item.status !== "FINISHED").sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()),
+    [data]
+  );
+  const finishedTournaments = useMemo(
+    () => (data ?? []).filter((item) => item.status === "FINISHED").sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()),
+    [data]
+  );
+  const visibleTournaments = tab === "active" ? activeTournaments : finishedTournaments;
   const remove = useMutation({
     mutationFn: api.deleteTournament,
     onSuccess: async () => {
@@ -27,9 +38,30 @@ export function AdminTournaments() {
         <h2 className="page-title text-[3rem]">Турниры</h2>
         <Link to="/admin/tournaments/new" className="rounded-full bg-white px-4 py-2 text-sm font-black text-graphite">Новый</Link>
       </div>
+      <div className="grid grid-cols-2 rounded-full bg-white/[0.04] p-1">
+        <button
+          type="button"
+          onClick={() => setTab("active")}
+          className={`tap rounded-full px-4 py-3 text-sm font-black transition ${tab === "active" ? "bg-white text-graphite" : "text-slate-400"}`}
+        >
+          Активные · {activeTournaments.length}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("finished")}
+          className={`tap rounded-full px-4 py-3 text-sm font-black transition ${tab === "finished" ? "bg-white text-graphite" : "text-slate-400"}`}
+        >
+          Завершённые · {finishedTournaments.length}
+        </button>
+      </div>
       {isLoading && <div className="app-panel p-5">Загрузка...</div>}
       <div className="space-y-3">
-        {data?.map((item) => (
+        {!isLoading && visibleTournaments.length === 0 && (
+          <div className="app-panel p-5 text-sm font-semibold text-slate-400">
+            {tab === "active" ? "Активных турниров пока нет." : "Завершённых турниров пока нет."}
+          </div>
+        )}
+        {visibleTournaments.map((item) => (
           <div key={item.id} className="app-panel p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
