@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import { RegistrationStatus, TournamentStatus } from "@prisma/client";
+import { RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
@@ -255,6 +255,75 @@ adminRouter.post("/registrations/:registrationId/add-on", async (req, res, next)
   }
 });
 
+adminRouter.delete("/registrations/:registrationId/add-on", async (req, res, next) => {
+  try {
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.registrationId },
+      include: { tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.addOnCount <= 0) {
+      throw new AppError(409, "Add-on is not marked", "ADD_ON_NOT_MARKED");
+    }
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { addOnCount: { decrement: 1 } }
+    });
+    console.log(`[admin:add-on:remove] registration=${registration.id} tournament=${registration.tournamentId}`);
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/registrations/:registrationId/re-entry", async (req, res, next) => {
+  try {
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.registrationId },
+      include: { tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.status !== RegistrationStatus.ACTIVE) {
+      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
+    }
+    if (registration.tournament.profile === TournamentProfile.FREEZE || registration.tournament.reEntry <= 0) {
+      throw new AppError(409, "Re-entry is disabled for this tournament", "RE_ENTRY_DISABLED");
+    }
+    if (registration.tournament.profile === TournamentProfile.PHOENIX && registration.entryNumber >= 2) {
+      throw new AppError(409, "Re-entry limit reached", "RE_ENTRY_LIMIT_REACHED");
+    }
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { entryNumber: { increment: 1 } }
+    });
+    console.log(`[admin:re-entry] registration=${registration.id} tournament=${registration.tournamentId}`);
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.delete("/registrations/:registrationId/re-entry", async (req, res, next) => {
+  try {
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.registrationId },
+      include: { tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.entryNumber <= 1) {
+      throw new AppError(409, "Re-entry is not marked", "RE_ENTRY_NOT_MARKED");
+    }
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { entryNumber: { decrement: 1 } }
+    });
+    console.log(`[admin:re-entry:remove] registration=${registration.id} tournament=${registration.tournamentId}`);
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get("/reports/day.xlsx", async (req, res, next) => {
   try {
     const report = await buildGameDayRatingWorkbook(req.query.date);
@@ -327,21 +396,42 @@ adminRouter.get("/tournaments/:id/export.csv", async (req, res, next) => {
     }
 
     const rows = [
-      ["telegramId", "username", "displayName", "tableNumber", "seatNumber", "firstName", "lastName", "registeredAt"],
+      [
+        "telegramId",
+        "username",
+        "displayName",
+        "tableNumber",
+        "seatNumber",
+        "entries",
+        "reEntries",
+        "addOns",
+        "liveStatus",
+        "finishPlace",
+        "firstName",
+        "lastName",
+        "registeredAt",
+        "checkedInAt"
+      ],
       ...registrations.map((item) => [
         item.user.telegramId,
         item.user.username ?? "",
         item.user.displayName ?? "",
         item.tableNumber ?? "",
         item.seatNumber ?? "",
+        item.entryNumber,
+        Math.max(0, item.entryNumber - 1),
+        item.addOnCount,
+        item.liveStatus,
+        item.finishPlace ?? "",
         item.user.firstName ?? "",
         item.user.lastName ?? "",
-        item.createdAt.toISOString()
+        item.createdAt.toISOString(),
+        item.checkedInAt?.toISOString() ?? ""
       ])
     ];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
     res.header("Content-Type", "text/csv; charset=utf-8");
-    res.attachment("participants.csv").send(csv);
+    res.attachment("participants.csv").send(`\uFEFF${csv}`);
   } catch (error) {
     next(error);
   }

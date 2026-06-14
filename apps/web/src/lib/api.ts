@@ -147,8 +147,15 @@ export const api = {
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/final-table`, { method: "POST" }),
   addOn: (registrationId: string) =>
     request<Registration>(`/api/admin/registrations/${registrationId}/add-on`, { method: "POST" }),
+  removeAddOn: (registrationId: string) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/add-on`, { method: "DELETE" }),
+  addReEntry: (registrationId: string) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/re-entry`, { method: "POST" }),
+  removeReEntry: (registrationId: string) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/re-entry`, { method: "DELETE" }),
   downloadDayReport: (date: string) =>
     download(`/api/admin/reports/day.xlsx?date=${encodeURIComponent(date)}`, `flop-club-rating-${date}.xlsx`),
+  downloadParticipants: (id: string) => download(`/api/admin/tournaments/${id}/export.csv`, "flop-club-participants.csv"),
   ratingResults: (id: string, entriesCount?: number) =>
     request<TournamentRatingPayload>(
       `/api/admin/tournaments/${id}/rating-results${entriesCount ? `?entriesCount=${entriesCount}` : ""}`

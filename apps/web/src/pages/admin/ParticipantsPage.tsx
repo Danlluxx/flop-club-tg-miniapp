@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Armchair, Download, PlusCircle, Save, Shuffle, Skull, Trophy, Trash2, UserCheck, UsersRound } from "lucide-react";
+import {
+  Armchair,
+  Download,
+  MinusCircle,
+  PlusCircle,
+  Save,
+  Shuffle,
+  Skull,
+  Trophy,
+  Trash2,
+  UserCheck,
+  UsersRound
+} from "lucide-react";
 import { useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/Toast";
@@ -116,6 +128,33 @@ export function ParticipantsPage() {
     onError: (error) => showToast(error.message, "error")
   });
 
+  const removeAddOn = useMutation({
+    mutationFn: api.removeAddOn,
+    onSuccess: async () => {
+      showToast("Add-on убран");
+      await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
+  const addReEntry = useMutation({
+    mutationFn: api.addReEntry,
+    onSuccess: async () => {
+      showToast("Re-entry отмечен");
+      await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
+  const removeReEntry = useMutation({
+    mutationFn: api.removeReEntry,
+    onSuccess: async () => {
+      showToast("Re-entry убран");
+      await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
   const checkInParticipant = useMutation({
     mutationFn: api.adminCheckIn,
     onSuccess: async (registration) => {
@@ -130,6 +169,11 @@ export function ParticipantsPage() {
 
   const downloadReport = useMutation({
     mutationFn: () => api.downloadDayReport(reportDate),
+    onError: (error) => showToast(error.message, "error")
+  });
+
+  const downloadParticipants = useMutation({
+    mutationFn: () => api.downloadParticipants(id),
     onError: (error) => showToast(error.message, "error")
   });
 
@@ -183,10 +227,26 @@ export function ParticipantsPage() {
     return { label: "записан", className: "bg-amber-300/15 text-amber-200" };
   }
 
+  function canUseReEntry(item: Registration) {
+    if (!liveState || item.status !== "ACTIVE") return false;
+    if (liveState.tournament.profile === "FREEZE" || liveState.tournament.reEntry <= 0) return false;
+    if (liveState.tournament.profile === "PHOENIX" && item.entryNumber >= 2) return false;
+    return true;
+  }
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="page-title text-[3rem]">Участники</h2>
+        <button
+          className="grid h-12 w-12 place-items-center rounded-full bg-rose-400/15 text-rose-200 disabled:opacity-50"
+          disabled={downloadParticipants.isPending}
+          type="button"
+          onClick={() => downloadParticipants.mutate()}
+          aria-label="Скачать участников CSV"
+        >
+          <Download className="h-5 w-5" />
+        </button>
       </div>
 
       <section className="app-panel space-y-4 p-4">
@@ -400,14 +460,17 @@ export function ParticipantsPage() {
                     <span className="rounded-full bg-white/8 px-2.5 py-1 text-slate-300">Место {item.finishPlace}</span>
                   ) : null}
                   <span className="rounded-full bg-white/8 px-2.5 py-1 text-slate-400">
-                    {item.entryNumber > 1 ? `Re-entry ${item.entryNumber - 1}` : "Вход"}
+                    Входов: {item.entryNumber}
                   </span>
-                  {item.addOnCount > 0 ? (
-                    <span className="rounded-full bg-violet/15 px-2.5 py-1 text-violet">Add-on</span>
+                  <span className="rounded-full bg-rose-500/10 px-2.5 py-1 text-rose-100">
+                    Re-entry: {Math.max(0, item.entryNumber - 1)}
+                  </span>
+                  {liveState?.tournament.addOnEnabled || item.addOnCount > 0 ? (
+                    <span className="rounded-full bg-violet/15 px-2.5 py-1 text-violet">Add-on: {item.addOnCount}</span>
                   ) : null}
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
                 {item.liveStatus === "IN_GAME" && !item.checkedInAt ? (
                   <button
                     onClick={() => checkInParticipant.mutate(item.checkInToken)}
@@ -420,15 +483,55 @@ export function ParticipantsPage() {
                     Отметить
                   </button>
                 ) : null}
-                {liveState?.tournament.addOnEnabled && item.liveStatus === "IN_GAME" && item.checkedInAt && item.addOnCount < 1 ? (
-                  <button
-                    onClick={() => addOn.mutate(item.id)}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-violet/15 text-violet"
-                    type="button"
-                    aria-label="Отметить add-on"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                  </button>
+                {canUseReEntry(item) || item.entryNumber > 1 ? (
+                  <div className="inline-flex h-10 items-center overflow-hidden rounded-full bg-rose-500/12 text-xs font-black text-rose-100">
+                    <button
+                      onClick={() => addReEntry.mutate(item.id)}
+                      className="tap inline-flex h-full items-center gap-1.5 px-3 disabled:opacity-40"
+                      type="button"
+                      disabled={!canUseReEntry(item) || addReEntry.isPending}
+                      aria-label="Добавить re-entry"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      Re-entry
+                    </button>
+                    {item.entryNumber > 1 ? (
+                      <button
+                        onClick={() => removeReEntry.mutate(item.id)}
+                        className="tap grid h-full w-10 place-items-center border-l border-white/10 disabled:opacity-40"
+                        type="button"
+                        disabled={removeReEntry.isPending}
+                        aria-label="Убрать re-entry"
+                      >
+                        <MinusCircle className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {liveState?.tournament.addOnEnabled && item.liveStatus === "IN_GAME" ? (
+                  <div className="inline-flex h-10 items-center overflow-hidden rounded-full bg-violet/15 text-xs font-black text-violet">
+                    <button
+                      onClick={() => addOn.mutate(item.id)}
+                      className="tap inline-flex h-full items-center gap-1.5 px-3 disabled:opacity-40"
+                      type="button"
+                      disabled={item.addOnCount >= 1 || addOn.isPending}
+                      aria-label="Отметить add-on"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      Add-on
+                    </button>
+                    {item.addOnCount > 0 ? (
+                      <button
+                        onClick={() => removeAddOn.mutate(item.id)}
+                        className="tap grid h-full w-10 place-items-center border-l border-white/10 disabled:opacity-40"
+                        type="button"
+                        disabled={removeAddOn.isPending}
+                        aria-label="Убрать add-on"
+                      >
+                        <MinusCircle className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
                 <button onClick={() => remove.mutate(item.id)} className="grid h-10 w-10 place-items-center rounded-full bg-rose-400/15 text-rose-200" type="button"><Trash2 className="h-4 w-4" /></button>
               </div>

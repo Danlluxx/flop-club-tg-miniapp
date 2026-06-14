@@ -2,6 +2,7 @@ import { Prisma, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { ensureScheduledTournaments } from "./tournamentSchedule.js";
+import { tournamentRuleFeaturesFor } from "./tournamentRules.js";
 
 const reminderKind = "3h";
 const reminderLeadMs = 3 * 60 * 60 * 1000;
@@ -33,20 +34,8 @@ function formatTime(date: Date) {
   }).format(date);
 }
 
-function profileLines(tournament: ReminderTournament) {
-  const lines = ["• Техасский холдем"];
-
-  if (tournament.profile === TournamentProfile.FREEZE) {
-    lines.push("• Без re-entry");
-  } else if (tournament.profile === TournamentProfile.PHOENIX) {
-    lines.push("• Ограничение в 1 re-entry");
-  } else {
-    lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ до конца поздней регистрации`);
-  }
-
-  const stack = tournament.profile === TournamentProfile.PHOENIX || tournament.profile === TournamentProfile.DEEP_SPECIAL ? 60_000 : 30_000;
-  lines.push(`• Стартовый стек ${formatNumber(stack)} фишек`);
-
+function reminderLines(tournament: ReminderTournament) {
+  const lines = tournamentRuleFeaturesFor(tournament.title).map((feature) => `• ${feature}`);
   if (tournament.ratingPool > 0) {
     lines.push(`• Гарантия ${formatNumber(tournament.ratingPool)} очков для участия в финале месяца`);
   }
@@ -55,6 +44,13 @@ function profileLines(tournament: ReminderTournament) {
     lines.push("• Вход бесплатный");
   } else {
     lines.push(`• Вход ${formatNumber(tournament.buyIn)} ₽`);
+  }
+  if (tournament.profile === TournamentProfile.FREEZE) {
+    if (!lines.some((line) => line.toLowerCase().includes("без re-entry"))) {
+      lines.push("• Без re-entry");
+    }
+  } else if (tournament.reEntry > 0) {
+    lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ до конца поздней регистрации`);
   }
 
   return lines;
@@ -71,7 +67,7 @@ function buildReminderMessage(tournament: ReminderTournament) {
     `${title} 😍`,
     "",
     "Что будет:",
-    ...profileLines(tournament),
+    ...reminderLines(tournament),
     `• Начало в ${startsAt}.${lateText}`,
     "",
     "Записывайся на турнир в приложении 🔻"

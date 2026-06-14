@@ -12,6 +12,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const registered = tournament._count.registrations;
   const fill = Math.min(100, Math.round((registered / tournament.maxParticipants) * 100));
   const isFull = registered >= tournament.maxParticipants;
+  const reEntryLabel = tournament.profile === "FREEZE" ? "Без re-entry" : `Re-entry ${money.format(tournament.reEntry)} ₽`;
 
   return (
     <Link to={`/tournaments/${tournament.id}`} className="tournament-poster tap block rounded-[2.1rem]">
@@ -42,7 +43,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
 
           <div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-white/10 pt-4 text-sm font-bold text-slate-300">
             <span className="flex items-center gap-1.5"><WalletCards className="h-3.5 w-3.5 text-electric" />Вход {money.format(tournament.buyIn)} ₽</span>
-            <span className="flex items-center gap-1.5"><WalletCards className="h-3.5 w-3.5 text-violet" />Re-entry {money.format(tournament.reEntry)} ₽</span>
+            <span className="flex items-center gap-1.5"><WalletCards className="h-3.5 w-3.5 text-violet" />{reEntryLabel}</span>
             <span className="col-span-2 flex items-center gap-1.5 truncate"><MapPin className="h-3.5 w-3.5 shrink-0 text-violet" />{tournament.location}</span>
           </div>
         </div>

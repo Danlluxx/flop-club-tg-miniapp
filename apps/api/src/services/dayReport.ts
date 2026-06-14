@@ -59,7 +59,9 @@ export async function buildGameDayRatingWorkbook(dateInput: unknown) {
     { header: "Статус", key: "status", width: 12 },
     { header: "Стол", key: "table", width: 8 },
     { header: "Бокс", key: "seat", width: 8 },
-    { header: "Вход", key: "entry", width: 8 },
+    { header: "Входов", key: "entries", width: 10 },
+    { header: "Re-entry", key: "reEntries", width: 10 },
+    { header: "Add-on", key: "addOns", width: 10 },
     { header: "Вылет", key: "eliminatedAt", width: 20 },
     { header: "Нокауты", key: "knockouts", width: 10 },
     { header: "Очки рейтинга", key: "ratingPoints", width: 16 }
@@ -94,7 +96,9 @@ export async function buildGameDayRatingWorkbook(dateInput: unknown) {
         status: registration.liveStatus === "ELIMINATED" ? "Выбыл" : "В игре",
         table: registration.tableNumber ?? "",
         seat: registration.seatNumber ?? "",
-        entry: registration.entryNumber,
+        entries: registration.entryNumber,
+        reEntries: Math.max(0, registration.entryNumber - 1),
+        addOns: registration.addOnCount,
         eliminatedAt: registration.eliminatedAt ? registration.eliminatedAt.toISOString().replace("T", " ").slice(0, 16) : "",
         knockouts: knockoutsByUser.get(user.id) ?? 0,
         ratingPoints: ratingByUser.get(user.id) ?? 0
