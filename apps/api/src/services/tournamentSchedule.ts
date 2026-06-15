@@ -4,7 +4,7 @@ import { prisma } from "../prisma.js";
 const location = "Flop Club, Барнаул";
 const maxParticipants = 50;
 const reEntry = 1000;
-const baseCycleDate = "2026-06-01";
+const baseCycleDate = "2026-06-15";
 const firstScheduledTournamentDate = "2026-06-05";
 
 export const descriptions: Record<string, string> = {
@@ -72,33 +72,19 @@ export const tournamentProfiles: Record<string, TournamentProfile> = {
 
 const cycle = [
   "Flop Classic",
-  "Flop Bounty",
-  "Flop Deep Stack",
   "Flop Phoenix",
-  "Flop Prime Event",
-  "Flop Black Edition",
-  "Flop Old Fashion",
-  "Flop One Shot",
-  "Flop Bounty",
-  "Flop Deep Stack",
+  "Flop Freeze Out",
   "Flop Butterfly",
   "Flop Prime Event",
-  "Flop Black Edition",
-  "Flop Freeze Out",
-  "Flop Classic",
-  "Flop Mystery Knockout",
-  "Flop Chip Leader",
-  "Flop Phoenix",
-  "Flop Rampage",
-  "Flop Black Edition",
-  "Flop Old Fashion",
-  "Flop One Shot",
   "Flop Bounty",
   "Flop Deep Stack",
-  "Flop Phoenix",
-  "Flop Last Call",
-  "Flop Grand Final",
-  "Flop Secret Final"
+  "Flop Old Fashion",
+  "Flop One Shot",
+  "Flop Chip Leader",
+  "Flop Rampage",
+  "Flop Mystery Knockout",
+  "Flop Black Edition",
+  "Flop Grand Final"
 ] as const;
 
 const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "17:00", "17:00"] as const;
@@ -114,6 +100,12 @@ const specialEvents: Record<string, { title: string; buyIn: number; reEntry: num
     buyIn: 0,
     reEntry,
     ratingPool: ratingPools["Flop Black Edition"]
+  },
+  "2026-06-16": {
+    title: "Flop Mystery Knockout",
+    buyIn: 500,
+    reEntry,
+    ratingPool: ratingPools["Flop Mystery Knockout"]
   }
 };
 
@@ -133,6 +125,42 @@ function addUtcDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
   return next;
+}
+
+function barnaulDayRange(dateKeyValue: string) {
+  const start = new Date(`${dateKeyValue}T00:00:00+07:00`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { start, end };
+}
+
+async function mergeDuplicateScheduledTournaments(
+  tx: Prisma.TransactionClient,
+  dateKeyValue: string,
+  expectedTournamentId: string,
+  range: { start: Date; end: Date }
+) {
+  const duplicateTournaments = await tx.tournament.findMany({
+    where: {
+      id: { startsWith: `${dateKeyValue}-`, not: expectedTournamentId },
+      startsAt: { gte: range.start, lt: range.end }
+    },
+    select: { id: true }
+  });
+
+  for (const duplicate of duplicateTournaments) {
+    await tx.tournamentReminder.deleteMany({ where: { tournamentId: duplicate.id } });
+    await tx.tournamentRatingResult.deleteMany({ where: { tournamentId: duplicate.id } });
+    await tx.knockout.updateMany({
+      where: { tournamentId: duplicate.id },
+      data: { tournamentId: expectedTournamentId }
+    });
+    await tx.registration.updateMany({
+      where: { tournamentId: duplicate.id },
+      data: { tournamentId: expectedTournamentId }
+    });
+    await tx.tournament.delete({ where: { id: duplicate.id } });
+  }
 }
 
 function daysBetween(startDateKey: string, endDateKey: string) {
@@ -202,8 +230,36 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
   const activeTournaments = tournaments.filter((tournament) => !deletedDateKeys.has(dateKey(tournament.startsAt as Date)));
   if (!activeTournaments.length) return;
 
-  await prisma.tournament.createMany({
-    data: activeTournaments,
-    skipDuplicates: true
+  await prisma.$transaction(async (tx) => {
+    for (const tournament of activeTournaments) {
+      const key = dateKey(tournament.startsAt as Date);
+      const { start, end } = barnaulDayRange(key);
+      const { id, ...data } = tournament;
+
+      const existingExpected = await tx.tournament.findUnique({ where: { id: String(id) } });
+      if (existingExpected) {
+        await tx.tournament.update({ where: { id: String(id) }, data });
+        await mergeDuplicateScheduledTournaments(tx, key, String(id), { start, end });
+        continue;
+      }
+
+      const existingForDate = await tx.tournament.findFirst({
+        where: {
+          id: { startsWith: `${key}-` },
+          startsAt: { gte: start, lt: end }
+        },
+        orderBy: { createdAt: "asc" }
+      });
+
+      if (existingForDate) {
+        await tx.tournament.update({
+          where: { id: existingForDate.id },
+          data: { id: String(id), ...data }
+        });
+        await mergeDuplicateScheduledTournaments(tx, key, String(id), { start, end });
+      } else {
+        await tx.tournament.create({ data: tournament });
+      }
+    }
   });
 }
