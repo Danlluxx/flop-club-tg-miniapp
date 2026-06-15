@@ -153,6 +153,11 @@ export const api = {
     request<Registration>(`/api/admin/registrations/${registrationId}/re-entry`, { method: "POST" }),
   removeReEntry: (registrationId: string) =>
     request<Registration>(`/api/admin/registrations/${registrationId}/re-entry`, { method: "DELETE" }),
+  updateFinishPlace: (registrationId: string, finishPlace: number | null) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/finish-place`, {
+      method: "PATCH",
+      body: JSON.stringify({ finishPlace })
+    }),
   downloadDayReport: (date: string) =>
     download(`/api/admin/reports/day.xlsx?date=${encodeURIComponent(date)}`, `flop-club-rating-${date}.xlsx`),
   downloadParticipants: (id: string) => download(`/api/admin/tournaments/${id}/export.csv`, "flop-club-participants.csv"),

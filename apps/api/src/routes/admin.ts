@@ -119,6 +119,10 @@ const checkInSchema = z.object({
   token: z.string().min(8)
 });
 
+const finishPlaceSchema = z.object({
+  finishPlace: z.coerce.number().int().min(1).max(500).nullable()
+});
+
 function normalizeCheckInToken(token: string) {
   return token.trim().replace(/^flop-checkin:/i, "");
 }
@@ -318,6 +322,46 @@ adminRouter.delete("/registrations/:registrationId/re-entry", async (req, res, n
       data: { entryNumber: { decrement: 1 } }
     });
     console.log(`[admin:re-entry:remove] registration=${registration.id} tournament=${registration.tournamentId}`);
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.patch("/registrations/:registrationId/finish-place", async (req, res, next) => {
+  try {
+    const payload = finishPlaceSchema.parse(req.body);
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.registrationId },
+      include: { tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.status !== RegistrationStatus.ACTIVE) {
+      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
+    }
+    if (payload.finishPlace !== null) {
+      const placeOwner = await prisma.registration.findFirst({
+        where: {
+          tournamentId: registration.tournamentId,
+          status: RegistrationStatus.ACTIVE,
+          finishPlace: payload.finishPlace,
+          id: { not: registration.id }
+        },
+        include: { user: true }
+      });
+      if (placeOwner) {
+        const ownerName = placeOwner.user.displayName ?? placeOwner.user.firstName ?? placeOwner.user.username ?? placeOwner.user.telegramId;
+        throw new AppError(409, `Place ${payload.finishPlace} is already assigned to ${ownerName}`, "FINISH_PLACE_DUPLICATED");
+      }
+    }
+
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { finishPlace: payload.finishPlace }
+    });
+    console.log(
+      `[admin:finish-place:update] registration=${registration.id} tournament=${registration.tournamentId} place=${payload.finishPlace ?? "none"}`
+    );
     res.json(updated);
   } catch (error) {
     next(error);

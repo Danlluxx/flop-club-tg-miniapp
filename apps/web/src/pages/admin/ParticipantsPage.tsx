@@ -22,6 +22,7 @@ export function ParticipantsPage() {
   const { id = "" } = useParams();
   const [entriesCount, setEntriesCount] = useState("");
   const [seatDraft, setSeatDraft] = useState<Record<string, { tableNumber: string; seatNumber: string }>>({});
+  const [finishPlaceDraft, setFinishPlaceDraft] = useState<Record<string, string>>({});
   const [eliminatedRegistrationId, setEliminatedRegistrationId] = useState("");
   const [killerRegistrationId, setKillerRegistrationId] = useState("");
   const queryClient = useQueryClient();
@@ -40,6 +41,19 @@ export function ParticipantsPage() {
     if (!data || !ratingInfo) return;
     setEntriesCount(String(ratingInfo.entriesCount ?? data.length));
   }, [data, ratingInfo]);
+
+  useEffect(() => {
+    if (!data) return;
+    setFinishPlaceDraft((draft) => {
+      const nextDraft = { ...draft };
+      for (const registration of data) {
+        if (nextDraft[registration.id] === undefined) {
+          nextDraft[registration.id] = registration.finishPlace ? String(registration.finishPlace) : "";
+        }
+      }
+      return nextDraft;
+    });
+  }, [data]);
 
   useEffect(() => {
     if (!liveState) return;
@@ -151,6 +165,19 @@ export function ParticipantsPage() {
     onSuccess: async () => {
       showToast("Re-entry убран");
       await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
+  const updateFinishPlace = useMutation({
+    mutationFn: ({ registrationId, finishPlace }: { registrationId: string; finishPlace: number | null }) =>
+      api.updateFinishPlace(registrationId, finishPlace),
+    onSuccess: async () => {
+      showToast("Место обновлено");
+      await Promise.all([
+        invalidateTournamentLive(),
+        queryClient.invalidateQueries({ queryKey: ["admin", "rating-results", id] })
+      ]);
     },
     onError: (error) => showToast(error.message, "error")
   });
@@ -440,15 +467,17 @@ export function ParticipantsPage() {
       <div className="space-y-2">
         {participants.map((item) => (
           <div key={item.id} className="app-panel space-y-3 p-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-bold">{participantName(item)}</p>
+                <div className="flex flex-wrap items-start gap-2">
+                  <p className="min-w-0 flex-1 break-words text-lg font-bold leading-tight">{participantName(item)}</p>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[0.65rem] font-black uppercase ${participantState(item).className}`}>
                     {participantState(item).label}
                   </span>
                 </div>
-                <p className="truncate text-sm text-slate-400">@{item.user?.username ?? "no_username"} · {item.user?.telegramId}</p>
+                <p className="mt-1 break-all text-sm font-semibold leading-snug text-slate-400">
+                  @{item.user?.username ?? "no_username"} · {item.user?.telegramId}
+                </p>
                 <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-bold">
                   {item.checkedInAt && item.tableNumber && item.seatNumber ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-electric">
@@ -470,7 +499,7 @@ export function ParticipantsPage() {
                   ) : null}
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <div className="flex flex-wrap gap-2">
                 {item.liveStatus === "IN_GAME" && !item.checkedInAt ? (
                   <button
                     onClick={() => checkInParticipant.mutate(item.checkInToken)}
@@ -566,6 +595,32 @@ export function ParticipantsPage() {
                     tableNumber: Number(seatDraft[item.id]?.tableNumber),
                     seatNumber: Number(seatDraft[item.id]?.seatNumber)
                   })}
+                >
+                  <Save className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+
+            {item.liveStatus === "ELIMINATED" ? (
+              <div className="grid grid-cols-[1fr_auto] gap-2 rounded-2xl border border-white/8 bg-white/[0.03] p-2">
+                <input
+                  className="min-w-0 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-bold outline-none focus:border-rose-400"
+                  type="number"
+                  min={1}
+                  max={500}
+                  placeholder="Итоговое место"
+                  value={finishPlaceDraft[item.id] ?? ""}
+                  onChange={(event) => setFinishPlaceDraft((draft) => ({ ...draft, [item.id]: event.target.value }))}
+                />
+                <button
+                  className="grid h-12 w-12 place-items-center rounded-2xl bg-white/8 text-white disabled:opacity-50"
+                  type="button"
+                  disabled={updateFinishPlace.isPending || !finishPlaceDraft[item.id]}
+                  onClick={() => updateFinishPlace.mutate({
+                    registrationId: item.id,
+                    finishPlace: Number(finishPlaceDraft[item.id])
+                  })}
+                  aria-label="Сохранить итоговое место"
                 >
                   <Save className="h-4 w-4" />
                 </button>
