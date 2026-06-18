@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import { Prisma, TournamentProfile, TournamentStatus } from "@prisma/client";
+import { Prisma, RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { TOURNAMENT_MAX_PARTICIPANTS, cancelRegistration, getTournament, registerForTournament, tournamentInclude } from "../services/tournaments.js";
@@ -44,7 +44,22 @@ tournamentsRouter.get("/", requireAuth, async (req, res, next) => {
       orderBy: { startsAt: "asc" },
       include: tournamentInclude
     });
-    res.json(tournaments);
+    const activeSeats = tournaments.length
+      ? await prisma.registration.groupBy({
+        by: ["tournamentId"],
+        where: {
+          tournamentId: { in: tournaments.map((tournament) => tournament.id) },
+          status: RegistrationStatus.ACTIVE,
+          liveStatus: "IN_GAME"
+        },
+        _count: { _all: true }
+      })
+      : [];
+    const activeSeatsByTournament = new Map(activeSeats.map((item) => [item.tournamentId, item._count._all]));
+    res.json(tournaments.map((tournament) => ({
+      ...tournament,
+      activeSeatsCount: activeSeatsByTournament.get(tournament.id) ?? 0
+    })));
   } catch (error) {
     next(error);
   }

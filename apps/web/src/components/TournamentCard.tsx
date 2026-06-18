@@ -10,8 +10,9 @@ const money = new Intl.NumberFormat("ru-RU");
 
 export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const registered = tournament._count.registrations;
+  const activeSeats = tournament.activeSeatsCount ?? registered;
   const fill = Math.min(100, Math.round((registered / tournament.maxParticipants) * 100));
-  const isFull = registered >= tournament.maxParticipants;
+  const isFull = activeSeats >= tournament.maxParticipants;
   const reEntryLabel = tournament.profile === "FREEZE" ? "Без re-entry" : `Re-entry ${money.format(tournament.reEntry)} ₽`;
 
   return (

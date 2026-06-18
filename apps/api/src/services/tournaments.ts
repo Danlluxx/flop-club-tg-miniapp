@@ -8,13 +8,16 @@ export const SEATS_PER_TABLE = 10;
 export const TOURNAMENT_MAX_PARTICIPANTS = TABLES_COUNT * SEATS_PER_TABLE;
 
 export const tournamentInclude = {
-  _count: { select: { registrations: { where: { status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" } } } }
+  _count: { select: { registrations: { where: { status: RegistrationStatus.ACTIVE } } } }
 } satisfies Prisma.TournamentInclude;
 
 export async function getTournament(id: string) {
   const tournament = await prisma.tournament.findUnique({ where: { id }, include: tournamentInclude });
   if (!tournament) throw notFound("Tournament");
-  return tournament;
+  const activeSeatsCount = await prisma.registration.count({
+    where: { tournamentId: id, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" }
+  });
+  return { ...tournament, activeSeatsCount };
 }
 
 export async function registerForTournament(userId: string, tournamentId: string) {

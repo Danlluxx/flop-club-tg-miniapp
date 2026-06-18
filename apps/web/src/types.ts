@@ -41,6 +41,7 @@ export type Tournament = {
   maxParticipants: number;
   status: TournamentStatus;
   allowCancellation: boolean;
+  activeSeatsCount?: number;
   _count: { registrations: number };
   myRegistration?: Registration | null;
 };

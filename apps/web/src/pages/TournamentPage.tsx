@@ -48,7 +48,8 @@ export function TournamentPage() {
   if (isError || !data) return <div className="app-panel p-6 text-rose-200">Турнир не найден.</div>;
 
   const isRegistered = Boolean(data.myRegistration);
-  const isFull = data._count.registrations >= data.maxParticipants;
+  const activeSeats = data.activeSeatsCount ?? data._count.registrations;
+  const isFull = activeSeats >= data.maxParticipants;
   const canRegister = data.status === "OPEN" && !isFull;
   const rule = tournamentRuleFor(data.title);
   const priceFeatures = tournamentPriceFeatures(data);
