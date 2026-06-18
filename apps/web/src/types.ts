@@ -38,6 +38,7 @@ export type Tournament = {
   lateRegistrationEndsAt?: string | null;
   addOnEnabled: boolean;
   addOnPrice: number;
+  addOnChips: number;
   maxParticipants: number;
   status: TournamentStatus;
   allowCancellation: boolean;

@@ -1,5 +1,6 @@
 import { TournamentProfile, type Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import { tournamentAddOnConfigFor } from "./tournamentRules.js";
 
 const location = "Flop Club, Барнаул";
 const maxParticipants = 50;
@@ -181,7 +182,7 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
   const startsAt = new Date(`${dateKeyValue}T${timesByWeekday[weekdayIndex]}:00+07:00`);
   const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
   const profile = tournamentProfiles[title] ?? TournamentProfile.BASE;
-  const addOnEnabled = profile === TournamentProfile.DEEP_SPECIAL;
+  const addOn = tournamentAddOnConfigFor(title);
 
   return {
     id: `${dateKeyValue}-${slug(title)}`,
@@ -195,8 +196,9 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
     ratingPool: eventOverride?.ratingPool ?? ratingPools[title] ?? 10000,
     profile,
     lateRegistrationEndsAt,
-    addOnEnabled,
-    addOnPrice: addOnEnabled ? 1000 : 0,
+    addOnEnabled: addOn.enabled,
+    addOnPrice: addOn.price,
+    addOnChips: addOn.chips,
     maxParticipants,
     status: "OPEN"
   };

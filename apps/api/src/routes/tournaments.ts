@@ -22,6 +22,7 @@ const tournamentSchema = z.object({
   lateRegistrationEndsAt: z.coerce.date().optional().nullable(),
   addOnEnabled: z.coerce.boolean().default(false),
   addOnPrice: z.coerce.number().int().min(0).default(0),
+  addOnChips: z.coerce.number().int().min(0).default(0),
   maxParticipants: z.coerce.number().int().min(1).max(TOURNAMENT_MAX_PARTICIPANTS),
   status: z.nativeEnum(TournamentStatus).default(TournamentStatus.OPEN),
   allowCancellation: z.boolean().default(true)

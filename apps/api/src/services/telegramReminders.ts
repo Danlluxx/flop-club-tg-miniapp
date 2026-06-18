@@ -19,6 +19,9 @@ type ReminderTournament = Prisma.TournamentGetPayload<{
     reEntry: true;
     ratingPool: true;
     profile: true;
+    addOnEnabled: true;
+    addOnPrice: true;
+    addOnChips: true;
   };
 }>;
 
@@ -51,6 +54,14 @@ function reminderLines(tournament: ReminderTournament) {
     }
   } else if (tournament.reEntry > 0) {
     lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ до конца поздней регистрации`);
+  }
+
+  if (tournament.addOnEnabled && tournament.addOnChips > 0) {
+    lines.push(
+      `• Add-on после окончания поздней регистрации: ${formatNumber(tournament.addOnPrice)} ₽ / ${formatNumber(tournament.addOnChips)} фишек`
+    );
+  } else {
+    lines.push("• Add-on не предусмотрен");
   }
 
   return lines;
@@ -136,7 +147,10 @@ async function sendDueTournamentReminders() {
       buyIn: true,
       reEntry: true,
       ratingPool: true,
-      profile: true
+      profile: true,
+      addOnEnabled: true,
+      addOnPrice: true,
+      addOnChips: true
     },
     orderBy: { startsAt: "asc" }
   });

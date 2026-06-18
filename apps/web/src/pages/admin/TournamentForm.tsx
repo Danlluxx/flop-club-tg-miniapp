@@ -15,6 +15,9 @@ type FormState = {
   reEntry: string;
   prizePool: string;
   ratingPool: string;
+  addOnEnabled: boolean;
+  addOnPrice: string;
+  addOnChips: string;
   maxParticipants: string;
   status: TournamentStatus;
   allowCancellation: boolean;
@@ -29,6 +32,9 @@ const initial: FormState = {
   reEntry: "1000",
   prizePool: "200000",
   ratingPool: "10000",
+  addOnEnabled: false,
+  addOnPrice: "0",
+  addOnChips: "0",
   maxParticipants: "50",
   status: "OPEN",
   allowCancellation: true
@@ -54,6 +60,9 @@ export function TournamentForm() {
       reEntry: String(data.reEntry),
       prizePool: String(data.prizePool),
       ratingPool: String(data.ratingPool),
+      addOnEnabled: data.addOnEnabled,
+      addOnPrice: String(data.addOnPrice),
+      addOnChips: String(data.addOnChips),
       maxParticipants: String(data.maxParticipants),
       status: data.status,
       allowCancellation: data.allowCancellation
@@ -69,6 +78,8 @@ export function TournamentForm() {
         reEntry: Number(form.reEntry),
         prizePool: Number(form.prizePool),
         ratingPool: Number(form.ratingPool),
+        addOnPrice: Number(form.addOnPrice),
+        addOnChips: Number(form.addOnChips),
         maxParticipants: Number(form.maxParticipants)
       };
       return isEdit ? api.updateTournament(id!, payload) : api.createTournament(payload);
@@ -114,6 +125,24 @@ export function TournamentForm() {
           <option value="FINISHED">Завершён</option>
         </select>
       </div>
+      <label className="app-panel flex items-center justify-between p-4 text-sm">
+        Add-on после поздней регистрации
+        <input
+          type="checkbox"
+          checked={form.addOnEnabled}
+          onChange={(e) => setForm({
+            ...form,
+            addOnEnabled: e.target.checked,
+            addOnPrice: e.target.checked && form.addOnPrice === "0" ? "1000" : form.addOnPrice
+          })}
+        />
+      </label>
+      {form.addOnEnabled ? (
+        <div className="grid grid-cols-2 gap-3">
+          <input className={fieldClass} type="number" min={0} placeholder="Цена Add-on" value={form.addOnPrice} onChange={(e) => setForm({ ...form, addOnPrice: e.target.value })} />
+          <input className={fieldClass} type="number" min={0} placeholder="Фишки Add-on" value={form.addOnChips} onChange={(e) => setForm({ ...form, addOnChips: e.target.value })} />
+        </div>
+      ) : null}
       <label className="app-panel flex items-center justify-between p-4 text-sm">
         Разрешить отмену записи
         <input type="checkbox" checked={form.allowCancellation} onChange={(e) => setForm({ ...form, allowCancellation: e.target.checked })} />

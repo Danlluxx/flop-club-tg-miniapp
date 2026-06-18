@@ -5,6 +5,21 @@ const defaultFeatures = [
   "Big Blind Ante с первого уровня"
 ];
 
+const addOnChipsByTitle: Record<string, number> = {
+  "Flop Classic": 100000,
+  "Flop Deep Stack": 100000,
+  "Flop Butterfly": 100000,
+  "Flop Old Fashion": 100000,
+  "Flop Prime Event": 100000,
+  "Flop Black Edition": 100000,
+  "Flop Grand Final": 100000,
+  "Flop Last Call": 100000,
+  "Flop Secret Final": 100000,
+  "Flop Rampage": 60000,
+  "Flop Bounty": 60000,
+  "Flop Mystery Knockout": 60000
+};
+
 const rules: Record<string, { features: string[] }> = {
   "Flop Classic": {
     features: [
@@ -190,4 +205,9 @@ const rules: Record<string, { features: string[] }> = {
 
 export function tournamentRuleFeaturesFor(title: string) {
   return rules[title]?.features ?? defaultFeatures;
+}
+
+export function tournamentAddOnConfigFor(title: string) {
+  const chips = addOnChipsByTitle[title];
+  return chips ? { enabled: true, price: 1000, chips } : { enabled: false, price: 0, chips: 0 };
 }

@@ -245,6 +245,11 @@ adminRouter.post("/registrations/:registrationId/add-on", async (req, res, next)
     if (!registration.tournament.addOnEnabled) {
       throw new AppError(409, "Add-on is disabled for this tournament", "ADD_ON_DISABLED");
     }
+    const addOnOpensAt = registration.tournament.lateRegistrationEndsAt
+      ?? new Date(registration.tournament.startsAt.getTime() + 3 * 60 * 60 * 1000);
+    if (new Date() < addOnOpensAt) {
+      throw new AppError(409, "Add-on is available after late registration closes", "ADD_ON_NOT_OPEN");
+    }
     if (registration.addOnCount >= 1) {
       throw new AppError(409, "Add-on already used", "ADD_ON_LIMIT_REACHED");
     }

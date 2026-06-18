@@ -75,6 +75,7 @@ model Tournament {
   lateRegistrationEndsAt DateTime?
   addOnEnabled      Boolean        @default(false)
   addOnPrice        Int            @default(0)
+  addOnChips        Int            @default(0)
   maxParticipants   Int
   status            TournamentStatus @default(OPEN)
   allowCancellation Boolean        @default(true)

@@ -265,11 +265,20 @@ export function tournamentRuleFor(title: string) {
 
 export function tournamentPriceFeatures(tournament: Tournament) {
   const features = [`Вход ${new Intl.NumberFormat("ru-RU").format(tournament.buyIn)} ₽`];
+  const formatNumber = new Intl.NumberFormat("ru-RU");
 
   if (tournament.profile !== "FREEZE" && tournament.reEntry > 0) {
-    features.push(`Re-entry ${new Intl.NumberFormat("ru-RU").format(tournament.reEntry)} ₽ до конца поздней регистрации`);
+    features.push(`Re-entry ${formatNumber.format(tournament.reEntry)} ₽ до конца поздней регистрации`);
   } else if (!rules[tournament.title]?.features.includes("Без re-entry")) {
     features.push("Без re-entry");
+  }
+
+  if (tournament.addOnEnabled && tournament.addOnChips > 0) {
+    features.push(
+      `Add-on после окончания поздней регистрации: ${formatNumber.format(tournament.addOnPrice)} ₽ / ${formatNumber.format(tournament.addOnChips)} фишек`
+    );
+  } else {
+    features.push("Add-on не предусмотрен");
   }
 
   return features;
