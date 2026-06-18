@@ -101,6 +101,27 @@ model TournamentReminder {
   @@index([sentAt])
 }
 
+model TelegramSubscriber {
+  chatId     String   @id
+  telegramId String?
+  username   String?
+  firstName  String?
+  lastName   String?
+  active     Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([active])
+  @@index([telegramId])
+}
+
+model TelegramBotState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model DeletedScheduledTournament {
   dateKey   String   @id
   tournamentId String?

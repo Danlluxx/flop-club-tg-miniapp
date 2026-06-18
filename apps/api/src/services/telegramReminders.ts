@@ -94,13 +94,19 @@ async function sendTelegramMessage(chatId: string, text: string) {
       text,
       disable_web_page_preview: true,
       reply_markup: {
-        inline_keyboard: [[{ text: "Открыть приложение", url: config.FRONTEND_URL }]]
+        inline_keyboard: [[{ text: "Открыть приложение", web_app: { url: config.FRONTEND_URL } }]]
       }
     })
   });
 
   if (!response.ok) {
     const body = await response.text();
+    if (response.status === 403) {
+      await prisma.telegramSubscriber.updateMany({
+        where: { chatId },
+        data: { active: false }
+      });
+    }
     throw new Error(`Telegram sendMessage failed: ${response.status} ${body}`);
   }
 }
@@ -108,17 +114,24 @@ async function sendTelegramMessage(chatId: string, text: string) {
 async function reminderRecipients() {
   const recipients = new Set<string>();
 
-  if (config.TELEGRAM_REMINDER_CHAT_ID) {
+  if (config.TELEGRAM_REMINDER_CHAT_ID && !config.TELEGRAM_REMINDER_CHAT_ID.startsWith("http")) {
     recipients.add(config.TELEGRAM_REMINDER_CHAT_ID);
   }
 
   if (config.TOURNAMENT_REMINDER_BROADCAST_USERS) {
-    const users = await prisma.user.findMany({
-      where: { telegramId: { not: "" } },
-      select: { telegramId: true }
-    });
+    const [users, subscribers] = await Promise.all([
+      prisma.user.findMany({
+        where: { telegramId: { not: "" } },
+        select: { telegramId: true }
+      }),
+      prisma.telegramSubscriber.findMany({
+        where: { active: true },
+        select: { chatId: true }
+      })
+    ]);
 
     users.forEach((user) => recipients.add(user.telegramId));
+    subscribers.forEach((subscriber) => recipients.add(subscriber.chatId));
   }
 
   return [...recipients];
