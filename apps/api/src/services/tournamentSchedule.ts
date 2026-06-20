@@ -89,6 +89,9 @@ const cycle = [
 ] as const;
 
 const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "17:00", "17:00"] as const;
+const specialTimes: Record<string, string> = {
+  "2026-06-21": "18:00"
+};
 const specialEvents: Record<string, { title: string; buyIn: number; reEntry: number; ratingPool: number }> = {
   "2026-06-05": {
     title: "FLOP GRAND OPENNING",
@@ -179,7 +182,7 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
   const title = eventOverride?.title ?? cycle[cycleOffset];
   const buyIn = eventOverride?.buyIn ?? (weekdayIndex >= 4 ? 1000 : 500);
   const eventReEntry = eventOverride?.reEntry ?? reEntry;
-  const startsAt = new Date(`${dateKeyValue}T${timesByWeekday[weekdayIndex]}:00+07:00`);
+  const startsAt = new Date(`${dateKeyValue}T${specialTimes[dateKeyValue] ?? timesByWeekday[weekdayIndex]}:00+07:00`);
   const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
   const profile = tournamentProfiles[title] ?? TournamentProfile.BASE;
   const addOn = tournamentAddOnConfigFor(title);
