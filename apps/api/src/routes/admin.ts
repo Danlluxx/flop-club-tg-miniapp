@@ -4,9 +4,16 @@ import { RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
-import { assignNextAvailableSeat, registerForTournament } from "../services/tournaments.js";
+import { registerForTournament } from "../services/tournaments.js";
 import { applyTournamentRatingResults, getRatingAwards } from "../services/rating.js";
-import { autoReseatTournament, formFinalTable, getTournamentLiveState, moveLiveSeat, recordElimination } from "../services/liveTournament.js";
+import {
+  autoReseatTournament,
+  checkInTournamentRegistration,
+  formFinalTable,
+  getTournamentLiveState,
+  moveLiveSeat,
+  recordElimination
+} from "../services/liveTournament.js";
 import { buildGameDayRatingWorkbook } from "../services/dayReport.js";
 import { dateKey } from "../services/tournamentSchedule.js";
 
@@ -131,30 +138,7 @@ adminRouter.post("/check-in", async (req, res, next) => {
   try {
     const payload = checkInSchema.parse(req.body);
     const checkInToken = normalizeCheckInToken(payload.token);
-    const updated = await prisma.$transaction(async (tx) => {
-      const registration = await tx.registration.findUnique({
-        where: { checkInToken },
-        include: { user: true, tournament: true }
-      });
-      if (!registration) throw notFound("Registration");
-      if (registration.status !== RegistrationStatus.ACTIVE) {
-        throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
-      }
-      if (registration.liveStatus !== "IN_GAME") {
-        throw new AppError(409, "Participant is not in game", "PARTICIPANT_NOT_IN_GAME");
-      }
-
-      const seat = registration.checkedInAt && registration.tableNumber && registration.seatNumber
-        ? { tableNumber: registration.tableNumber, seatNumber: registration.seatNumber }
-        : await assignNextAvailableSeat(tx, registration.tournamentId, registration.tournament.maxParticipants, registration.id);
-      const checkedInAt = registration.checkedInAt ?? new Date();
-
-      return tx.registration.update({
-        where: { id: registration.id },
-        data: { checkedInAt, ...seat },
-        include: { user: true, tournament: true }
-      });
-    });
+    const updated = await checkInTournamentRegistration(checkInToken);
     console.log(`[admin:check-in] registration=${updated.id} tournament=${updated.tournamentId} user=${updated.userId}`);
     res.json(updated);
   } catch (error) {

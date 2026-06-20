@@ -1,7 +1,7 @@
 import { Prisma, RegistrationStatus, TournamentProfile } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
-import { SEATS_PER_TABLE, TABLES_COUNT } from "./tournaments.js";
+import { assignNextAvailableSeat, SEATS_PER_TABLE, TABLES_COUNT } from "./tournaments.js";
 
 const liveRegistrationInclude = {
   user: true
@@ -19,6 +19,71 @@ type SeatMove = {
   tableNumber: number;
   seatNumber: number;
 };
+
+export async function checkInTournamentRegistration(checkInToken: string) {
+  return prisma.$transaction(async (tx) => {
+    const registrationRef = await tx.registration.findUnique({
+      where: { checkInToken },
+      select: { tournamentId: true }
+    });
+    if (!registrationRef) throw notFound("Registration");
+
+    await tx.$queryRaw`
+      SELECT id
+      FROM "Tournament"
+      WHERE id = ${registrationRef.tournamentId}
+      FOR UPDATE
+    `;
+
+    const registration = await tx.registration.findUnique({
+      where: { checkInToken },
+      include: { user: true, tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.status !== RegistrationStatus.ACTIVE) {
+      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
+    }
+    if (registration.liveStatus !== "IN_GAME") {
+      throw new AppError(409, "Participant is not in game", "PARTICIPANT_NOT_IN_GAME");
+    }
+
+    const isFirstCheckIn = !registration.checkedInAt;
+    if (isFirstCheckIn) {
+      await tx.registration.updateMany({
+        where: {
+          tournamentId: registration.tournamentId,
+          status: RegistrationStatus.ACTIVE,
+          liveStatus: "ELIMINATED",
+          finishPlace: { not: null }
+        },
+        data: { finishPlace: { increment: 1 } }
+      });
+
+      await tx.registration.updateMany({
+        where: {
+          tournamentId: registration.tournamentId,
+          status: RegistrationStatus.ACTIVE,
+          liveStatus: "IN_GAME",
+          finishPlace: { not: null }
+        },
+        data: { finishPlace: null }
+      });
+    }
+
+    const seat = registration.checkedInAt && registration.tableNumber && registration.seatNumber
+      ? { tableNumber: registration.tableNumber, seatNumber: registration.seatNumber }
+      : await assignNextAvailableSeat(tx, registration.tournamentId, registration.tournament.maxParticipants, registration.id);
+
+    return tx.registration.update({
+      where: { id: registration.id },
+      data: {
+        checkedInAt: registration.checkedInAt ?? new Date(),
+        ...seat
+      },
+      include: { user: true, tournament: true }
+    });
+  });
+}
 
 export async function getTournamentLiveState(tournamentId: string) {
   return prisma.$transaction((tx) => buildLiveState(tx, tournamentId));
