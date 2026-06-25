@@ -417,7 +417,7 @@ export function ParticipantsPage() {
               Рейтинг турнира
             </p>
             <p className="mt-1 text-sm font-bold text-slate-400">
-              Очки получает верхние 20% участников. Места берутся автоматически из вылетов.
+              Очки получает верхние 30% участников. Места берутся автоматически из вылетов.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">

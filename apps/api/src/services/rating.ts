@@ -23,7 +23,7 @@ export const RATING_POOLS: Record<string, number> = {
 
 export const RATING_TOURNAMENTS = Object.keys(RATING_POOLS);
 
-const RATING_WINNERS_SHARE = 0.2;
+const RATING_WINNERS_SHARE = 0.3;
 const MAX_RATING_PLACES = 10;
 
 export const RATING_DISTRIBUTIONS: Record<number, number[]> = {
