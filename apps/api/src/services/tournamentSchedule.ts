@@ -110,6 +110,12 @@ const specialEvents: Record<string, { title: string; buyIn: number; reEntry: num
     buyIn: 500,
     reEntry,
     ratingPool: ratingPools["Flop Mystery Knockout"]
+  },
+  "2026-06-26": {
+    title: "Flop Mystery Knockout",
+    buyIn: 500,
+    reEntry,
+    ratingPool: ratingPools["Flop Mystery Knockout"]
   }
 };
 
