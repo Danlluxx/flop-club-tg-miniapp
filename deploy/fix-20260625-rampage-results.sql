@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT pg_advisory_xact_lock(hashtext('2026-06-25-rampage-rating-fix'));
+SELECT pg_advisory_xact_lock(hashtext('2026-06-25-rampage-rating-fix-v2'));
 
 CREATE TEMP TABLE _target_tournament AS
 SELECT id
@@ -44,113 +44,130 @@ INSERT INTO _manual_results (finish_place, points, lookup_values) VALUES
   (12, 0, ARRAY['Baldejnyi', 'baldejnyi']),
   (13, 0, ARRAY['OG ♠️', 'OG', 'ogcheerokeeh']);
 
-CREATE TEMP TABLE _resolved_results AS
-WITH candidate_users AS (
-  SELECT
-    manual.finish_place,
-    manual.points,
-    registration.id AS registration_id,
-    registration."userId" AS user_id,
-    user_record.username,
-    user_record."displayName",
-    ROW_NUMBER() OVER (
-      PARTITION BY manual.finish_place
-      ORDER BY
-        CASE
-          WHEN LOWER(COALESCE(user_record.username, '')) = ANY(
-            SELECT LOWER(value) FROM UNNEST(manual.lookup_values) AS value
-          ) THEN 1
-          WHEN LOWER(REPLACE(COALESCE(user_record."displayName", ''), 'ё', 'е')) = ANY(
-            SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-          ) THEN 2
-          ELSE 3
-        END,
-        registration."createdAt"
-    ) AS match_rank,
-    COUNT(*) OVER (PARTITION BY manual.finish_place) AS match_count
+CREATE TEMP TABLE _user_matches AS
+SELECT
+  manual.finish_place,
+  manual.points,
+  user_record.id AS user_id,
+  user_record.username,
+  user_record."displayName"
+FROM _manual_results manual
+JOIN "User" user_record
+  ON LOWER(COALESCE(user_record.username, '')) = ANY(
+    SELECT LOWER(lookup.value) FROM UNNEST(manual.lookup_values) AS lookup(value)
+  )
+  OR LOWER(REPLACE(COALESCE(user_record."displayName", ''), 'ё', 'е')) = ANY(
+    SELECT LOWER(REPLACE(lookup.value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS lookup(value)
+  )
+  OR LOWER(REPLACE(COALESCE(user_record."firstName", ''), 'ё', 'е')) = ANY(
+    SELECT LOWER(REPLACE(lookup.value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS lookup(value)
+  )
+  OR LOWER(REPLACE(TRIM(CONCAT(COALESCE(user_record."firstName", ''), ' ', COALESCE(user_record."lastName", ''))), 'ё', 'е')) = ANY(
+    SELECT LOWER(REPLACE(lookup.value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS lookup(value)
+  );
+
+DO $$
+DECLARE
+  missing_players TEXT;
+  ambiguous_players TEXT;
+BEGIN
+  SELECT STRING_AGG(manual.finish_place::TEXT || ' (' || ARRAY_TO_STRING(manual.lookup_values, ' / ') || ')', ', ' ORDER BY manual.finish_place)
+  INTO missing_players
   FROM _manual_results manual
-  JOIN "User" user_record
-    ON LOWER(COALESCE(user_record.username, '')) = ANY(
-      SELECT LOWER(value) FROM UNNEST(manual.lookup_values) AS value
-    )
-    OR LOWER(REPLACE(COALESCE(user_record."displayName", ''), 'ё', 'е')) = ANY(
-      SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-    )
-    OR LOWER(REPLACE(COALESCE(user_record."firstName", ''), 'ё', 'е')) = ANY(
-      SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-    )
-    OR LOWER(REPLACE(TRIM(CONCAT(COALESCE(user_record."firstName", ''), ' ', COALESCE(user_record."lastName", ''))), 'ё', 'е')) = ANY(
-      SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-    )
-  JOIN "Registration" registration
-    ON registration."userId" = user_record.id
-   AND registration."tournamentId" = (SELECT id FROM _target_tournament)
-   AND registration.status = 'ACTIVE'
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM _user_matches matched
+    WHERE matched.finish_place = manual.finish_place
+  );
+
+  SELECT STRING_AGG(finish_place::TEXT, ', ' ORDER BY finish_place)
+  INTO ambiguous_players
+  FROM (
+    SELECT finish_place
+    FROM _user_matches
+    GROUP BY finish_place
+    HAVING COUNT(*) > 1
+  ) duplicated;
+
+  IF missing_players IS NOT NULL OR ambiguous_players IS NOT NULL THEN
+    RAISE EXCEPTION
+      'User resolution failed. Missing: %, ambiguous places: %',
+      COALESCE(missing_players, 'none'),
+      COALESCE(ambiguous_players, 'none');
+  END IF;
+END $$;
+
+CREATE TEMP TABLE _resolved_users AS
+SELECT
+  manual.finish_place,
+  manual.points,
+  matched.user_id,
+  matched.username,
+  matched."displayName"
+FROM _manual_results manual
+JOIN _user_matches matched
+  ON matched.finish_place = manual.finish_place;
+
+INSERT INTO "Registration" (
+  id,
+  "userId",
+  "tournamentId",
+  status,
+  "liveStatus",
+  "checkedInAt",
+  "entryNumber",
+  "addOnCount",
+  "createdAt",
+  "updatedAt"
 )
 SELECT
-  finish_place,
-  points,
-  registration_id,
-  user_id,
-  username,
-  "displayName"
-FROM candidate_users
-WHERE match_rank = 1;
+  'manual_reg_20260625_' || LPAD(resolved.finish_place::TEXT, 2, '0'),
+  resolved.user_id,
+  (SELECT id FROM _target_tournament),
+  'ACTIVE',
+  'ELIMINATED',
+  CURRENT_TIMESTAMP,
+  1,
+  0,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+FROM _resolved_users resolved
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM "Registration" registration
+  WHERE registration."tournamentId" = (SELECT id FROM _target_tournament)
+    AND registration."userId" = resolved.user_id
+    AND registration.status = 'ACTIVE'
+);
+
+CREATE TEMP TABLE _resolved_results AS
+SELECT
+  resolved.finish_place,
+  resolved.points,
+  registration.id AS registration_id,
+  resolved.user_id,
+  resolved.username,
+  resolved."displayName"
+FROM _resolved_users resolved
+JOIN "Registration" registration
+  ON registration."userId" = resolved.user_id
+ AND registration."tournamentId" = (SELECT id FROM _target_tournament)
+ AND registration.status = 'ACTIVE';
 
 DO $$
 DECLARE
   resolved_count INTEGER;
   unique_registration_count INTEGER;
-  ambiguous_places TEXT;
-  missing_places TEXT;
 BEGIN
   SELECT COUNT(*), COUNT(DISTINCT registration_id)
   INTO resolved_count, unique_registration_count
   FROM _resolved_results;
 
-  SELECT STRING_AGG(manual.finish_place::TEXT || ' (' || ARRAY_TO_STRING(manual.lookup_values, ' / ') || ')', ', ' ORDER BY manual.finish_place)
-  INTO missing_places
-  FROM _manual_results manual
-  WHERE NOT EXISTS (
-    SELECT 1
-    FROM _resolved_results resolved
-    WHERE resolved.finish_place = manual.finish_place
-  );
-
-  SELECT STRING_AGG(resolved.finish_place::TEXT, ', ' ORDER BY resolved.finish_place)
-  INTO ambiguous_places
-  FROM _resolved_results resolved
-  JOIN (
-    SELECT manual.finish_place, COUNT(*) AS matches
-    FROM _manual_results manual
-    JOIN "User" user_record
-      ON LOWER(COALESCE(user_record.username, '')) = ANY(
-        SELECT LOWER(value) FROM UNNEST(manual.lookup_values) AS value
-      )
-      OR LOWER(REPLACE(COALESCE(user_record."displayName", ''), 'ё', 'е')) = ANY(
-        SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-      )
-      OR LOWER(REPLACE(COALESCE(user_record."firstName", ''), 'ё', 'е')) = ANY(
-        SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-      )
-      OR LOWER(REPLACE(TRIM(CONCAT(COALESCE(user_record."firstName", ''), ' ', COALESCE(user_record."lastName", ''))), 'ё', 'е')) = ANY(
-        SELECT LOWER(REPLACE(value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS value
-      )
-    JOIN "Registration" registration
-      ON registration."userId" = user_record.id
-     AND registration."tournamentId" = (SELECT id FROM _target_tournament)
-     AND registration.status = 'ACTIVE'
-    GROUP BY manual.finish_place
-    HAVING COUNT(*) > 1
-  ) duplicates ON duplicates.finish_place = resolved.finish_place;
-
-  IF resolved_count <> 13 OR unique_registration_count <> 13 OR ambiguous_places IS NOT NULL THEN
+  IF resolved_count <> 13 OR unique_registration_count <> 13 THEN
     RAISE EXCEPTION
-      'Expected 13 unique active registrations. Resolved: %, unique: %, missing: %, ambiguous places: %',
+      'Expected 13 unique active registrations after backfill. Resolved: %, unique: %',
       resolved_count,
-      unique_registration_count,
-      COALESCE(missing_places, 'none'),
-      COALESCE(ambiguous_places, 'none');
+      unique_registration_count;
   END IF;
 END $$;
 
