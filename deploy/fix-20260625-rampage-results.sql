@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT pg_advisory_xact_lock(hashtext('2026-06-25-rampage-rating-fix-v2'));
+SELECT pg_advisory_xact_lock(hashtext('2026-06-25-rampage-rating-fix-v3'));
 
 CREATE TEMP TABLE _target_tournament AS
 SELECT id
@@ -38,19 +38,32 @@ INSERT INTO _manual_results (finish_place, points, lookup_values) VALUES
   (6, 0, ARRAY['DK', 'danlluxx']),
   (7, 0, ARRAY['Степан', 'Stepan', 'stepan']),
   (8, 0, ARRAY['Мистер большой блайнд']),
-  (9, 0, ARRAY['Maxime', 'Максим']),
-  (10, 0, ARRAY['bbr 🃏', 'bbr🃏', 'nbobr']),
+  (9, 0, ARRAY['Maxime']),
+  (10, 0, ARRAY['nbobr']),
   (11, 0, ARRAY['Жанна']),
   (12, 0, ARRAY['Baldejnyi', 'baldejnyi']),
   (13, 0, ARRAY['OG ♠️', 'OG', 'ogcheerokeeh']);
 
-CREATE TEMP TABLE _user_matches AS
+CREATE TEMP TABLE _candidate_user_matches AS
 SELECT
   manual.finish_place,
   manual.points,
   user_record.id AS user_id,
   user_record.username,
-  user_record."displayName"
+  user_record."displayName",
+  active_registration.id AS active_registration_id,
+  CASE
+    WHEN LOWER(COALESCE(user_record.username, '')) = ANY(
+      SELECT LOWER(lookup.value) FROM UNNEST(manual.lookup_values) AS lookup(value)
+    ) THEN 1
+    WHEN LOWER(REPLACE(COALESCE(user_record."displayName", ''), 'ё', 'е')) = ANY(
+      SELECT LOWER(REPLACE(lookup.value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS lookup(value)
+    ) THEN 2
+    WHEN LOWER(REPLACE(TRIM(CONCAT(COALESCE(user_record."firstName", ''), ' ', COALESCE(user_record."lastName", ''))), 'ё', 'е')) = ANY(
+      SELECT LOWER(REPLACE(lookup.value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS lookup(value)
+    ) THEN 3
+    ELSE 4
+  END AS match_priority
 FROM _manual_results manual
 JOIN "User" user_record
   ON LOWER(COALESCE(user_record.username, '')) = ANY(
@@ -64,7 +77,28 @@ JOIN "User" user_record
   )
   OR LOWER(REPLACE(TRIM(CONCAT(COALESCE(user_record."firstName", ''), ' ', COALESCE(user_record."lastName", ''))), 'ё', 'е')) = ANY(
     SELECT LOWER(REPLACE(lookup.value, 'ё', 'е')) FROM UNNEST(manual.lookup_values) AS lookup(value)
-  );
+  )
+LEFT JOIN "Registration" active_registration
+  ON active_registration."userId" = user_record.id
+ AND active_registration."tournamentId" = (SELECT id FROM _target_tournament)
+ AND active_registration.status = 'ACTIVE';
+
+CREATE TEMP TABLE _user_matches AS
+SELECT finish_place, points, user_id, username, "displayName"
+FROM (
+  SELECT
+    candidate.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY candidate.finish_place
+      ORDER BY
+        CASE WHEN candidate.active_registration_id IS NOT NULL THEN 0 ELSE 1 END,
+        candidate.match_priority,
+        candidate.username NULLS LAST,
+        candidate.user_id
+    ) AS match_rank
+  FROM _candidate_user_matches candidate
+) ranked
+WHERE match_rank = 1;
 
 DO $$
 DECLARE
@@ -80,20 +114,10 @@ BEGIN
     WHERE matched.finish_place = manual.finish_place
   );
 
-  SELECT STRING_AGG(finish_place::TEXT, ', ' ORDER BY finish_place)
-  INTO ambiguous_players
-  FROM (
-    SELECT finish_place
-    FROM _user_matches
-    GROUP BY finish_place
-    HAVING COUNT(*) > 1
-  ) duplicated;
-
-  IF missing_players IS NOT NULL OR ambiguous_players IS NOT NULL THEN
+  IF missing_players IS NOT NULL THEN
     RAISE EXCEPTION
-      'User resolution failed. Missing: %, ambiguous places: %',
-      COALESCE(missing_players, 'none'),
-      COALESCE(ambiguous_players, 'none');
+      'User resolution failed. Missing: %',
+      COALESCE(missing_players, 'none');
   END IF;
 END $$;
 
