@@ -116,6 +116,12 @@ const specialEvents: Record<string, { title: string; buyIn: number; reEntry: num
     buyIn: 500,
     reEntry,
     ratingPool: ratingPools["Flop Mystery Knockout"]
+  },
+  "2026-06-30": {
+    title: "Flop Phoenix",
+    buyIn: 0,
+    reEntry,
+    ratingPool: ratingPools["Flop Phoenix"]
   }
 };
 
