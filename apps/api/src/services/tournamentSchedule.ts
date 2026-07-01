@@ -92,7 +92,13 @@ const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "17:00", "1
 const specialTimes: Record<string, string> = {
   "2026-06-21": "18:00"
 };
-const specialEvents: Record<string, { title: string; buyIn: number; reEntry: number; ratingPool: number }> = {
+const specialEvents: Record<string, {
+  title: string;
+  buyIn: number;
+  reEntry: number;
+  ratingPool: number;
+  ratingSeriesMonth?: string;
+}> = {
   "2026-06-05": {
     title: "FLOP GRAND OPENNING",
     buyIn: 0,
@@ -121,7 +127,8 @@ const specialEvents: Record<string, { title: string; buyIn: number; reEntry: num
     title: "Flop Phoenix",
     buyIn: 0,
     reEntry,
-    ratingPool: ratingPools["Flop Phoenix"]
+    ratingPool: ratingPools["Flop Phoenix"],
+    ratingSeriesMonth: "2026-07"
   }
 };
 
@@ -209,6 +216,7 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
     reEntry: eventReEntry,
     prizePool: buyIn * maxParticipants,
     ratingPool: eventOverride?.ratingPool ?? ratingPools[title] ?? 10000,
+    ratingSeriesMonth: eventOverride?.ratingSeriesMonth,
     profile,
     lateRegistrationEndsAt,
     addOnEnabled: addOn.enabled,

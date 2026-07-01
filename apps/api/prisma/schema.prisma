@@ -70,6 +70,7 @@ model Tournament {
   reEntry           Int            @default(1000)
   prizePool         Int
   ratingPool        Int            @default(10000)
+  ratingSeriesMonth String?
   entriesCount      Int?
   profile           TournamentProfile @default(BASE)
   lateRegistrationEndsAt DateTime?
@@ -88,6 +89,7 @@ model Tournament {
 
   @@index([startsAt])
   @@index([status])
+  @@index([ratingSeriesMonth])
 }
 
 model TournamentReminder {

@@ -65,10 +65,16 @@ async function getSeasonLeaderboard(limit: number, month: unknown, search: strin
   const results = await prisma.tournamentRatingResult.findMany({
     where: {
       tournament: {
-        startsAt: {
-          gte: range.start,
-          lt: range.end
-        }
+        OR: [
+          { ratingSeriesMonth: range.month },
+          {
+            ratingSeriesMonth: null,
+            startsAt: {
+              gte: range.start,
+              lt: range.end
+            }
+          }
+        ]
       },
       ...(search ? { user: searchWhere(search) } : {})
     },
