@@ -129,6 +129,18 @@ const specialEvents: Record<string, {
     reEntry,
     ratingPool: ratingPools["Flop Phoenix"],
     ratingSeriesMonth: "2026-07"
+  },
+  "2026-07-03": {
+    title: "Flop Prime Event",
+    buyIn: 500,
+    reEntry,
+    ratingPool: ratingPools["Flop Prime Event"]
+  },
+  "2026-07-04": {
+    title: "Flop Bounty",
+    buyIn: 500,
+    reEntry,
+    ratingPool: ratingPools["Flop Bounty"]
   }
 };
 
