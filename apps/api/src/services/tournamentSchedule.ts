@@ -4,6 +4,7 @@ import { tournamentAddOnConfigFor } from "./tournamentRules.js";
 
 const location = "Flop Club, Барнаул";
 const maxParticipants = 50;
+const defaultBuyIn = 500;
 const reEntry = 1000;
 const baseCycleDate = "2026-06-15";
 const firstScheduledTournamentDate = "2026-06-05";
@@ -211,7 +212,7 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
   const weekdayIndex = mondayIndexFromCycleOffset(cycleOffset);
   const eventOverride = specialEvents[dateKeyValue];
   const title = eventOverride?.title ?? cycle[cycleOffset];
-  const buyIn = eventOverride?.buyIn ?? (weekdayIndex >= 4 ? 1000 : 500);
+  const buyIn = eventOverride?.buyIn ?? defaultBuyIn;
   const eventReEntry = eventOverride?.reEntry ?? reEntry;
   const startsAt = new Date(`${dateKeyValue}T${specialTimes[dateKeyValue] ?? timesByWeekday[weekdayIndex]}:00+07:00`);
   const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
