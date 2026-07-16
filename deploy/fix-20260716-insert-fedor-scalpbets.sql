@@ -29,6 +29,7 @@ CREATE TEMP TABLE _player_requests (
 
 INSERT INTO _player_requests (key, lookup_values) VALUES
   ('fedor', ARRAY[
+    't_ador',
     'Фёдор Иванович Депутат',
     'Федор Иванович Депутат',
     'Фёдор Депутат',
