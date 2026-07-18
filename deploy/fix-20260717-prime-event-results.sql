@@ -41,42 +41,10 @@ INSERT INTO _manual_results (finish_place, points, percent, lookup_values) VALUE
   (8, 0, 0, ARRAY['Lev Nekiforenko', 'Lev Nikiforenko', 'Lev', 'noev_kovcheg9']),
   (9, 0, 0, ARRAY['bbr🃏', 'bbr', 'nbobr']),
   (10, 0, 0, ARRAY['Baldejnyi', 'Baldejniy', 'baldejnyi']),
-  (11, 0, 0, ARRAY['Уборщик клуба FLOP', 'Уборщик клуба Flop', 'Уборщик']),
+  (11, 0, 0, ARRAY['Уборщик клуба FLOP', 'Уборщик клуба Flop', 'Уборщик', 'rrrrrr55555588']),
   (12, 0, 0, ARRAY['nastiiwq']),
   (13, 0, 0, ARRAY['Ангелина', 'Angelina']),
   (14, 0, 0, ARRAY['ScalpBets', 'Scalpbets', 'scalpbetsceo']);
-
-INSERT INTO "User" (
-  id,
-  "telegramId",
-  username,
-  "firstName",
-  "lastName",
-  "displayName",
-  role,
-  "ratingPoints",
-  knockouts,
-  "createdAt",
-  "updatedAt"
-)
-VALUES (
-  'manual_user_20260717_prime_event_cleaner',
-  'manual_20260717_prime_event_cleaner',
-  NULL,
-  'Уборщик клуба FLOP',
-  NULL,
-  'Уборщик клуба FLOP',
-  'USER',
-  0,
-  0,
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-)
-ON CONFLICT ("telegramId") DO UPDATE
-SET
-  "displayName" = EXCLUDED."displayName",
-  "firstName" = EXCLUDED."firstName",
-  "updatedAt" = CURRENT_TIMESTAMP;
 
 CREATE TEMP TABLE _candidate_user_matches AS
 SELECT
