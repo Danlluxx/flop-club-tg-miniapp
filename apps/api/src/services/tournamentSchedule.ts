@@ -5,7 +5,8 @@ import { tournamentAddOnConfigFor } from "./tournamentRules.js";
 const location = "Flop Club, Барнаул";
 const maxParticipants = 50;
 const defaultBuyIn = 500;
-const reEntry = 1000;
+const defaultReEntry = 500;
+const legacyReEntry = 1000;
 const baseCycleDate = "2026-06-15";
 const firstScheduledTournamentDate = "2026-06-05";
 
@@ -103,47 +104,59 @@ const specialEvents: Record<string, {
   "2026-06-05": {
     title: "FLOP GRAND OPENNING",
     buyIn: 0,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Prime Event"]
   },
   "2026-06-06": {
     title: "Flop Black Edition",
     buyIn: 0,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Black Edition"]
   },
   "2026-06-16": {
     title: "Flop Mystery Knockout",
     buyIn: 500,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Mystery Knockout"]
   },
   "2026-06-26": {
     title: "Flop Mystery Knockout",
     buyIn: 500,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Mystery Knockout"]
   },
   "2026-06-30": {
     title: "Flop Phoenix",
     buyIn: 0,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Phoenix"],
     ratingSeriesMonth: "2026-07"
   },
   "2026-07-03": {
     title: "Flop Prime Event",
     buyIn: 500,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Prime Event"]
   },
   "2026-07-04": {
     title: "Flop Bounty",
     buyIn: 500,
-    reEntry,
+    reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Bounty"]
   }
 };
+
+export function tournamentPricingFor(title: string) {
+  if (title === "Flop Freeze Out" || title === "Flop One Shot") {
+    return { buyIn: 1000, reEntry: 0 };
+  }
+
+  if (title === "Flop Phoenix") {
+    return { buyIn: defaultBuyIn, reEntry: 1000 };
+  }
+
+  return { buyIn: defaultBuyIn, reEntry: defaultReEntry };
+}
 
 export function slug(value: string) {
   return value.toLowerCase().replaceAll(" ", "-");
@@ -212,8 +225,9 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
   const weekdayIndex = mondayIndexFromCycleOffset(cycleOffset);
   const eventOverride = specialEvents[dateKeyValue];
   const title = eventOverride?.title ?? cycle[cycleOffset];
-  const buyIn = eventOverride?.buyIn ?? defaultBuyIn;
-  const eventReEntry = eventOverride?.reEntry ?? reEntry;
+  const pricing = tournamentPricingFor(title);
+  const buyIn = eventOverride?.buyIn ?? pricing.buyIn;
+  const eventReEntry = eventOverride?.reEntry ?? pricing.reEntry;
   const startsAt = new Date(`${dateKeyValue}T${specialTimes[dateKeyValue] ?? timesByWeekday[weekdayIndex]}:00+07:00`);
   const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
   const profile = tournamentProfiles[title] ?? TournamentProfile.BASE;

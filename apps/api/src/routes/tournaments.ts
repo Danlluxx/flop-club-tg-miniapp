@@ -15,7 +15,7 @@ const tournamentSchema = z.object({
   startsAt: z.coerce.date(),
   location: z.string().min(2),
   buyIn: z.coerce.number().int().min(0),
-  reEntry: z.coerce.number().int().min(0).default(1000),
+  reEntry: z.coerce.number().int().min(0).default(500),
   prizePool: z.coerce.number().int().min(0),
   ratingPool: z.coerce.number().int().min(0).default(10000),
   profile: z.nativeEnum(TournamentProfile).default(TournamentProfile.BASE),

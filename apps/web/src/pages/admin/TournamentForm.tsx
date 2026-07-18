@@ -29,7 +29,7 @@ const initial: FormState = {
   startsAt: "",
   location: "Flop Club, Барнаул",
   buyIn: "500",
-  reEntry: "1000",
+  reEntry: "500",
   prizePool: "200000",
   ratingPool: "10000",
   addOnEnabled: false,

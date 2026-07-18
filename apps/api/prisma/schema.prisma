@@ -67,7 +67,7 @@ model Tournament {
   startsAt          DateTime
   location          String
   buyIn             Int
-  reEntry           Int            @default(1000)
+  reEntry           Int            @default(500)
   prizePool         Int
   ratingPool        Int            @default(10000)
   ratingSeriesMonth String?

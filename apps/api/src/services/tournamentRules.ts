@@ -86,6 +86,7 @@ const rules: Record<string, { features: string[] }> = {
   "Flop One Shot": {
     features: [
       ...defaultFeatures,
+      "Без re-entry",
       "Одна попытка без лишней раскачки",
       "Каждое решение имеет повышенную ценность",
       "Формат для дисциплины, терпения и аккуратной игры",
