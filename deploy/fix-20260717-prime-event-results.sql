@@ -46,6 +46,38 @@ INSERT INTO _manual_results (finish_place, points, percent, lookup_values) VALUE
   (13, 0, 0, ARRAY['Ангелина', 'Angelina']),
   (14, 0, 0, ARRAY['ScalpBets', 'Scalpbets', 'scalpbetsceo']);
 
+INSERT INTO "User" (
+  id,
+  "telegramId",
+  username,
+  "firstName",
+  "lastName",
+  "displayName",
+  role,
+  "ratingPoints",
+  knockouts,
+  "createdAt",
+  "updatedAt"
+)
+VALUES (
+  'manual_user_20260717_prime_event_cleaner',
+  'manual_20260717_prime_event_cleaner',
+  NULL,
+  'Уборщик клуба FLOP',
+  NULL,
+  'Уборщик клуба FLOP',
+  'USER',
+  0,
+  0,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT ("telegramId") DO UPDATE
+SET
+  "displayName" = EXCLUDED."displayName",
+  "firstName" = EXCLUDED."firstName",
+  "updatedAt" = CURRENT_TIMESTAMP;
+
 CREATE TEMP TABLE _candidate_user_matches AS
 SELECT
   manual.finish_place,
