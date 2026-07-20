@@ -41,7 +41,7 @@ INSERT INTO _manual_results (
   percent,
   lookup_values
 ) VALUES
-  (1, 3600,   0, 0, 36, ARRAY['Колесо', 'Koleso']),
+  (1, 3600,   0, 0, 36, ARRAY['Trae_Young_11', 'Колесо', 'Koleso']),
   (2, 2400, 300, 3, 24, ARRAY['Кувси', 'Кувcи', 'Kuvsi']),
   (3, 1600, 200, 2, 16, ARRAY['Kiruhaque13', 'Kiruhaque', 'kiruhaque']),
   (4, 1000, 500, 5, 10, ARRAY['MIKHL', 'Mikhl']),
@@ -211,6 +211,18 @@ SELECT
 FROM _manual_results manual
 JOIN _user_matches matched
   ON matched.finish_place = manual.finish_place;
+
+UPDATE "User" user_record
+SET
+  "displayName" = CASE resolved.finish_place
+    WHEN 1 THEN 'Колесо'
+    WHEN 14 THEN 'Уборщик клуба FLOP'
+    ELSE user_record."displayName"
+  END,
+  "updatedAt" = CURRENT_TIMESTAMP
+FROM _resolved_users resolved
+WHERE user_record.id = resolved.user_id
+  AND resolved.finish_place IN (1, 14);
 
 INSERT INTO "Registration" (
   id,
