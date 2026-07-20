@@ -41,7 +41,7 @@ INSERT INTO _manual_results (
   percent,
   lookup_values
 ) VALUES
-  (1, 3600,   0, 0, 36, ARRAY['Trae_Young_11', 'Колесо', 'Koleso']),
+  (1, 3600, 600, 6, 36, ARRAY['Trae_Young_11', 'Колесо', 'Koleso']),
   (2, 2400, 300, 3, 24, ARRAY['Кувси', 'Кувcи', 'Kuvsi']),
   (3, 1600, 200, 2, 16, ARRAY['Kiruhaque13', 'Kiruhaque', 'kiruhaque']),
   (4, 1000, 500, 5, 10, ARRAY['MIKHL', 'Mikhl']),
@@ -72,7 +72,7 @@ BEGIN
   INTO placement_total, bounty_total, knockout_total
   FROM _manual_results;
 
-  IF placement_total <> 10000 OR bounty_total <> 1800 OR knockout_total <> 18 THEN
+  IF placement_total <> 10000 OR bounty_total <> 2400 OR knockout_total <> 24 THEN
     RAISE EXCEPTION
       'Unexpected totals. Placement: %, bounty: %, knockouts: %',
       placement_total,
