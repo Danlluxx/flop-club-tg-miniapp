@@ -81,6 +81,33 @@ BEGIN
   END IF;
 END $$;
 
+INSERT INTO "User" (
+  id,
+  "telegramId",
+  username,
+  "displayName",
+  "firstName",
+  role,
+  "createdAt",
+  "updatedAt"
+)
+SELECT
+  'manual_user_20260718_bounty_alevtina',
+  'manual_20260718_bounty_alevtina',
+  NULL,
+  'Алевтина',
+  'Алевтина',
+  'USER',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM "User" user_record
+  WHERE LOWER(REPLACE(COALESCE(user_record."displayName", ''), 'ё', 'е')) = LOWER(REPLACE('Алевтина', 'ё', 'е'))
+     OR LOWER(REPLACE(COALESCE(user_record."firstName", ''), 'ё', 'е')) = LOWER(REPLACE('Алевтина', 'ё', 'е'))
+     OR user_record."telegramId" = 'manual_20260718_bounty_alevtina'
+);
+
 CREATE TEMP TABLE _candidate_user_matches AS
 SELECT DISTINCT
   manual.finish_place,
