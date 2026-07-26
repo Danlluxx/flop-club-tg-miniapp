@@ -90,7 +90,7 @@ const cycle = [
   "Flop Grand Final"
 ] as const;
 
-const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "17:00", "17:00"] as const;
+const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "19:00", "19:00"] as const;
 const specialTimes: Record<string, string> = {
   "2026-06-21": "18:00"
 };
