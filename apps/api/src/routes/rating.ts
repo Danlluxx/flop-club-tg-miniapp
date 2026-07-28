@@ -1,5 +1,5 @@
 import express from "express";
-import type { Prisma, User } from "@prisma/client";
+import { RegistrationStatus, TournamentStatus, type Prisma, type User } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getRatingAwards, RATING_DISTRIBUTIONS, RATING_POOLS } from "../services/rating.js";
@@ -11,7 +11,7 @@ type RatedUser = User & { rank: number; ratingPoints: number; knockouts: number 
 
 function parseLimit(value: unknown) {
   const requestedLimit = Number(value ?? 50);
-  return Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
+  return Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 500) : 50;
 }
 
 function parseRatingScope(value: unknown): RatingScope {
@@ -48,10 +48,28 @@ function rankUsers(users: Array<User & { ratingPoints: number; knockouts: number
 }
 
 async function getGlobalLeaderboard(limit: number, search: string) {
-  const where: Prisma.UserWhereInput = {
-    ratingPoints: { gt: 0 },
-    ...searchWhere(search)
+  const playedWhere: Prisma.UserWhereInput = {
+    OR: [
+      { ratingPoints: { gt: 0 } },
+      { ratingResults: { some: {} } },
+      {
+        registrations: {
+          some: {
+            status: RegistrationStatus.ACTIVE,
+            OR: [
+              { checkedInAt: { not: null } },
+              { finishPlace: { not: null } },
+              { tournament: { status: TournamentStatus.FINISHED } }
+            ]
+          }
+        }
+      }
+    ]
   };
+
+  const searchFilter = searchWhere(search);
+  const where: Prisma.UserWhereInput = searchFilter ? { AND: [playedWhere, searchFilter] } : playedWhere;
+
   const allUsers = await prisma.user.findMany({
     where,
     orderBy: [{ ratingPoints: "desc" }, { knockouts: "desc" }, { createdAt: "asc" }]

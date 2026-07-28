@@ -103,7 +103,7 @@ export function RatingPage({ user }: { user: User }) {
         user={user}
         compact
         showTitle={false}
-        leaderboardParams={{ limit: 50, scope, month: scope === "season" ? currentMonth.value : undefined, search }}
+        leaderboardParams={{ limit: scope === "global" ? 500 : 50, scope, month: scope === "season" ? currentMonth.value : undefined, search }}
       />
     </section>
   );
