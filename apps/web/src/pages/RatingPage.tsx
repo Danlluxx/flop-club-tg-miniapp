@@ -34,9 +34,34 @@ function buildCurrentMonth() {
   };
 }
 
+function buildSeriesOptions() {
+  const now = new Date();
+  const startYear = 2026;
+  const startMonth = 5;
+  const options: Array<{ value: string; label: string }> = [];
+
+  for (let year = startYear; year <= now.getFullYear(); year += 1) {
+    const monthFrom = year === startYear ? startMonth : 0;
+    const monthTo = year === now.getFullYear() ? now.getMonth() : 11;
+
+    for (let month = monthFrom; month <= monthTo; month += 1) {
+      const date = new Date(year, month, 1);
+
+      options.unshift({
+        value: monthValue(date),
+        label: `${monthNames[month]} серия`
+      });
+    }
+  }
+
+  return options;
+}
+
 export function RatingPage({ user }: { user: User }) {
   const currentMonth = useMemo(buildCurrentMonth, []);
+  const seriesOptions = useMemo(buildSeriesOptions, []);
   const [scope, setScope] = useState<RatingScope>("season");
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth.value);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
 
@@ -75,9 +100,13 @@ export function RatingPage({ user }: { user: User }) {
 
         {scope === "season" && (
           <div className="rating-month">
-            <div className="rating-month-trigger">
-              <span>{currentMonth.label}</span>
-            </div>
+            <select className="rating-month-select" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
+              {seriesOptions.map((series) => (
+                <option key={series.value} value={series.value}>
+                  {series.label}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -103,7 +132,7 @@ export function RatingPage({ user }: { user: User }) {
         user={user}
         compact
         showTitle={false}
-        leaderboardParams={{ limit: scope === "global" ? 500 : 50, scope, month: scope === "season" ? currentMonth.value : undefined, search }}
+        leaderboardParams={{ limit: scope === "global" ? 500 : 50, scope, month: scope === "season" ? selectedMonth : undefined, search }}
       />
     </section>
   );

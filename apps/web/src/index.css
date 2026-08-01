@@ -1230,6 +1230,27 @@ h3,
   padding: 0.55rem;
 }
 
+.rating-month-select {
+  width: 100%;
+  min-height: 3.7rem;
+  border: 0;
+  background:
+    linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.78) 50%) calc(100% - 1.35rem) 50% / 0.45rem 0.45rem no-repeat,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78) 50%, transparent 50%) calc(100% - 1.05rem) 50% / 0.45rem 0.45rem no-repeat,
+    rgba(18, 21, 26, 0.82);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  outline: none;
+  padding: 0 3rem 0 1rem;
+  appearance: none;
+}
+
+.rating-month-select option {
+  background: #12151a;
+  color: #fff;
+}
+
 .rating-month-menu {
   display: grid;
   gap: 0.6rem;
