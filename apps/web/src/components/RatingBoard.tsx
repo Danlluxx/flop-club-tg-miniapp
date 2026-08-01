@@ -35,12 +35,12 @@ function Row({ player, tier }: { player: RatingLeaderboardEntry; tier: "gold" | 
   return (
     <div className={`rank-row rank-row-${tier}`}>
       <RankMedal rank={player.rank} tier={tier} />
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="rank-player">
         <Avatar src={player.photoUrl} fallback={nickname} />
-        <span className={`truncate text-base font-black ${tier === "player" ? "text-amber-200" : ""}`}>{nickname}</span>
+        <span className={`rank-name ${tier === "player" ? "text-amber-200" : ""}`} title={nickname}>{nickname}</span>
       </div>
-      <span className="rating-number text-center text-base">{player.knockouts ?? 0}</span>
-      <span className="rating-number flex items-center justify-end gap-1 text-base">
+      <span className="rating-number rank-knockouts">{player.knockouts ?? 0}</span>
+      <span className="rating-number rank-points">
         {(player.ratingPoints ?? 0).toLocaleString("ru-RU")}
         <RatingIcon className="h-5 w-5" />
       </span>
