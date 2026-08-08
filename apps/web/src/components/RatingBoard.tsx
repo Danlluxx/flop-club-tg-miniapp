@@ -39,7 +39,6 @@ function Row({ player, tier }: { player: RatingLeaderboardEntry; tier: "gold" | 
         <Avatar src={player.photoUrl} fallback={nickname} />
         <span className={`rank-name ${tier === "player" ? "text-amber-200" : ""}`} title={nickname}>{nickname}</span>
       </div>
-      <span className="rating-number rank-knockouts">{player.knockouts ?? 0}</span>
       <span className="rating-number rank-points">
         {(player.ratingPoints ?? 0).toLocaleString("ru-RU")}
         <RatingIcon className="h-5 w-5" />
@@ -79,7 +78,6 @@ export function RatingBoard({ user, compact = false, showTitle = true, leaderboa
       <div className="rank-header">
         <span className="pl-2 text-xl">▥</span>
         <span>Никнейм</span>
-        <span className="text-center">Нокауты</span>
         <span className="text-right">Рейтинг</span>
       </div>
 

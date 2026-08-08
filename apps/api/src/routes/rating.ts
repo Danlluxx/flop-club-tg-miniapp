@@ -101,13 +101,14 @@ async function getSeasonLeaderboard(limit: number, month: unknown, search: strin
   const userMap = new Map<string, User & { ratingPoints: number; knockouts: number }>();
 
   for (const result of results) {
+    const totalRatingPoints = result.points + result.knockouts;
     const existing = userMap.get(result.userId);
 
     if (existing) {
-      existing.ratingPoints += result.points;
+      existing.ratingPoints += totalRatingPoints;
       existing.knockouts += result.knockouts;
     } else {
-      userMap.set(result.userId, { ...result.user, ratingPoints: result.points, knockouts: result.knockouts });
+      userMap.set(result.userId, { ...result.user, ratingPoints: totalRatingPoints, knockouts: result.knockouts });
     }
   }
 

@@ -130,11 +130,13 @@ export async function applyTournamentRatingResults(
     await tx.tournamentRatingResult.deleteMany({ where: { tournamentId } });
 
     for (const result of nextResults) {
+      const totalRatingPoints = result.points + result.knockouts;
+
       await tx.tournamentRatingResult.create({ data: result });
       await tx.user.update({
         where: { id: result.userId },
         data: {
-          ratingPoints: { increment: result.points },
+          ratingPoints: { increment: totalRatingPoints },
           knockouts: { increment: result.knockouts }
         }
       });
@@ -158,10 +160,12 @@ export async function applyTournamentRatingResults(
 
 async function rollbackExistingResults(tx: Prisma.TransactionClient, results: Array<{ userId: string; points: number; knockouts: number }>) {
   for (const result of results) {
+    const totalRatingPoints = result.points + result.knockouts;
+
     await tx.user.update({
       where: { id: result.userId },
       data: {
-        ratingPoints: { decrement: result.points },
+        ratingPoints: { decrement: totalRatingPoints },
         knockouts: { decrement: result.knockouts }
       }
     });
