@@ -56,7 +56,7 @@ INSERT INTO _bonus_points (label, points, lookup_values) VALUES
   ('Тимур', 500, ARRAY['Тимур', 'Timur']),
   ('sswwg', 250, ARRAY['sswwg']),
   ('Ilya', 500, ARRAY['Ilya', 'Илья']),
-  ('Рита', 1500, ARRAY['Рита', 'Rita']),
+  ('Рита', 1500, ARRAY['Рита', 'Rita', 'Маргарита', 'msvarchevskayaa']),
   ('Арс', 1250, ARRAY['Арс', 'арс', 'sen_cho']),
   ('Niggroni', 500, ARRAY['Niggroni', 'bbspasha']),
   ('Artur', 500, ARRAY['Artur', 'Артур']),
