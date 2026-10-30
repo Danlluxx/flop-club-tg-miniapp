@@ -145,7 +145,7 @@ export function TournamentPage() {
           <h1 className="brand-display tournament-detail-title mt-5 text-white">{rule.title}</h1>
 
           <div className="mt-6 space-y-3 text-sm font-semibold text-slate-300">
-            <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-electric" />{data.mechanics ? `${formatBarnaulDateTime(data.startsAt)} · Барнаул` : format(new Date(data.startsAt), "d MMMM yyyy, HH:mm", { locale: ru })}</div>
+            <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-electric" />{data.mechanics ? `${formatBarnaulDateTime(data.startsAt)} · Геблера 33б` : format(new Date(data.startsAt), "d MMMM yyyy, HH:mm", { locale: ru })}</div>
             <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-rose-400" />{data.location}</div>
             <div className="flex items-center gap-2"><Users className="h-4 w-4 text-violet" />{data._count.registrations} из {data.maxParticipants} участников</div>
           </div>

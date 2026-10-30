@@ -52,7 +52,7 @@ function UpcomingTournament({ tournament }: { tournament?: Tournament }) {
       <img className="home-event-art" src={tournamentEventImage(tournament.title)} alt="" />
       <div className="relative z-10 flex min-h-[13.5rem] max-w-[72%] flex-col">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.34em] text-electric">Next tournament</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.34em] text-electric">Ближайший турнир</p>
           <h2 className="brand-display mt-2 text-[2rem] text-white">{tournament.title}</h2>
         </div>
         <div className="mt-6 flex flex-wrap gap-2">

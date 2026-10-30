@@ -36,7 +36,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
             </span>
             <span className="tournament-pill">
               <CalendarClock className="h-4 w-4" />
-              {tournament.mechanics ? `${formatBarnaulDateTime(tournament.startsAt)} · Барнаул` : format(new Date(tournament.startsAt), "dd.MM / HH:mm", { locale: ru })}
+              {tournament.mechanics ? `${formatBarnaulDateTime(tournament.startsAt)} · Геблера 33б` : format(new Date(tournament.startsAt), "dd.MM / HH:mm", { locale: ru })}
             </span>
           </div>
 
