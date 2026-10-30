@@ -20,7 +20,7 @@ export const mechanicsSchema = z.object({
 });
 export type TournamentMechanics = z.infer<typeof mechanicsSchema>;
 export const devilDealDefaults: TournamentMechanics = {
-  tournamentType: "FLOP_DEVIL_DEAL", timezone: "Asia/Barnaul", startingStack: 30000, blindLevelMinutes: 20,
+  tournamentType: "FLOP_DEVIL_DEAL", timezone: "Asia/Barnaul", startingStack: 30000, blindLevelMinutes: 15,
   registrationClosesAt: "2026-10-31T21:00:00+07:00",
   blindLevels: [100, 200, 300, 400, 600, 800, 1000, 1500, 2000, 3000, 4000, 6000, 8000, 10000, 15000, 20000],
   reEntry: { enabled: true, maxEntries: null },
