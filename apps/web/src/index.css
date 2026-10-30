@@ -683,7 +683,7 @@ h3,
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.1rem;
   background:
-    linear-gradient(90deg, rgba(255, 51, 79, 0.13), rgba(121, 87, 255, 0.08)),
+    linear-gradient(90deg, rgba(255, 51, 79, 0.3), rgba(255, 51, 79, 0.08)),
     rgba(255, 255, 255, 0.07);
   padding: 1rem;
   text-align: left;
