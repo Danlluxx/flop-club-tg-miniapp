@@ -428,7 +428,13 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
       const existingExpected = await tx.tournament.findUnique({ where: { id: String(id) } });
       if (existingExpected) {
         if (existingExpected.mechanics) {
-          await tx.tournament.update({ where: { id: String(id) }, data: { buyIn: data.buyIn, reEntry: data.reEntry } });
+          await tx.tournament.update({ where: { id: String(id) }, data: {
+            buyIn: data.buyIn,
+            reEntry: data.reEntry,
+            startsAt: data.startsAt,
+            lateRegistrationEndsAt: data.lateRegistrationEndsAt,
+            mechanics: data.mechanics
+          } });
           continue;
         }
         await tx.tournament.update({ where: { id: String(id) }, data });
