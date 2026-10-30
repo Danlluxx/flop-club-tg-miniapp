@@ -5,6 +5,11 @@ const defaultFeatures = [
   "Big Blind Ante с первого уровня"
 ];
 
+const entryChipsByTitle: Record<string, number> = {
+  "Flop Deep Stack": 60000,
+  "Flop Rampage": 50000
+};
+
 const addOnChipsByTitle: Record<string, number> = {
   "Flop Classic": 100000,
   "Flop Deep Stack": 100000,
@@ -15,6 +20,9 @@ const addOnChipsByTitle: Record<string, number> = {
   "Flop Grand Final": 100000,
   "Flop Last Call": 100000,
   "Flop Secret Final": 100000,
+  "FLOP 3 MINUS 1": 100000,
+  "FLOP BOOSTER RE-ENTRY": 100000,
+  "FLOP BOMB POT": 100000,
   "Flop Rampage": 60000,
   "Flop Bounty": 60000,
   "Flop Mystery Knockout": 60000
@@ -40,7 +48,10 @@ const rules: Record<string, { features: string[] }> = {
   },
   "Flop Deep Stack": {
     features: [
-      ...defaultFeatures,
+      "Техасский холдем",
+      "Стартовый стек 60 000 фишек",
+      "Уровни по 15 минут",
+      "Big Blind Ante с первого уровня",
       "Более глубокая игровая дистанция",
       "Больше постфлоп-решений и давления стеком",
       "Подходит для аккуратной и стратегичной игры",
@@ -131,8 +142,8 @@ const rules: Record<string, { features: string[] }> = {
   "Flop Rampage": {
     features: [
       "Техасский холдем",
-      "Стартовый стек 30 000 фишек",
-      "Уровни по 15/12 минут",
+      "Стартовый стек 50 000 фишек",
+      "Уровни по 12 минут",
       "Big Blind Ante с первого уровня",
       "Более динамичная структура",
       "Больше all-in ситуаций и давления блайндов",
@@ -173,6 +184,44 @@ const rules: Record<string, { features: string[] }> = {
       "Часть деталей формата может сохраняться в секрете до старта"
     ]
   },
+  "FLOP 3 MINUS 1": {
+    features: [
+      "FLOP 3-CARD",
+      "Техасский холдем с дополнительной третьей картой",
+      "На префлопе каждый игрок получает 3 карты",
+      "До начала торговли каждый игрок выбирает 2 карты, а одну сбрасывает в пас",
+      "После сброса третьей карты раздача продолжается по стандартным правилам Техасского холдема",
+      "Стартовый стек 30 000 фишек",
+      "Уровни по 15 минут",
+      "Big Blind Ante с первого уровня",
+      "Безлимитные Re-entry до окончания поздней регистрации",
+      "Рейтинговые очки получают топ-30% участников от общего пула",
+      "Денежный призовой фонд не формируется"
+    ]
+  },
+  "FLOP BOOSTER RE-ENTRY": {
+    features: [
+      ...defaultFeatures,
+      "1-й re-entry — 45 000 фишек",
+      "2-й re-entry — 60 000 фишек",
+      "3-й re-entry — 75 000 фишек",
+      "4-й и последующие — 90 000 фишек",
+      "Re-entry доступны до окончания поздней регистрации",
+      "Рейтинговые очки получают лучшие игроки турнира",
+      "Денежный призовой фонд не формируется"
+    ]
+  },
+  "FLOP BOMB POT": {
+    features: [
+      ...defaultFeatures,
+      "Один раз на каждом уровне разыгрывается Bomb Pot",
+      "Каждый игрок за столом ставит 3 BB",
+      "Все игроки сразу переходят к флопу — префлоп отсутствует",
+      "Далее раздача проходит по стандартным правилам техасского холдема",
+      "Рейтинговые очки получают лучшие игроки турнира",
+      "Денежный призовой фонд не формируется"
+    ]
+  },
   "FLOP GRAND OPENING": {
     features: [
       "Техасский холдем",
@@ -207,6 +256,10 @@ const rules: Record<string, { features: string[] }> = {
 
 export function tournamentRuleFeaturesFor(title: string) {
   return rules[title]?.features ?? defaultFeatures;
+}
+
+export function tournamentEntryChipsFor(title: string) {
+  return entryChipsByTitle[title] ?? 30000;
 }
 
 export function tournamentAddOnConfigFor(title: string) {

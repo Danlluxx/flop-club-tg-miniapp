@@ -16,17 +16,35 @@ const tournamentSlugs: Record<string, string> = {
   "Flop Chip Leader": "flop-chip-leader",
   "Flop Rampage": "flop-rampage",
   "Flop Prime Event": "flop-prime-event",
-  "Flop Black Edition": "flop-black-edition"
+  "Flop Black Edition": "flop-black-edition",
+  "FLOP 3 MINUS 1": "flop-3-minus-1",
+  "FLOP BOOSTER RE-ENTRY": "flop-booster-re-entry",
+  "FLOP BOMB POT": "flop-bomb-pot",
+  "FLOP DEVIL DEAL": "flop-devil-deal"
 };
+
+const tournamentDisplayTitles: Record<string, string> = {
+  "FLOP 3 MINUS 1": "Flop 3 Minus 1",
+  "FLOP BOOSTER RE-ENTRY": "Flop Booster Re-Entry",
+  "FLOP BOMB POT": "Flop Bomb Pot"
+};
+
+const awardAssetVersion = "20261012-transparent";
 
 export function tournamentSlug(title: string) {
   return tournamentSlugs[title] ?? title.toLowerCase().replace(/\s+/g, "-");
 }
 
+export function tournamentDisplayTitle(title: string) {
+  return tournamentDisplayTitles[title] ?? title;
+}
+
 export function tournamentEventImage(title: string) {
+  if (title === "FLOP DEVIL DEAL") return "/awards/color/flop-devil-deal.png";
   return `/events/${tournamentSlug(title)}.jpg`;
 }
 
 export function awardImage(title: string, unlocked: boolean) {
-  return `/awards/${unlocked ? "color" : "bw"}/${tournamentSlug(title)}.png`;
+  if (title === "FLOP DEVIL DEAL") return "/awards/color/flop-devil-deal.png";
+  return `/awards/${unlocked ? "color" : "bw"}/${tournamentSlug(title)}.png?v=${awardAssetVersion}`;
 }

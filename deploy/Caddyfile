@@ -1,4 +1,10 @@
-{$APP_DOMAIN} {
+{
+  servers {
+    protocols h1 h2
+  }
+}
+
+(app_routes) {
   encode zstd gzip
 
   handle /api/* {
@@ -9,7 +15,27 @@
     reverse_proxy api:4000
   }
 
+  redir /clock /clock/
+
+  handle_path /clock/* {
+    reverse_proxy blind-clock:5175
+  }
+
   handle {
     reverse_proxy web:80
   }
+}
+
+{$APP_DOMAIN} {
+  header {
+    Alt-Svc "clear"
+  }
+
+  import app_routes
+}
+
+# Private Docker-only origin for Cloudflare Tunnel. The port is intentionally
+# not published by docker-compose, so it cannot be reached from the Internet.
+:8080 {
+  import app_routes
 }

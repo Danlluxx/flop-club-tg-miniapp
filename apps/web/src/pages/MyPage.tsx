@@ -23,7 +23,7 @@ export function MyPage() {
               <h3 className="font-bold">{item.tournament.title}</h3>
             </div>
             <p className="mt-2 text-sm text-slate-400">{new Date(item.tournament.startsAt).toLocaleString("ru-RU")}</p>
-            <div className={`mt-3 inline-flex rounded-full px-3 py-2 text-xs font-black uppercase ${
+            <div className={`mt-3 inline-flex rounded-[0.55rem] px-3 py-2 text-xs font-black uppercase ${
               item.checkedInAt ? "bg-emerald/15 text-emerald" : "bg-amber-300/15 text-amber-200"
             }`}>
               {item.checkedInAt ? "Участвует" : "Записан"}
@@ -35,7 +35,7 @@ export function MyPage() {
         <h3 className="mb-2 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">История</h3>
         <div className="space-y-2">
           {history.map((item) => item.tournament && (
-            <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-400">
+            <div key={item.id} className="rounded-[0.75rem] border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-400">
               {item.tournament.title} · отменена {new Date(item.updatedAt).toLocaleDateString("ru-RU")}
             </div>
           ))}

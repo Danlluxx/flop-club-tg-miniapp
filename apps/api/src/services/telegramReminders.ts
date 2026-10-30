@@ -2,12 +2,15 @@ import { Prisma, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { ensureScheduledTournaments } from "./tournamentSchedule.js";
-import { tournamentRuleFeaturesFor } from "./tournamentRules.js";
+import { tournamentEntryChipsFor, tournamentRuleFeaturesFor } from "./tournamentRules.js";
 
 const reminderKind = "3h";
 const reminderLeadMs = 3 * 60 * 60 * 1000;
 const reminderWindowMs = 70 * 1000;
+const minimumUsefulLeadMs = 15 * 60 * 1000;
 const schedulerIntervalMs = 60 * 1000;
+const punctualityBonusChips = 10000;
+const telegramPreflightTimeoutMs = 5000;
 
 type ReminderTournament = Prisma.TournamentGetPayload<{
   select: {
@@ -43,18 +46,23 @@ function reminderLines(tournament: ReminderTournament) {
     lines.push(`• Гарантия ${formatNumber(tournament.ratingPool)} очков для участия в финале месяца`);
   }
 
+  const entryChips = tournamentEntryChipsFor(tournament.title);
   if (tournament.buyIn === 0) {
-    lines.push("• Вход бесплатный");
+    lines.push(`• Вход бесплатный / ${formatNumber(entryChips)} фишек`);
   } else {
-    lines.push(`• Вход ${formatNumber(tournament.buyIn)} ₽`);
+    lines.push(`• Вход ${formatNumber(tournament.buyIn)} ₽ / ${formatNumber(entryChips)} фишек`);
   }
-  if (tournament.profile === TournamentProfile.FREEZE) {
+  if (tournament.title === "FLOP BOOSTER RE-ENTRY") {
+    lines.push("• Re-entry 500 ₽: 45 000 / 60 000 / 75 000 / 90 000 фишек до конца поздней регистрации");
+  } else if (tournament.profile === TournamentProfile.FREEZE) {
     if (!lines.some((line) => line.toLowerCase().includes("без re-entry"))) {
       lines.push("• Без re-entry");
     }
   } else if (tournament.reEntry > 0) {
-    lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ до конца поздней регистрации`);
+    lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ / ${formatNumber(entryChips)} фишек до конца поздней регистрации`);
   }
+
+  lines.push(`• Бонус за пунктуальность: ${formatNumber(punctualityBonusChips)} фишек`);
 
   if (tournament.addOnEnabled && tournament.addOnChips > 0) {
     lines.push(
@@ -85,8 +93,26 @@ function buildReminderMessage(tournament: ReminderTournament) {
   ].join("\n");
 }
 
+async function telegramRequest(path: string, init?: RequestInit, timeoutMs = config.TELEGRAM_REQUEST_TIMEOUT_MS) {
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(), timeoutMs);
+
+  return fetch(`${config.TELEGRAM_API_BASE_URL}/bot${config.BOT_TOKEN}/${path}`, {
+    ...init,
+    signal: abortController.signal
+  }).finally(() => clearTimeout(timeout));
+}
+
+async function ensureTelegramApiAvailable() {
+  const response = await telegramRequest("getMe", undefined, telegramPreflightTimeoutMs);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram API preflight failed: ${response.status} ${body}`);
+  }
+}
+
 async function sendTelegramMessage(chatId: string, text: string) {
-  const response = await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+  const response = await telegramRequest("sendMessage", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -143,14 +169,14 @@ async function sendDueTournamentReminders() {
   const now = new Date();
   await ensureScheduledTournaments(now, new Date(now.getTime() + reminderLeadMs + 24 * 60 * 60 * 1000));
 
-  const target = now.getTime() + reminderLeadMs;
-  const from = new Date(target - reminderWindowMs);
-  const to = new Date(target + reminderWindowMs);
+  const from = new Date(now.getTime() + minimumUsefulLeadMs);
+  const to = new Date(now.getTime() + reminderLeadMs + reminderWindowMs);
 
   const tournaments = await prisma.tournament.findMany({
     where: {
       status: TournamentStatus.OPEN,
-      startsAt: { gte: from, lte: to }
+      startsAt: { gt: from, lte: to },
+      reminders: { none: { kind: reminderKind } }
     },
     select: {
       id: true,
@@ -181,6 +207,7 @@ async function sendDueTournamentReminders() {
     try {
       const text = buildReminderMessage(tournament);
       const recipients = await reminderRecipients();
+      await ensureTelegramApiAvailable();
       let sentCount = 0;
 
       for (const chatId of recipients) {

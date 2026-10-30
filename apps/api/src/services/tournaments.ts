@@ -3,6 +3,9 @@ import { prisma } from "../prisma.js";
 import { config } from "../config.js";
 import { AppError, notFound } from "../utils/errors.js";
 
+import { assertMechanicsOpen, mechanicsFor } from "./tournamentMechanics.js";
+import { databaseNow, issueEntry, lockTournament } from "./devilDeal.js";
+
 export const TABLES_COUNT = 5;
 export const SEATS_PER_TABLE = 10;
 export const TOURNAMENT_MAX_PARTICIPANTS = TABLES_COUNT * SEATS_PER_TABLE;
@@ -17,20 +20,22 @@ export async function getTournament(id: string) {
   const activeSeatsCount = await prisma.registration.count({
     where: { tournamentId: id, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" }
   });
-  return { ...tournament, activeSeatsCount };
+  const mechanics = mechanicsFor(tournament);
+  const uniquePlayers = mechanics ? await prisma.registration.groupBy({ by: ["userId"], where: { tournamentId: id, status: "ACTIVE" } }) : null;
+  const deadline = mechanics ? new Date(mechanics.registrationClosesAt) : tournament.lateRegistrationEndsAt ?? new Date(tournament.startsAt.getTime() + 3 * 60 * 60 * 1000);
+  return { ...tournament, ...(uniquePlayers ? { _count: { registrations: uniquePlayers.length } } : {}), activeSeatsCount, registrationOpen: tournament.status === "OPEN" && Date.now() < deadline.getTime() };
 }
 
-export async function registerForTournament(userId: string, tournamentId: string) {
+export async function registerForTournament(userId: string, tournamentId: string, actorId = userId) {
   return prisma.$transaction(async (tx) => {
-    const tournament = await tx.tournament.findUnique({
-      where: { id: tournamentId },
-      include: tournamentInclude
-    });
+    const tournament = await lockTournament(tx, tournamentId);
     if (!tournament) throw notFound("Tournament");
     if (tournament.status !== TournamentStatus.OPEN) {
       throw new AppError(409, "Registration is closed", "REGISTRATION_CLOSED");
     }
-    if (!isLateRegistrationOpen(tournament)) {
+    const mechanics = mechanicsFor(tournament);
+    if (mechanics) assertMechanicsOpen(mechanics, await databaseNow(tx));
+    if (!mechanics && !isLateRegistrationOpen(tournament)) {
       throw new AppError(409, "Late registration is closed", "LATE_REGISTRATION_CLOSED");
     }
 
@@ -45,12 +50,14 @@ export async function registerForTournament(userId: string, tournamentId: string
     const existing = await tx.registration.findFirst({
       where: { userId, tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" }
     });
+    if (existing && mechanics) return existing;
     if (existing) throw new AppError(409, "Already registered", "ALREADY_REGISTERED");
 
     const previousActiveEntries = await tx.registration.count({
       where: { userId, tournamentId, status: RegistrationStatus.ACTIVE }
     });
-    if (previousActiveEntries > 0) {
+    if (previousActiveEntries > 0 && mechanics && (!mechanics.reEntry.enabled || (mechanics.reEntry.maxEntries !== null && previousActiveEntries >= mechanics.reEntry.maxEntries))) throw new AppError(409, "Лимит входов исчерпан", "RE_ENTRY_LIMIT_REACHED");
+    if (previousActiveEntries > 0 && !mechanics) {
       assertReEntryAllowed(tournament.profile, previousActiveEntries);
     }
 
@@ -61,10 +68,12 @@ export async function registerForTournament(userId: string, tournamentId: string
         entryNumber: previousActiveEntries + 1
       }
     });
+    if (mechanics) await tx.registration.updateMany({ where: { tournamentId, userId, id: { not: registration.id }, liveStatus: "ELIMINATED" }, data: { finishPlace: null } });
+    await issueEntry(tx, tournament, registration, actorId);
     console.log(
       `[registration:create] user=${userId} tournament=${tournamentId} seat=pending entry=${registration.entryNumber}`
     );
-    return registration;
+    return mechanics ? tx.registration.findUniqueOrThrow({ where: { id: registration.id } }) : registration;
   });
 }
 
@@ -99,7 +108,7 @@ export async function assignNextAvailableSeat(
 
 export async function cancelRegistration(userId: string, tournamentId: string, isAdmin = false) {
   return prisma.$transaction(async (tx) => {
-    const tournament = await tx.tournament.findUnique({ where: { id: tournamentId } });
+    const tournament = await lockTournament(tx, tournamentId);
     if (!tournament) throw notFound("Tournament");
     if (!isAdmin && tournament.status !== TournamentStatus.OPEN && !tournament.allowCancellation && !config.ALLOW_CANCEL_AFTER_CLOSE) {
       throw new AppError(409, "Cancellation is disabled after registration closes", "CANCELLATION_DISABLED");
@@ -110,10 +119,12 @@ export async function cancelRegistration(userId: string, tournamentId: string, i
     });
     if (!registration) throw notFound("Registration");
 
+    if (mechanicsFor(tournament) && registration.checkedInAt) throw new AppError(409, "Для участника в игре используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
     const updated = await tx.registration.update({
       where: { id: registration.id },
-      data: { status: RegistrationStatus.CANCELLED, tableNumber: null, seatNumber: null }
+      data: { status: RegistrationStatus.CANCELLED, tableNumber: null, seatNumber: null, ...(tournament.mechanics ? { issuedChips: 0 } : {}) }
     });
+    if (tournament.mechanics) await tx.tournamentGameEvent.create({ data: { tournamentId, userId, registrationId: registration.id, actorId: userId, eventKey: `cancel:${registration.id}`, type: "REGISTRATION_CANCELLED", chips: -registration.issuedChips } });
     console.log(`[registration:cancel] user=${userId} tournament=${tournamentId}`);
     return updated;
   });

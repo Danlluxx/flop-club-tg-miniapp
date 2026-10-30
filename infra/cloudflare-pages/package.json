@@ -1,0 +1,11 @@
+{
+  "name": "flop-club-pages-edge",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler pages deploy",
+    "check": "wrangler pages deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
+  }
+}

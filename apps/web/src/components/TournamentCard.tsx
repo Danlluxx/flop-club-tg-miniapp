@@ -4,6 +4,7 @@ import { ru } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import type { Tournament } from "../types";
 import { StatusBadge } from "./StatusBadge";
+import { formatBarnaulDateTime } from "../lib/barnaulDate";
 import { tournamentEventImage } from "../lib/tournamentAssets";
 
 const money = new Intl.NumberFormat("ru-RU");
@@ -16,13 +17,14 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const reEntryLabel = tournament.profile === "FREEZE" ? "Без re-entry" : `Re-entry ${money.format(tournament.reEntry)} ₽`;
 
   return (
-    <Link to={`/tournaments/${tournament.id}`} className="tournament-poster tap block rounded-[2.1rem]">
+    <Link to={`/tournaments/${tournament.id}`} className={`tournament-poster tap block rounded-[1.2rem] ${tournament.mechanics ? "devil-poster" : ""}`}>
       <img className="tournament-art" src={tournamentEventImage(tournament.title)} alt="" />
       <div className="relative z-10 flex min-h-[310px] flex-col justify-between p-6">
         <div className="max-w-[78%]">
           <div className="mb-4 flex items-center gap-2">
             <StatusBadge status={tournament.status} />
           </div>
+          {tournament.mechanics && <p className="devil-kicker mb-2">HALLOWEEN SPECIAL</p>}
           <h3 className="brand-display tournament-title text-white">{tournament.title}</h3>
         </div>
 
@@ -34,7 +36,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
             </span>
             <span className="tournament-pill">
               <CalendarClock className="h-4 w-4" />
-              {format(new Date(tournament.startsAt), "dd.MM / HH:mm", { locale: ru })}
+              {tournament.mechanics ? `${formatBarnaulDateTime(tournament.startsAt)} · Барнаул` : format(new Date(tournament.startsAt), "dd.MM / HH:mm", { locale: ru })}
             </span>
           </div>
 

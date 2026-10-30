@@ -18,12 +18,18 @@ export type User = {
   knockouts: number;
   rulesAcceptedAt?: string | null;
   rulesVersion?: string | null;
+  personalDataConsentAt?: string | null;
+  personalDataConsentVersion?: string | null;
+  photoVideoConsentAt?: string | null;
+  photoVideoConsentVersion?: string | null;
   introCompletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 export type Tournament = {
+  mechanics?: TournamentMechanics | null;
+  blindLevelIndex?: number;
   id: string;
   title: string;
   description: string;
@@ -42,6 +48,7 @@ export type Tournament = {
   maxParticipants: number;
   status: TournamentStatus;
   allowCancellation: boolean;
+  registrationOpen?: boolean;
   activeSeatsCount?: number;
   _count: { registrations: number };
   myRegistration?: Registration | null;
@@ -58,13 +65,26 @@ export type Registration = {
   tableNumber?: number | null;
   seatNumber?: number | null;
   finishPlace?: number | null;
+  lifeNumber: number;
+  issuedChips: number;
   entryNumber: number;
   addOnCount: number;
   eliminatedAt?: string | null;
+  noShowPenaltyAppliedAt?: string | null;
+  noShowPenaltyPoints: number;
   createdAt: string;
   updatedAt: string;
   tournament?: Tournament;
   user?: User;
+};
+
+export type TournamentPublicParticipant = {
+  id: string;
+  status: RegistrationStatus;
+  liveStatus: ParticipantLiveStatus;
+  finishPlace?: number | null;
+  createdAt: string;
+  user: Pick<User, "id" | "username" | "firstName" | "lastName" | "displayName" | "photoUrl" | "ratingPoints">;
 };
 
 export type Knockout = {
@@ -123,6 +143,7 @@ export type TournamentRatingResult = {
   percent: number;
   points: number;
   knockouts: number;
+  chipLeaderBonus: number;
   createdAt: string;
   updatedAt: string;
   user?: User;
@@ -133,10 +154,49 @@ export type TournamentRatingPayload = {
   ratingPool: number;
   awards: RatingAward[];
   results: TournamentRatingResult[];
+  chipLeaderAward?: {
+    tournamentId: string;
+    userId: string;
+    points: number;
+  } | null;
 };
 
 export type ClubAward = {
   title: string;
   unlocked: boolean;
   wonAt?: string | null;
+};
+
+export type PlayerStats = {
+  playedTournaments: number;
+  winsCount: number;
+  wins: Array<{
+    id: string;
+    tournamentId: string;
+    title: string;
+    startsAt: string;
+    points: number;
+  }>;
+};
+
+export type TournamentMechanics = {
+  tournamentType: "FLOP_DEVIL_DEAL"; timezone: "Asia/Barnaul"; startingStack: number; blindLevelMinutes: number;
+  registrationClosesAt: string; blindLevels: number[];
+  reEntry: { enabled: boolean; maxEntries: number | null };
+  resurrection: { enabled: boolean; maxAttemptsPerPlayer: 1; probabilities: { death: number; fiveBB: number; tenBB: number } };
+  devilsSixes: { enabled: boolean; pocketSixesBonusBB: number; setOfSixesBonusBB: number; requiresShowdown: true };
+  bounty: { enabled: boolean; ratingPointsPerElimination: number };
+};
+export type GameEvent = {
+  id: string; tournamentId: string; userId: string | null; registrationId: string | null; actorId: string | null;
+  eventKey: string; attemptKey: string | null; type: string; outcome: "DEATH" | "RESURRECT_5" | "RESURRECT_10" | null;
+  eliminationId: string | null; handId: string | null; bigBlind: number; chips: number; ratingPoints: number;
+  applied: boolean; reason: string | null; reversesId: string | null; createdAt: string;
+};
+export type DevilState = {
+  tournamentId: string; rules: TournamentMechanics; serverNow: string; running: boolean; registrationOpen: boolean;
+  mechanicsOpen: boolean; blindLevelIndex: number; bigBlind: number; dealAvailable: boolean; status: string | null;
+  attempt: GameEvent | null; events: GameEvent[];
+  registrations?: Registration[];
+  stats: { registered: number; active: number; eliminations: number; attempts: number; successful: number; failed: number; sixes: number; ratingPoints: number };
 };

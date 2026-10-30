@@ -54,6 +54,32 @@ DATABASE_URL=postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES
 
 Важно: значения `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` в `DATABASE_URL` должны совпадать.
 
+## Blind clock
+
+Чтобы приложение блайндов работало рядом с mini app по пути `/clock/`, на сервере рядом с папкой mini app должен лежать второй репозиторий:
+
+```bash
+cd ..
+git clone <repo-url-flop-club-blind> flop-club-blind
+cd flop-club-tg-miniapp
+```
+
+В `.env.production` добавьте значения:
+
+```env
+CLOCK_API_TOKEN=длинный_случайный_токен
+BLIND_BRIDGE_COMMAND_TOKEN=другой_длинный_случайный_токен
+BLIND_TELEGRAM_BOT_TOKEN=
+BLIND_TELEGRAM_ALLOWED_CHAT_ID=
+BLIND_FLOP_CLUB_TG_TOURNAMENT_ID=
+```
+
+После запуска часы будут доступны по адресу:
+
+```text
+https://ваш-домен/clock/
+```
+
 ## 4. Запустить
 
 ```bash

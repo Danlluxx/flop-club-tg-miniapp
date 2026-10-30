@@ -1,9 +1,14 @@
 import type {
   ClubAward,
+  DevilState,
+  GameEvent,
+  TournamentMechanics,
+  PlayerStats,
   RatingLeaderboardResponse,
   Registration,
   Tournament,
   TournamentLiveState,
+  TournamentPublicParticipant,
   TournamentRatingPayload,
   TournamentRatingResult,
   User
@@ -21,10 +26,18 @@ export type LeaderboardParams = {
 
 export type AdminStats = {
   totalTournaments: number;
+  finishedTournaments: number;
   activeTournaments: number;
   totalRegistrations: number;
   totalUsers: number;
   averageFillRate: number;
+  averageParticipantsPerTournament: number;
+  monthlyParticipantAverages: Array<{
+    month: string;
+    tournaments: number;
+    participants: number;
+    averageParticipants: number;
+  }>;
   dailyFillRates: Array<{
     date: string;
     tournaments: number;
@@ -92,6 +105,12 @@ async function download(path: string, filename: string) {
 }
 
 export const api = {
+  publicResults: (id: string) => request<Array<{ userId: string; name: string; place: number | null; points: number }>>(`/api/tournaments/${id}/results`),
+  mechanicsTemplate: () => request<TournamentMechanics>("/api/admin/mechanics-template"),
+  devilState: (id: string) => request<DevilState>(`/api/tournaments/${id}/devil`),
+  resurrect: (id: string) => request<GameEvent>(`/api/tournaments/${id}/devil/resurrect`, { method: "POST", body: "{}" }),
+  devilControl: (id: string) => request<DevilState>(`/api/admin/tournaments/${id}/devil`),
+  devilAction: (id: string, action: string, data: unknown) => request<GameEvent | Registration>(`/api/admin/tournaments/${id}/devil/${action}`, { method: "POST", body: JSON.stringify(data) }),
   authTelegram: (initData: string) =>
     request<AuthPayload>("/api/auth/telegram", { method: "POST", body: JSON.stringify({ initData }) }),
   tournaments: (query = "") => request<Tournament[]>(`/api/tournaments${query}`),
@@ -115,11 +134,15 @@ export const api = {
   deleteTournament: (id: string) => request<void>(`/api/tournaments/${id}`, { method: "DELETE" }),
   register: (id: string) => request<Registration>(`/api/tournaments/${id}/register`, { method: "POST" }),
   cancel: (id: string) => request<Registration>(`/api/tournaments/${id}/register`, { method: "DELETE" }),
+  publicParticipants: (id: string) => request<TournamentPublicParticipant[]>(`/api/tournaments/${id}/public-participants`),
   acceptRules: () => request<User>("/api/me/rules/accept", { method: "POST" }),
+  acceptPersonalDataConsent: () => request<User>("/api/me/personal-data/accept", { method: "POST" }),
+  acceptPhotoVideoConsent: () => request<User>("/api/me/photo-video/accept", { method: "POST" }),
   updateProfile: (data: { displayName?: string; email?: string | null; photoUrl?: string }) =>
     request<User>("/api/me/profile", { method: "PATCH", body: JSON.stringify(data) }),
   completeIntro: () => request<User>("/api/me/intro/complete", { method: "POST" }),
   myRegistrations: () => request<Registration[]>("/api/me/registrations"),
+  myStats: () => request<PlayerStats>("/api/me/stats"),
   myAwards: () => request<ClubAward[]>("/api/me/awards"),
   stats: () => request<AdminStats>("/api/admin/stats"),
   participants: (id: string) => request<Registration[]>(`/api/tournaments/${id}/participants`),
@@ -167,5 +190,6 @@ export const api = {
     ),
   saveRatingResults: (id: string, data: unknown) =>
     request<TournamentRatingResult[]>(`/api/admin/tournaments/${id}/rating-results`, { method: "POST", body: JSON.stringify(data) }),
+  ratingPublication: (id: string) => request<{ text: string }>(`/api/admin/tournaments/${id}/rating-publication`),
   exportUrl: (id: string) => `${API_URL}/api/admin/tournaments/${id}/export.csv`
 };

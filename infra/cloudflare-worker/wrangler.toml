@@ -1,0 +1,16 @@
+name = "flop-club-app"
+main = "src/index.js"
+compatibility_date = "2026-10-30"
+workers_dev = true
+preview_urls = false
+
+[[vpc_networks]]
+binding = "FLOP_TUNNEL"
+tunnel_id = "0f227874-7658-42b5-8136-5ba22f3601c8"
+remote = true
+
+[vars]
+WEB_ORIGIN_URL = "http://web:80"
+API_ORIGIN_URL = "http://api:4000"
+CLOCK_ORIGIN_URL = "http://blind-clock:5175"
+API_TRUSTED_ORIGIN = "https://flop-club-app.flop-club-edge.workers.dev"

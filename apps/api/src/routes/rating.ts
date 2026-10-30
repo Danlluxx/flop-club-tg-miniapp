@@ -52,6 +52,7 @@ async function getGlobalLeaderboard(limit: number, search: string) {
     OR: [
       { ratingPoints: { gt: 0 } },
       { ratingResults: { some: {} } },
+      { chipLeaderAwards: { some: {} } },
       {
         registrations: {
           some: {
@@ -80,28 +81,43 @@ async function getGlobalLeaderboard(limit: number, search: string) {
 
 async function getSeasonLeaderboard(limit: number, month: unknown, search: string) {
   const range = parseMonthRange(month);
-  const results = await prisma.tournamentRatingResult.findMany({
-    where: {
-      tournament: {
-        OR: [
-          { ratingSeriesMonth: range.month },
-          {
-            ratingSeriesMonth: null,
-            startsAt: {
-              gte: range.start,
-              lt: range.end
-            }
-          }
-        ]
+  const tournamentWhere: Prisma.TournamentWhereInput = {
+    OR: [
+      { ratingSeriesMonth: range.month },
+      {
+        ratingSeriesMonth: null,
+        startsAt: {
+          gte: range.start,
+          lt: range.end
+        }
+      }
+    ]
+  };
+  const userFilter = search ? searchWhere(search) : undefined;
+  const [results, chipLeaderAwards, gameAwards] = await Promise.all([
+    prisma.tournamentRatingResult.findMany({
+      where: {
+        tournament: tournamentWhere,
+        ...(userFilter ? { user: userFilter } : {})
       },
-      ...(search ? { user: searchWhere(search) } : {})
-    },
-    include: { user: true }
-  });
+      include: { user: true }
+    }),
+    prisma.tournamentChipLeaderAward.findMany({
+      where: {
+        tournament: tournamentWhere,
+        ...(userFilter ? { user: userFilter } : {})
+      },
+      include: { user: true }
+    })
+    ,prisma.tournamentGameEvent.findMany({
+      where: { tournament: tournamentWhere, ratingPoints: { not: 0 }, ...(userFilter ? { user: userFilter } : {}) },
+      include: { user: true }
+    })
+  ]);
   const userMap = new Map<string, User & { ratingPoints: number; knockouts: number }>();
 
   for (const result of results) {
-    const totalRatingPoints = result.points + result.knockouts;
+    const totalRatingPoints = result.points + result.knockouts + result.chipLeaderBonus;
     const existing = userMap.get(result.userId);
 
     if (existing) {
@@ -112,6 +128,22 @@ async function getSeasonLeaderboard(limit: number, month: unknown, search: strin
     }
   }
 
+  for (const award of chipLeaderAwards) {
+    const existing = userMap.get(award.userId);
+    if (existing) {
+      existing.ratingPoints += award.points;
+    } else {
+      userMap.set(award.userId, { ...award.user, ratingPoints: award.points, knockouts: 0 });
+    }
+  }
+
+  for (const award of gameAwards) {
+    if (!award.user || !award.userId) continue;
+    const knockouts = award.type === "BOUNTY_ELIMINATION" ? 1 : award.type === "ADMIN_CORRECTION" && award.ratingPoints < 0 ? -1 : 0;
+    const existing = userMap.get(award.userId);
+    if (existing) { existing.ratingPoints += award.ratingPoints; existing.knockouts += knockouts; }
+    else userMap.set(award.userId, { ...award.user, ratingPoints: award.ratingPoints, knockouts });
+  }
   const allUsers = rankUsers([...userMap.values()]);
   return { leaders: allUsers.slice(0, limit), allUsers, month: range.month };
 }

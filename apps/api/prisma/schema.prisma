@@ -40,52 +40,63 @@ enum TournamentProfile {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  telegramId    String         @unique
-  username      String?
-  firstName     String?
-  lastName      String?
-  displayName   String?
-  email         String?
-  photoUrl      String?
-  role          Role           @default(USER)
-  ratingPoints  Int            @default(0)
-  knockouts     Int            @default(0)
-  rulesAcceptedAt DateTime?
-  rulesVersion  String?
-  introCompletedAt DateTime?
-  registrations Registration[]
-  ratingResults TournamentRatingResult[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                         String                      @id @default(cuid())
+  telegramId                 String                      @unique
+  username                   String?
+  firstName                  String?
+  lastName                   String?
+  displayName                String?
+  email                      String?
+  photoUrl                   String?
+  role                       Role                        @default(USER)
+  ratingPoints               Int                         @default(0)
+  knockouts                  Int                         @default(0)
+  rulesAcceptedAt            DateTime?
+  rulesVersion               String?
+  personalDataConsentAt      DateTime?
+  personalDataConsentVersion String?
+  photoVideoConsentAt        DateTime?
+  photoVideoConsentVersion   String?
+  introCompletedAt           DateTime?
+  gameEvents                 TournamentGameEvent[]       @relation("EventPlayer")
+  gameActions                TournamentGameEvent[]       @relation("EventActor")
+  registrations              Registration[]
+  ratingResults              TournamentRatingResult[]
+  chipLeaderAwards           TournamentChipLeaderAward[]
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
 }
 
 model Tournament {
-  id                String         @id @default(cuid())
-  title             String
-  description       String
-  startsAt          DateTime
-  location          String
-  buyIn             Int
-  reEntry           Int            @default(500)
-  prizePool         Int
-  ratingPool        Int            @default(10000)
-  ratingSeriesMonth String?
-  entriesCount      Int?
-  profile           TournamentProfile @default(BASE)
+  id                     String                     @id @default(cuid())
+  title                  String
+  description            String
+  startsAt               DateTime
+  location               String
+  buyIn                  Int
+  reEntry                Int                        @default(500)
+  prizePool              Int
+  ratingPool             Int                        @default(10000)
+  ratingSeriesMonth      String?
+  entriesCount           Int?
+  profile                TournamentProfile          @default(BASE)
   lateRegistrationEndsAt DateTime?
-  addOnEnabled      Boolean        @default(false)
-  addOnPrice        Int            @default(0)
-  addOnChips        Int            @default(0)
-  maxParticipants   Int
-  status            TournamentStatus @default(OPEN)
-  allowCancellation Boolean        @default(true)
-  registrations     Registration[]
-  ratingResults     TournamentRatingResult[]
-  knockouts         Knockout[]
-  reminders         TournamentReminder[]
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  addOnEnabled           Boolean                    @default(false)
+  addOnPrice             Int                        @default(0)
+  addOnChips             Int                        @default(0)
+  maxParticipants        Int
+  status                 TournamentStatus           @default(OPEN)
+  allowCancellation      Boolean                    @default(true)
+  registrations          Registration[]
+  ratingResults          TournamentRatingResult[]
+  chipLeaderAward        TournamentChipLeaderAward?
+  knockouts              Knockout[]
+  mechanics              Json?
+  blindLevelIndex        Int                        @default(0)
+  gameEvents             TournamentGameEvent[]
+  reminders              TournamentReminder[]
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
 
   @@index([startsAt])
   @@index([status])
@@ -125,33 +136,38 @@ model TelegramBotState {
 }
 
 model DeletedScheduledTournament {
-  dateKey   String   @id
-  tournamentId String?
-  title     String?
-  deletedAt DateTime @default(now())
+  dateKey         String   @id
+  tournamentId    String?
+  title           String?
+  deletedAt       DateTime @default(now())
   deletedByUserId String?
 }
 
 model Registration {
-  id           String             @id @default(cuid())
-  userId       String
-  tournamentId String
-  status       RegistrationStatus @default(ACTIVE)
-  liveStatus   ParticipantLiveStatus @default(IN_GAME)
-  checkInToken String             @unique @default(uuid())
-  checkedInAt  DateTime?
-  tableNumber  Int?
-  seatNumber   Int?
-  finishPlace  Int?
-  entryNumber  Int                @default(1)
-  addOnCount   Int                @default(0)
-  eliminatedAt DateTime?
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  knockoutsMade Knockout[]        @relation("KnockoutKiller")
-  knockoutReceived Knockout?      @relation("KnockoutEliminated")
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id                     String                @id @default(cuid())
+  userId                 String
+  tournamentId           String
+  status                 RegistrationStatus    @default(ACTIVE)
+  liveStatus             ParticipantLiveStatus @default(IN_GAME)
+  checkInToken           String                @unique @default(uuid())
+  checkedInAt            DateTime?
+  tableNumber            Int?
+  seatNumber             Int?
+  finishPlace            Int?
+  lifeNumber             Int                   @default(1)
+  issuedChips            Int                   @default(0)
+  gameEvents             TournamentGameEvent[]
+  entryNumber            Int                   @default(1)
+  addOnCount             Int                   @default(0)
+  eliminatedAt           DateTime?
+  noShowPenaltyAppliedAt DateTime?
+  noShowPenaltyPoints    Int                   @default(0)
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament             Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  knockoutsMade          Knockout[]            @relation("KnockoutKiller")
+  knockoutReceived       Knockout[]            @relation("KnockoutEliminated")
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   @@index([tournamentId])
   @@index([userId])
@@ -162,34 +178,88 @@ model Registration {
 }
 
 model Knockout {
-  id                       String       @id @default(cuid())
+  id                       String        @id @default(cuid())
   tournamentId             String
-  eliminatedRegistrationId String       @unique
+  eliminatedRegistrationId String
+  lifeNumber               Int           @default(1)
   killerRegistrationId     String?
-  tournament               Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  eliminatedRegistration   Registration @relation("KnockoutEliminated", fields: [eliminatedRegistrationId], references: [id], onDelete: Cascade)
+  tournament               Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  eliminatedRegistration   Registration  @relation("KnockoutEliminated", fields: [eliminatedRegistrationId], references: [id], onDelete: Cascade)
   killerRegistration       Registration? @relation("KnockoutKiller", fields: [killerRegistrationId], references: [id], onDelete: SetNull)
-  createdAt                DateTime     @default(now())
-  updatedAt                DateTime     @updatedAt
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
 
+  @@unique([eliminatedRegistrationId, lifeNumber])
   @@index([tournamentId])
   @@index([killerRegistrationId])
 }
 
 model TournamentRatingResult {
-  id           String     @id @default(cuid())
-  tournamentId String
+  id              String     @id @default(cuid())
+  tournamentId    String
+  userId          String
+  place           Int
+  percent         Int
+  points          Int
+  knockouts       Int        @default(0)
+  chipLeaderBonus Int        @default(0)
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([tournamentId, place])
+  @@unique([tournamentId, userId])
+  @@index([userId])
+}
+
+model TournamentChipLeaderAward {
+  tournamentId String     @id
   userId       String
-  place        Int
-  percent      Int
   points       Int
-  knockouts    Int        @default(0)
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  @@unique([tournamentId, place])
-  @@unique([tournamentId, userId])
   @@index([userId])
+}
+
+// Append-only ledger. chips are issued/removed by club operations, not a hand-by-hand stack.
+model TournamentGameEvent {
+  id                String                @id @default(cuid())
+  tournamentId      String
+  userId            String?
+  registrationId    String?
+  actorId           String?
+  eventKey          String
+  attemptKey        String?
+  type              String
+  outcome           String?
+  eliminationId     String?
+  handId            String?
+  bigBlind          Int                   @default(0)
+  chips             Int                   @default(0)
+  ratingPoints      Int                   @default(0)
+  applied           Boolean               @default(true)
+  reason            String?
+  reversesId        String?               @unique
+  details           Json?
+  createdAt         DateTime              @default(now())
+  tournament        Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  user              User?                 @relation("EventPlayer", fields: [userId], references: [id], onDelete: Restrict)
+  actor             User?                 @relation("EventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  registration      Registration?         @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  reverses          TournamentGameEvent?  @relation("EventReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  elimination       TournamentGameEvent?  @relation("EventElimination", fields: [eliminationId], references: [id], onDelete: Restrict)
+  eliminationAwards TournamentGameEvent[] @relation("EventElimination")
+  reversal          TournamentGameEvent?  @relation("EventReversal")
+
+  @@unique([tournamentId, eventKey])
+  @@unique([tournamentId, attemptKey])
+  @@index([tournamentId, userId, createdAt])
+  @@index([registrationId])
+  @@index([actorId])
+  @@index([userId])
+  @@index([eliminationId])
 }

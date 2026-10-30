@@ -1,0 +1,55 @@
+.devil-panel {padding:24px; border:1px solid #48222a; border-radius:16px; background:#110b0e; display:grid; gap:20px; min-width:0;}
+.devil-kicker {color:#c7936a; letter-spacing:.18em; font-size:11px; font-weight:700; margin:0;}
+.devil-panel h2 {font-size:clamp(24px,6vw,36px); line-height:1.08; font-weight:700; margin:0;}
+.devil-panel h3 {font-size:14px; font-weight:700; margin:0 0 8px;}
+.devil-badges {display:flex; flex-wrap:wrap; gap:6px;}
+.devil-badges span {font-size:9px; letter-spacing:.04em; border:1px solid #642c37; padding:6px 8px; border-radius:4px; color:#e3b2b6;}
+.devil-metrics {display:grid;grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:16px 0; border-block:1px solid #362129;}
+.devil-metrics span {font-size:10px; color:#bcadb2; display:grid;gap:4px;}
+.devil-metrics b {font-size:20px;color:#fff7f7;}
+.devil-muted {font-size:12px;color:#bcadb2;line-height:1.65; margin:0;}
+.devil-deal {padding:24px 12px; background:#1c0c12; border:1px solid #6e2939; border-radius:12px;text-align:center;display:grid;gap:16px;justify-items:center;}
+.devil-deal h3 {font-size:24px;line-height:1.15;margin:12px 0;}
+.devil-deal p {font-size:13px;line-height:1.6;}
+.devil-deal svg {margin-inline:auto;color:#c9986c;}
+.devil-result {display:block;font-size:24px;color:#d9b78b;margin:16px 0;}
+.devil-coffin {position:relative; width:100%;max-width:280px; min-height:180px; padding:28px 12px; background:#080507; border:2px solid #7a4853;clip-path:polygon(12% 0,88% 0,100% 28%,88% 100%,12% 100%,0 28%);}
+.devil-coffin-lid {position:absolute;inset:0;background:#44202c;z-index:2; display:grid;place-items:center;transform-origin:left; animation:devil-open .65s ease-out forwards;pointer-events:none;}
+.devil-tickets {display:flex;justify-content:center;gap:8px;}
+.devil-tickets button {width:70px;height:124px;border:1px solid #a56d79;border-radius:6px;background:#351320;display:grid;place-content:center;gap:10px;color:#f3dddd;transition:transform .16s,background .16s;}
+.devil-tickets button:hover:not(:disabled),.devil-tickets button:focus-visible {transform:translateY(-8px);background:#6e2436;outline:2px solid #d9b78b;}
+.devil-tickets span {font-size:13px;font-weight:700;letter-spacing:.12em;}
+.devil-tickets small {font-size:7px;}
+.devil-tickets .is-selected {background:#8c3043;animation:devil-select 2.4s ease-in-out;}
+.devil-outcome-DEATH {border-color:#625860;background:#171417;}
+.devil-outcome-RESURRECT_5 {border-color:#b05c35;}
+.devil-outcome-RESURRECT_10 {border-color:#c1a168;background:#241711;}
+.devil-rules {display:grid;gap:20px;}
+.devil-rules > div {border-bottom:1px solid #362129;padding-bottom:16px;}
+.devil-rules svg {width:20px;height:20px;color:#cf6678;margin-bottom:8px;}
+.devil-rules p {font-size:13px;color:#bcadb2;line-height:1.65;margin:0;}
+.devil-history {list-style:none;margin:0;padding:0;display:grid;gap:0;max-height:480px;overflow:auto;}
+.devil-history li {display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #362129;padding:12px 0;font-size:12px;}
+.devil-history li > div {display:grid;gap:4px;min-width:0;overflow-wrap:anywhere;}
+.devil-history time,.devil-history small {font-size:10px;color:#bcadb2;}
+.devil-history li > span {color:#d9b78b;max-width:45%;text-align:right;flex-shrink:0;}
+.devil-control {display:grid;gap:16px;}
+.devil-control label {display:grid;gap:8px;font-size:12px;color:#bcadb2;}
+.devil-control input,.devil-control select,.devil-control textarea {width:100%;min-width:0;border:1px solid #53303b;border-radius:8px;padding:12px;background:#170e13;color:#fff7f7;}
+.devil-control input[type=checkbox] {width:18px;height:18px;}
+.devil-control button:disabled {opacity:.45;cursor:not-allowed;}
+.devil-player {border-bottom:1px solid #48222a;padding:16px 0;display:grid;gap:12px;}
+.devil-player-actions {display:flex;gap:8px;flex-wrap:wrap;}
+.devil-player-actions button {border:1px solid #6e3947;border-radius:6px;padding:8px 12px;font-size:12px;}
+.devil-hero .tournament-detail-art,.devil-poster .tournament-art {object-fit:contain;object-position:right center;}
+.devil-hero .tournament-detail-art {opacity:.28;}
+.devil-admin-stats {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.devil-admin-stats > div {padding:12px;background:#1c1117;border:1px solid #48222a;border-radius:8px;}
+.devil-admin-stats b {display:block;font-size:24px;}
+.devil-admin-stats span {font-size:11px;color:#bcadb2;}
+@keyframes devil-open {0%,20%{transform:perspective(600px) rotateY(0);opacity:1;}100%{transform:perspective(600px) rotateY(-110deg);opacity:0;}}
+@keyframes devil-select {0%{transform:translateY(0);}35%{transform:translateY(-12px);}80%{transform:translateY(-12px) rotateY(20deg);}100%{transform:translateY(-12px) rotateY(180deg);}}
+@media(min-width:768px){.devil-rules{grid-template-columns:repeat(3,minmax(0,1fr));}.devil-admin-stats{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(prefers-reduced-motion:reduce){.devil-panel * {animation:none!important;transition:none!important;}.devil-coffin-lid{display:none;}}
+
+.awards-page-tile:not(.awards-page-tile-open) img[src*="flop-devil-deal"], .profile-award:not(.profile-award-open) img[src*="flop-devil-deal"] {filter:grayscale(1);}

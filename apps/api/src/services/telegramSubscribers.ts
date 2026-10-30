@@ -2,7 +2,7 @@ import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 
 const pollingStateKey = "getUpdatesOffset";
-const retryDelayMs = 5000;
+const retryDelayMs = 60_000;
 
 type TelegramUser = {
   id: number;
@@ -85,12 +85,14 @@ async function pollTelegramUpdates() {
 
   while (true) {
     try {
-      const url = new URL(`https://api.telegram.org/bot${config.BOT_TOKEN}/getUpdates`);
+      const url = new URL(`${config.TELEGRAM_API_BASE_URL}/bot${config.BOT_TOKEN}/getUpdates`);
       url.searchParams.set("offset", String(offset));
       url.searchParams.set("timeout", "25");
       url.searchParams.set("allowed_updates", JSON.stringify(["message"]));
 
-      const response = await fetch(url);
+      const abortController = new AbortController();
+      const timeout = setTimeout(() => abortController.abort(), config.TELEGRAM_REQUEST_TIMEOUT_MS + 30000);
+      const response = await fetch(url, { signal: abortController.signal }).finally(() => clearTimeout(timeout));
       const payload = await response.json() as GetUpdatesResponse;
       if (!response.ok || !payload.ok) {
         throw new Error(payload.description || `Telegram getUpdates failed: ${response.status}`);

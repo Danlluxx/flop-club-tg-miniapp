@@ -20,12 +20,18 @@ import { AwardsPage } from "./pages/AwardsPage";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminTournaments } from "./pages/admin/AdminTournaments";
 import { TournamentForm } from "./pages/admin/TournamentForm";
+import { DevilControlPage } from "./pages/admin/DevilControlPage";
 import { ParticipantsPage } from "./pages/admin/ParticipantsPage";
 import { AdminCheckInPage } from "./pages/admin/AdminCheckInPage";
 import { AdminFillRatesPage } from "./pages/admin/AdminFillRatesPage";
 import { currentRulesVersion, RulesGate } from "./components/RulesGate";
 import { NameGate } from "./components/NameGate";
 import { IntroCarousel } from "./components/IntroCarousel";
+import {
+  currentPersonalDataConsentVersion,
+  currentPhotoVideoConsentVersion,
+  PersonalDataConsentGate
+} from "./components/PersonalDataConsentGate";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +71,7 @@ function AppRoutes({ user, onUserUpdated }: { user: User; onUserUpdated: (user: 
         <Route path="/admin/tournaments/new" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />
         <Route path="/admin/tournaments/:id/edit" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />
         <Route path="/admin/tournaments/:id/participants" element={<AdminOnly user={user}><ParticipantsPage /></AdminOnly>} />
+        <Route path="/admin/tournaments/:id/devil" element={<AdminOnly user={user}><DevilControlPage /></AdminOnly>} />
         <Route path="/check-in/:token" element={<AdminOnly user={user}><AdminCheckInPage /></AdminOnly>} />
       </Route>
     </Routes>
@@ -112,6 +119,15 @@ export function App() {
 
   if (!user.rulesAcceptedAt || user.rulesVersion !== currentRulesVersion) {
     return <RulesGate onAccepted={setUser} />;
+  }
+
+  if (
+    !user.personalDataConsentAt ||
+    user.personalDataConsentVersion !== currentPersonalDataConsentVersion ||
+    !user.photoVideoConsentAt ||
+    user.photoVideoConsentVersion !== currentPhotoVideoConsentVersion
+  ) {
+    return <PersonalDataConsentGate user={user} onAccepted={setUser} />;
   }
 
   if (!user.displayName) {

@@ -32,6 +32,8 @@ export async function buildGameDayRatingWorkbook(dateInput: unknown) {
         orderBy: [{ finishPlace: "asc" }, { createdAt: "asc" }]
       },
       ratingResults: { include: { user: true }, orderBy: { place: "asc" } },
+      chipLeaderAward: true,
+      gameEvents: { where: { ratingPoints: { not: 0 } } },
       knockouts: {
         include: {
           killerRegistration: { include: { user: true } },
@@ -74,14 +76,29 @@ export async function buildGameDayRatingWorkbook(dateInput: unknown) {
   header.height = 24;
 
   for (const tournament of tournaments) {
-    const ratingByUser = new Map(tournament.ratingResults.map((result) => [result.userId, result.points]));
+    const ratingByUser = new Map(
+      tournament.ratingResults.map((result) => [
+        result.userId,
+        result.points + result.knockouts + result.chipLeaderBonus
+      ])
+    );
+    if (tournament.chipLeaderAward) {
+      ratingByUser.set(
+        tournament.chipLeaderAward.userId,
+        (ratingByUser.get(tournament.chipLeaderAward.userId) ?? 0) + tournament.chipLeaderAward.points
+      );
+    }
+    for (const event of tournament.gameEvents) {
+      if (event.userId) ratingByUser.set(event.userId, (ratingByUser.get(event.userId) ?? 0) + event.ratingPoints);
+    }
     const knockoutsByUser = new Map<string, number>();
     for (const knockout of tournament.knockouts) {
       const userId = knockout.killerRegistration?.userId;
       if (userId) knockoutsByUser.set(userId, (knockoutsByUser.get(userId) ?? 0) + 1);
     }
 
-    for (const registration of tournament.registrations) {
+    const reportRegistrations = tournament.mechanics ? tournament.registrations.filter((r, _, all) => r.entryNumber === Math.max(...all.filter(x => x.userId === r.userId).map(x => x.entryNumber))) : tournament.registrations;
+    for (const registration of reportRegistrations) {
       const user = registration.user;
       const player =
         user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || user.telegramId;

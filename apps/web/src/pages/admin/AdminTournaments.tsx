@@ -36,20 +36,20 @@ export function AdminTournaments() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="page-title text-[3rem]">Турниры</h2>
-        <Link to="/admin/tournaments/new" className="rounded-full bg-white px-4 py-2 text-sm font-black text-graphite">Новый</Link>
+        <Link to="/admin/tournaments/new" className="rounded-[0.55rem] bg-white px-4 py-2 text-sm font-black text-graphite">Новый</Link>
       </div>
-      <div className="grid grid-cols-2 rounded-full bg-white/[0.04] p-1">
+      <div className="grid grid-cols-2 rounded-[0.55rem] bg-white/[0.04] p-1">
         <button
           type="button"
           onClick={() => setTab("active")}
-          className={`tap rounded-full px-4 py-3 text-sm font-black transition ${tab === "active" ? "bg-white text-graphite" : "text-slate-400"}`}
+          className={`tap rounded-[0.55rem] px-4 py-3 text-sm font-black transition ${tab === "active" ? "bg-white text-graphite" : "text-slate-400"}`}
         >
           Активные · {activeTournaments.length}
         </button>
         <button
           type="button"
           onClick={() => setTab("finished")}
-          className={`tap rounded-full px-4 py-3 text-sm font-black transition ${tab === "finished" ? "bg-white text-graphite" : "text-slate-400"}`}
+          className={`tap rounded-[0.55rem] px-4 py-3 text-sm font-black transition ${tab === "finished" ? "bg-white text-graphite" : "text-slate-400"}`}
         >
           Завершённые · {finishedTournaments.length}
         </button>
@@ -71,9 +71,9 @@ export function AdminTournaments() {
               <StatusBadge status={item.status} />
             </div>
             <div className="mt-4 flex gap-2">
-              <Link to={`/admin/tournaments/${item.id}/edit`} className="tap grid h-10 w-10 place-items-center rounded-full bg-white/8"><Edit3 className="h-4 w-4" /></Link>
-              <Link to={`/admin/tournaments/${item.id}/participants`} className="tap grid h-10 w-10 place-items-center rounded-full bg-white/8"><Users className="h-4 w-4" /></Link>
-              <button onClick={() => remove.mutate(item.id)} className="tap grid h-10 w-10 place-items-center rounded-full bg-rose-400/15 text-rose-200"><Trash2 className="h-4 w-4" /></button>
+              <Link to={`/admin/tournaments/${item.id}/edit`} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Edit3 className="h-4 w-4" /></Link>
+              <Link to={`/admin/tournaments/${item.id}/participants`} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Users className="h-4 w-4" /></Link>
+              <button onClick={() => remove.mutate(item.id)} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-rose-400/15 text-rose-200"><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>
         ))}

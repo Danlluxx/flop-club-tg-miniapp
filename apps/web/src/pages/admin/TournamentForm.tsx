@@ -44,6 +44,8 @@ export function TournamentForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const [form, setForm] = useState(initial);
+  const [mechanicsText, setMechanicsText] = useState("");
+  const template = useQuery({ queryKey: ["mechanics-template"], queryFn: api.mechanicsTemplate });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -51,6 +53,7 @@ export function TournamentForm() {
 
   useEffect(() => {
     if (!data) return;
+    setMechanicsText(data.mechanics ? JSON.stringify(data.mechanics, null, 2) : "");
     setForm({
       title: data.title,
       description: data.description,
@@ -71,8 +74,12 @@ export function TournamentForm() {
 
   const save = useMutation({
     mutationFn: () => {
+      const mechanics = mechanicsText.trim() ? JSON.parse(mechanicsText) : undefined;
+      if (data?.mechanics && !mechanics) throw new Error("Механики активного формата нельзя удалить");
+      const changed = JSON.stringify(mechanics) !== JSON.stringify(data?.mechanics);
       const payload = {
         ...form,
+        ...((!isEdit || changed) && mechanics ? { mechanics } : {}),
         startsAt: barnaulDateTimeInputToIso(form.startsAt),
         buyIn: Number(form.buyIn),
         reEntry: Number(form.reEntry),
@@ -97,7 +104,7 @@ export function TournamentForm() {
     save.mutate();
   }
 
-  const fieldClass = "w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-electric";
+  const fieldClass = "w-full rounded-[0.75rem] border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-electric";
 
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -106,6 +113,19 @@ export function TournamentForm() {
         <h2 className="page-title mt-3">{isEdit ? "Редактировать" : "Новый"}</h2>
         <p className="page-subtitle mt-4">Настройки турнира и регистрации.</p>
       </div>
+      <label className="app-panel grid gap-3 p-4 text-sm">Специальный формат
+        <select className={fieldClass} aria-label="Специальный формат" value={mechanicsText ? "devil" : "regular"} onChange={e => {
+          if (e.target.value === "regular") { if (!data?.mechanics) setMechanicsText(""); return; }
+          if (template.data) {
+            setMechanicsText(JSON.stringify(template.data, null, 2));
+            setForm({ ...form, title: "FLOP DEVIL DEAL", description: "HALLOWEEN SPECIAL · Сделка с дьяволом, шестёрки и Bounty", startsAt: "2026-10-31T18:00", buyIn: "500", reEntry: "500", prizePool: "0", ratingPool: "15000", addOnEnabled: false });
+          }
+        }}><option value="regular">Обычный турнир</option><option value="devil" disabled={!template.data}>FLOP DEVIL DEAL</option></select>
+      </label>
+      {mechanicsText && <label className="app-panel grid gap-3 p-4 text-sm">Правила специальных механик (JSON)
+        <textarea className={fieldClass} aria-label="Правила специальных механик" rows={12} value={mechanicsText} onChange={e => setMechanicsText(e.target.value)}/>
+        <span className="text-xs text-slate-400">Для другого события измените дату старта и registrationClosesAt. После регистрации участников правила и время фиксируются. Сервер проверяет конфигурацию.</span>
+      </label>}
       <input className={fieldClass} placeholder="Название" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <textarea className={fieldClass} placeholder="Описание" rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       <input className={fieldClass} type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />

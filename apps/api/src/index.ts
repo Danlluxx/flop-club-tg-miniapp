@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { config } from "./config.js";
 import { authRouter } from "./routes/auth.js";
+import { clockRouter } from "./routes/clock.js";
 import { tournamentsRouter } from "./routes/tournaments.js";
 import { meRouter } from "./routes/me.js";
 import { adminRouter } from "./routes/admin.js";
@@ -11,10 +12,15 @@ import { ratingRouter } from "./routes/rating.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { startTournamentReminderScheduler } from "./services/telegramReminders.js";
 import { startTelegramSubscriberPolling } from "./services/telegramSubscribers.js";
+import { startNoShowPenaltyScheduler } from "./services/noShowPenalties.js";
+import { startRatingPublicationScheduler } from "./services/telegramRatingResults.js";
+
+import { devilDealRouter, devilControlRouter, mechanicsTemplatesRouter } from "./routes/devilDeal.js";
 
 const app = express();
 const allowedOrigins = new Set([
   config.FRONTEND_URL,
+  ...config.ADDITIONAL_FRONTEND_URLS.split(",").map((origin) => origin.trim()).filter(Boolean),
   ...(config.NODE_ENV === "development" ? ["http://localhost:5173", "http://localhost:5174"] : [])
 ]);
 
@@ -35,6 +41,10 @@ app.use(morgan("tiny"));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
+app.use("/api/clock", clockRouter);
+app.use("/api/tournaments/:id/devil", devilDealRouter);
+app.use("/api/admin/tournaments/:id/devil", devilControlRouter);
+app.use("/api/admin/mechanics-template", mechanicsTemplatesRouter);
 app.use("/api/tournaments", tournamentsRouter);
 app.use("/api/me", meRouter);
 app.use("/api/rating", ratingRouter);
@@ -45,4 +55,6 @@ app.listen(config.PORT, () => {
   console.log(`[api] listening on :${config.PORT}`);
   startTelegramSubscriberPolling();
   startTournamentReminderScheduler();
+  startNoShowPenaltyScheduler();
+  startRatingPublicationScheduler();
 });

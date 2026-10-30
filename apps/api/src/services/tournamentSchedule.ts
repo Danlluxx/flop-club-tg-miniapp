@@ -2,6 +2,9 @@ import { TournamentProfile, type Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { tournamentAddOnConfigFor } from "./tournamentRules.js";
 
+import { issueEntry } from "./devilDeal.js";
+import { devilDealDefaults } from "./tournamentMechanics.js";
+
 const location = "Flop Club, Барнаул";
 const maxParticipants = 50;
 const defaultBuyIn = 500;
@@ -28,7 +31,11 @@ export const descriptions: Record<string, string> = {
   "Flop Rampage": "Быстрый агрессивный формат для любителей экшена.",
   "Flop Last Call": "Последний вызов вечера для тех, кто хочет сыграть бодро.",
   "Flop Grand Final": "Главное событие месяца для сильнейших игроков клуба.",
-  "Flop Secret Final": "Закрытый финал для лучших игроков рейтинга."
+  "Flop Secret Final": "Закрытый финал для лучших игроков рейтинга.",
+  "FLOP 3 MINUS 1": "Техасский холдем с третьей картой на префлопе и выбором лучших двух.",
+  "FLOP BOOSTER RE-ENTRY": "Re-entry формат, где каждый следующий вход дает больше фишек.",
+  "FLOP DEVIL DEAL": "HALLOWEEN SPECIAL · Сделка с дьяволом, бонусы за шестёрки и Bounty +50 рейтинговых очков.",
+  "FLOP BOMB POT": "Техасский холдем с обязательным bomb pot один раз на каждом уровне."
 };
 
 export const ratingPools: Record<string, number> = {
@@ -49,7 +56,10 @@ export const ratingPools: Record<string, number> = {
   "Flop Rampage": 12000,
   "Flop Last Call": 12000,
   "Flop Grand Final": 25000,
-  "Flop Secret Final": 30000
+  "Flop Secret Final": 30000,
+  "FLOP 3 MINUS 1": 15000,
+  "FLOP BOOSTER RE-ENTRY": 15000,
+  "FLOP BOMB POT": 15000
 };
 
 export const tournamentProfiles: Record<string, TournamentProfile> = {
@@ -70,10 +80,13 @@ export const tournamentProfiles: Record<string, TournamentProfile> = {
   "Flop Rampage": TournamentProfile.TURBO_ACTION,
   "Flop Last Call": TournamentProfile.TURBO_ACTION,
   "Flop Grand Final": TournamentProfile.FINAL,
-  "Flop Secret Final": TournamentProfile.FINAL
+  "Flop Secret Final": TournamentProfile.FINAL,
+  "FLOP 3 MINUS 1": TournamentProfile.BASE,
+  "FLOP BOOSTER RE-ENTRY": TournamentProfile.BASE,
+  "FLOP BOMB POT": TournamentProfile.BASE
 };
 
-const cycle = [
+const legacyCycle = [
   "Flop Classic",
   "Flop Phoenix",
   "Flop Freeze Out",
@@ -90,9 +103,29 @@ const cycle = [
   "Flop Grand Final"
 ] as const;
 
+const regularScheduleStartDate = "2026-09-21";
+const regularTwoWeekSchedule = [
+  null,
+  "Flop Phoenix",
+  "Flop Rampage",
+  "FLOP BOMB POT",
+  "Flop Bounty",
+  "FLOP BOOSTER RE-ENTRY",
+  "Flop Deep Stack",
+  "Flop Black Edition",
+  "Flop Freeze Out",
+  "Flop Butterfly",
+  "FLOP 3 MINUS 1",
+  "Flop Mystery Knockout",
+  "Flop Chip Leader",
+  "Flop Prime Event"
+] as const;
+
 const timesByWeekday = ["19:00", "19:00", "19:00", "19:00", "19:00", "19:00", "19:00"] as const;
 const specialTimes: Record<string, string> = {
-  "2026-06-21": "18:00"
+  "2026-06-21": "18:00",
+  "2026-09-05": "17:00",
+  "2026-10-31": "18:00"
 };
 const specialEvents: Record<string, {
   title: string;
@@ -100,7 +133,11 @@ const specialEvents: Record<string, {
   reEntry: number;
   ratingPool: number;
   ratingSeriesMonth?: string;
+  addOnEnabled?: boolean;
+  addOnPrice?: number;
+  addOnChips?: number;
 }> = {
+  "2026-10-31": { title: "FLOP DEVIL DEAL", buyIn: 500, reEntry: 500, ratingPool: 15000, addOnEnabled: false },
   "2026-06-05": {
     title: "FLOP GRAND OPENNING",
     buyIn: 0,
@@ -143,6 +180,33 @@ const specialEvents: Record<string, {
     buyIn: 500,
     reEntry: legacyReEntry,
     ratingPool: ratingPools["Flop Bounty"]
+  },
+  "2026-08-09": {
+    title: "Flop Deep Stack",
+    buyIn: 500,
+    reEntry: defaultReEntry,
+    ratingPool: ratingPools["Flop Deep Stack"]
+  },
+  "2026-09-06": {
+    title: "Flop Deep Stack",
+    buyIn: 500,
+    reEntry: defaultReEntry,
+    ratingPool: ratingPools["Flop Deep Stack"]
+  },
+  "2026-10-21": {
+    title: "Flop Rampage",
+    buyIn: 0,
+    reEntry: defaultReEntry,
+    ratingPool: ratingPools["Flop Rampage"],
+    addOnEnabled: true,
+    addOnPrice: 500,
+    addOnChips: 100000
+  },
+  "2026-10-27": {
+    title: "FLOP BOOSTER RE-ENTRY",
+    buyIn: 0,
+    reEntry: 500,
+    ratingPool: ratingPools["FLOP BOOSTER RE-ENTRY"]
   }
 };
 
@@ -212,6 +276,41 @@ async function mergeDuplicateScheduledTournaments(
   }
 }
 
+async function deleteEmptyScheduledTournamentsForDate(
+  tx: Prisma.TransactionClient,
+  dateKeyValue: string,
+  range: { start: Date; end: Date }
+) {
+  const tournaments = await tx.tournament.findMany({
+    where: {
+      id: { startsWith: `${dateKeyValue}-` },
+      startsAt: { gte: range.start, lt: range.end }
+    },
+    select: {
+      id: true,
+      _count: {
+        select: {
+          registrations: true,
+          ratingResults: true,
+          knockouts: true
+        }
+      }
+    }
+  });
+
+  for (const tournament of tournaments) {
+    if (
+      tournament._count.registrations > 0 ||
+      tournament._count.ratingResults > 0 ||
+      tournament._count.knockouts > 0
+    ) {
+      continue;
+    }
+
+    await tx.tournament.delete({ where: { id: tournament.id } });
+  }
+}
+
 function daysBetween(startDateKey: string, endDateKey: string) {
   return Math.round((utcDay(endDateKey).getTime() - utcDay(startDateKey).getTime()) / 86_400_000);
 }
@@ -220,11 +319,30 @@ function mondayIndexFromCycleOffset(offset: number) {
   return ((offset % 7) + 7) % 7;
 }
 
-export function scheduledTournamentForDate(dateKeyValue: string): Prisma.TournamentCreateManyInput {
-  const cycleOffset = ((daysBetween(baseCycleDate, dateKeyValue) % cycle.length) + cycle.length) % cycle.length;
-  const weekdayIndex = mondayIndexFromCycleOffset(cycleOffset);
+function regularTournamentTitleForDate(dateKeyValue: string) {
+  if (dateKeyValue >= regularScheduleStartDate) {
+    const scheduleOffset =
+      ((daysBetween(regularScheduleStartDate, dateKeyValue) % regularTwoWeekSchedule.length) +
+        regularTwoWeekSchedule.length) %
+      regularTwoWeekSchedule.length;
+    return regularTwoWeekSchedule[scheduleOffset];
+  }
+
+  const cycleOffset = ((daysBetween(baseCycleDate, dateKeyValue) % legacyCycle.length) + legacyCycle.length) % legacyCycle.length;
+  return legacyCycle[cycleOffset];
+}
+
+function ratingSeriesMonthForDate(dateKeyValue: string) {
+  if (dateKeyValue >= "2026-08-01" && dateKeyValue <= "2026-08-31") return "2026-09";
+  return undefined;
+}
+
+export function scheduledTournamentForDate(dateKeyValue: string): Prisma.TournamentCreateManyInput | null {
+  const weekdayIndex = mondayIndexFromCycleOffset(daysBetween(baseCycleDate, dateKeyValue));
   const eventOverride = specialEvents[dateKeyValue];
-  const title = eventOverride?.title ?? cycle[cycleOffset];
+  const title = eventOverride?.title ?? regularTournamentTitleForDate(dateKeyValue);
+  if (!title) return null;
+
   const pricing = tournamentPricingFor(title);
   const buyIn = eventOverride?.buyIn ?? pricing.buyIn;
   const eventReEntry = eventOverride?.reEntry ?? pricing.reEntry;
@@ -241,35 +359,50 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
     location,
     buyIn,
     reEntry: eventReEntry,
-    prizePool: buyIn * maxParticipants,
+    prizePool: title === "FLOP DEVIL DEAL" ? 0 : buyIn * maxParticipants,
+    ...(title === "FLOP DEVIL DEAL" ? { mechanics: devilDealDefaults as unknown as Prisma.InputJsonValue } : {}),
     ratingPool: eventOverride?.ratingPool ?? ratingPools[title] ?? 10000,
-    ratingSeriesMonth: eventOverride?.ratingSeriesMonth,
+    ratingSeriesMonth: eventOverride?.ratingSeriesMonth ?? ratingSeriesMonthForDate(dateKeyValue),
     profile,
-    lateRegistrationEndsAt,
-    addOnEnabled: addOn.enabled,
-    addOnPrice: addOn.price,
-    addOnChips: addOn.chips,
+    lateRegistrationEndsAt: title === "FLOP DEVIL DEAL" ? new Date(devilDealDefaults.registrationClosesAt) : lateRegistrationEndsAt,
+    addOnEnabled: eventOverride?.addOnEnabled ?? addOn.enabled,
+    addOnPrice: eventOverride?.addOnPrice ?? addOn.price,
+    addOnChips: eventOverride?.addOnChips ?? addOn.chips,
     maxParticipants,
     status: "OPEN"
   };
 }
 
-export function generateScheduledTournaments(from: Date, to: Date) {
+function scheduledDateKeysInRange(from: Date, to: Date) {
   const fromKey = dateKey(from);
   const start = utcDay(fromKey < firstScheduledTournamentDate ? firstScheduledTournamentDate : fromKey);
   const end = utcDay(dateKey(to));
-  const tournaments: Prisma.TournamentCreateManyInput[] = [];
+  const keys: string[] = [];
 
   for (let cursor = start; cursor <= end; cursor = addUtcDays(cursor, 1)) {
-    tournaments.push(scheduledTournamentForDate(dateKey(cursor)));
+    keys.push(dateKey(cursor));
+  }
+
+  return keys;
+}
+
+export function generateScheduledTournaments(from: Date, to: Date) {
+  const tournaments: Prisma.TournamentCreateManyInput[] = [];
+
+  for (const key of scheduledDateKeysInRange(from, to)) {
+    const tournament = scheduledTournamentForDate(key);
+    if (tournament) {
+      tournaments.push(tournament);
+    }
   }
 
   return tournaments;
 }
 
 export async function ensureScheduledTournaments(from: Date, to: Date) {
+  const rangeDateKeys = scheduledDateKeysInRange(from, to);
+  const noTournamentDateKeys = rangeDateKeys.filter((key) => !scheduledTournamentForDate(key));
   const tournaments = generateScheduledTournaments(from, to);
-  if (!tournaments.length) return;
   const deletedDates = await prisma.deletedScheduledTournament.findMany({
     where: {
       dateKey: {
@@ -280,9 +413,13 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
   });
   const deletedDateKeys = new Set(deletedDates.map((item) => item.dateKey));
   const activeTournaments = tournaments.filter((tournament) => !deletedDateKeys.has(dateKey(tournament.startsAt as Date)));
-  if (!activeTournaments.length) return;
+  if (!activeTournaments.length && !noTournamentDateKeys.length) return;
 
   await prisma.$transaction(async (tx) => {
+    for (const key of noTournamentDateKeys) {
+      await deleteEmptyScheduledTournamentsForDate(tx, key, barnaulDayRange(key));
+    }
+
     for (const tournament of activeTournaments) {
       const key = dateKey(tournament.startsAt as Date);
       const { start, end } = barnaulDayRange(key);
@@ -290,8 +427,13 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
 
       const existingExpected = await tx.tournament.findUnique({ where: { id: String(id) } });
       if (existingExpected) {
+        if (existingExpected.mechanics) {
+          await tx.tournament.update({ where: { id: String(id) }, data: { buyIn: data.buyIn, reEntry: data.reEntry } });
+          continue;
+        }
         await tx.tournament.update({ where: { id: String(id) }, data });
         await mergeDuplicateScheduledTournaments(tx, key, String(id), { start, end });
+        await initializeScheduledMechanics(tx, String(id));
         continue;
       }
 
@@ -309,9 +451,20 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
           data: { id: String(id), ...data }
         });
         await mergeDuplicateScheduledTournaments(tx, key, String(id), { start, end });
+        await initializeScheduledMechanics(tx, String(id));
       } else {
         await tx.tournament.create({ data: tournament });
       }
     }
   });
+}
+
+async function initializeScheduledMechanics(tx: Prisma.TransactionClient, tournamentId: string) {
+  const tournament = await tx.tournament.findUniqueOrThrow({ where: { id: tournamentId } });
+  if (!tournament.mechanics) return;
+  const registrations = await tx.registration.findMany({ where: { tournamentId, status: "ACTIVE" } });
+  for (const registration of registrations) {
+    const prior = await tx.tournamentGameEvent.findUnique({ where: { tournamentId_eventKey: { tournamentId, eventKey: `entry:${registration.id}` } } });
+    if (!prior) await issueEntry(tx, tournament, registration, registration.userId);
+  }
 }

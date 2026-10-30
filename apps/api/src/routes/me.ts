@@ -7,6 +7,8 @@ import { RATING_TOURNAMENTS } from "../services/rating.js";
 export const meRouter = express.Router();
 
 export const currentRulesVersion = "2026-05-22";
+export const currentPersonalDataConsentVersion = "2026-10-12";
+export const currentPhotoVideoConsentVersion = "2026-10-12";
 const profileSchema = z.object({
   displayName: z.string().trim().min(2).max(48).optional(),
   email: z.preprocess(
@@ -28,6 +30,38 @@ meRouter.post("/rules/accept", requireAuth, async (req, res, next) => {
       }
     });
     console.log(`[rules:accept] user=${user.id} version=${currentRulesVersion}`);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+meRouter.post("/personal-data/accept", requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        personalDataConsentAt: new Date(),
+        personalDataConsentVersion: currentPersonalDataConsentVersion
+      }
+    });
+    console.log(`[personal-data:accept] user=${user.id} version=${currentPersonalDataConsentVersion}`);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+meRouter.post("/photo-video/accept", requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        photoVideoConsentAt: new Date(),
+        photoVideoConsentVersion: currentPhotoVideoConsentVersion
+      }
+    });
+    console.log(`[photo-video:accept] user=${user.id} version=${currentPhotoVideoConsentVersion}`);
     res.json(user);
   } catch (error) {
     next(error);
@@ -73,6 +107,48 @@ meRouter.get("/registrations", requireAuth, async (req, res, next) => {
       orderBy: { createdAt: "desc" }
     });
     res.json(registrations);
+  } catch (error) {
+    next(error);
+  }
+});
+
+meRouter.get("/stats", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.id;
+    const [playedTournaments, wins] = await Promise.all([
+      prisma.registration.count({
+        where: {
+          userId,
+          status: "ACTIVE",
+          tournament: { status: "FINISHED" }
+        }
+      }),
+      prisma.tournamentRatingResult.findMany({
+        where: { userId, place: 1 },
+        include: {
+          tournament: {
+            select: {
+              id: true,
+              title: true,
+              startsAt: true
+            }
+          }
+        },
+        orderBy: { tournament: { startsAt: "desc" } }
+      })
+    ]);
+
+    res.json({
+      playedTournaments,
+      winsCount: wins.length,
+      wins: wins.map((win) => ({
+        id: win.id,
+        tournamentId: win.tournamentId,
+        title: win.tournament.title,
+        startsAt: win.tournament.startsAt,
+        points: win.points
+      }))
+    });
   } catch (error) {
     next(error);
   }

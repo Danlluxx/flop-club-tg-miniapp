@@ -28,11 +28,16 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
+      ADDITIONAL_FRONTEND_URLS: ${ADDITIONAL_FRONTEND_URLS:-}
       ADMIN_TELEGRAM_USERNAMES: ${ADMIN_TELEGRAM_USERNAMES}
       TELEGRAM_REMINDER_CHAT_ID: ${TELEGRAM_REMINDER_CHAT_ID:-}
-      TOURNAMENT_REMINDER_BROADCAST_USERS: ${TOURNAMENT_REMINDER_BROADCAST_USERS:-true}
-      TOURNAMENT_REMINDERS_ENABLED: ${TOURNAMENT_REMINDERS_ENABLED:-true}
+      TELEGRAM_RATING_CHAT_ID: ${TELEGRAM_RATING_CHAT_ID:-@flopclub}
+      TELEGRAM_API_BASE_URL: ${TELEGRAM_API_BASE_URL:-https://api.telegram.org}
+      TELEGRAM_REQUEST_TIMEOUT_MS: ${TELEGRAM_REQUEST_TIMEOUT_MS:-15000}
+      TOURNAMENT_REMINDER_BROADCAST_USERS: ${TOURNAMENT_REMINDER_BROADCAST_USERS-true}
+      TOURNAMENT_REMINDERS_ENABLED: ${TOURNAMENT_REMINDERS_ENABLED-true}
       ALLOW_CANCEL_AFTER_CLOSE: ${ALLOW_CANCEL_AFTER_CLOSE:-false}
+      CLOCK_API_TOKEN: ${CLOCK_API_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,6 +51,29 @@ services:
         VITE_API_URL: ${VITE_API_URL:-}
         VITE_SUPPORT_URL: ${VITE_SUPPORT_URL:-https://t.me/flopclub}
     restart: unless-stopped
+    depends_on:
+      - api
+
+  blind-clock:
+    build:
+      context: ../flop-club-blind
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE_PATH: /clock/
+        VITE_BOT_BRIDGE_URL: /clock
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      SERVE_STATIC: "true"
+      HOST: 0.0.0.0
+      PORT: 5175
+      TELEGRAM_BOT_TOKEN: ${BLIND_TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ALLOWED_CHAT_ID: ${BLIND_TELEGRAM_ALLOWED_CHAT_ID:-}
+      BRIDGE_COMMAND_TOKEN: ${BLIND_BRIDGE_COMMAND_TOKEN}
+      FLOP_CLUB_TG_PARTICIPANTS_URL: http://api:4000/api/clock/participants
+      FLOP_CLUB_TG_TOKEN: ${CLOCK_API_TOKEN}
+      FLOP_CLUB_TG_TOURNAMENT_ID: ${BLIND_FLOP_CLUB_TG_TOURNAMENT_ID:-}
+      PARTICIPANTS_CACHE_MS: 10000
     depends_on:
       - api
 
@@ -64,6 +92,24 @@ services:
     depends_on:
       - web
       - api
+      - blind-clock
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --protocol
+      # Workers VPC requires QUIC (or auto) for tunnel connectivity.
+      - quic
+      - --metrics
+      - 0.0.0.0:2000
+      - run
+    depends_on:
+      - caddy
 
 volumes:
   postgres-data:

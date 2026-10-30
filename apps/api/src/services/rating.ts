@@ -2,6 +2,8 @@ import { Prisma, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 
+import { assertDevilCanFinish } from "./devilDeal.js";
+
 export const RATING_POOLS: Record<string, number> = {
   "Flop Classic": 10000,
   "Flop Bounty": 10000,
@@ -18,7 +20,11 @@ export const RATING_POOLS: Record<string, number> = {
   "Flop Rampage": 12000,
   "Flop Last Call": 12000,
   "Flop Grand Final": 25000,
-  "Flop Secret Final": 30000
+  "Flop Secret Final": 30000,
+  "FLOP 3 MINUS 1": 15000,
+  "FLOP BOOSTER RE-ENTRY": 15000,
+  "FLOP BOMB POT": 15000,
+  "FLOP DEVIL DEAL": 15000
 };
 
 export const RATING_TOURNAMENTS = Object.keys(RATING_POOLS);
@@ -46,6 +52,15 @@ export type RatingResultInput = {
   knockouts?: number;
 };
 
+export type ChipLeaderAwardInput = {
+  registrationId: string;
+  points: number;
+};
+
+function isChipLeaderTournament(title: string) {
+  return title.trim().toLowerCase() === "flop chip leader";
+}
+
 export function getRatingPoolForTitle(title: string) {
   return RATING_POOLS[title] ?? 10000;
 }
@@ -67,17 +82,20 @@ export function getRatingAwards(ratingPool: number, entriesCount: number) {
 export async function applyTournamentRatingResults(
   tournamentId: string,
   entriesCount: number | undefined,
-  inputs: RatingResultInput[]
+  inputs: RatingResultInput[],
+  chipLeaderAward?: ChipLeaderAwardInput
 ) {
   if (!inputs.length) {
     throw new AppError(400, "At least one rating result is required", "RATING_RESULTS_EMPTY");
   }
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
     const tournament = await tx.tournament.findUnique({
       where: { id: tournamentId },
       include: {
         ratingResults: true,
+        chipLeaderAward: true,
         registrations: {
           where: { status: "ACTIVE" },
           select: { id: true, userId: true }
@@ -85,6 +103,17 @@ export async function applyTournamentRatingResults(
       }
     });
     if (!tournament) throw notFound("Tournament");
+
+    await assertDevilCanFinish(tx, tournament);
+    if (tournament.mechanics && inputs.some(input => (input.knockouts ?? 0) !== 0)) throw new AppError(400, "Bounty начисляются автоматически через DEVIL CONTROL", "BOUNTY_ALREADY_ACCOUNTED");
+
+    const supportsChipLeaderAward = isChipLeaderTournament(tournament.title);
+    if (!supportsChipLeaderAward && chipLeaderAward) {
+      throw new AppError(400, "Chip-leader bonus is available only for Flop Chip Leader", "CHIP_LEADER_NOT_ALLOWED");
+    }
+    if (supportsChipLeaderAward && !chipLeaderAward) {
+      throw new AppError(400, "Select the chip leader", "CHIP_LEADER_REQUIRED");
+    }
 
     const effectiveEntriesCount = entriesCount ?? Math.max(tournament.registrations.length, inputs.length);
     const awards = getRatingAwards(tournament.ratingPool, effectiveEntriesCount);
@@ -122,15 +151,37 @@ export async function applyTournamentRatingResults(
         place: input.place,
         percent: award.percent,
         points: award.points,
-        knockouts: input.knockouts ?? 0
+        knockouts: input.knockouts ?? 0,
+        chipLeaderBonus: 0
       };
     });
 
+    if (tournament.mechanics) {
+      const winner = await tx.registration.findFirst({ where: { tournamentId, status: "ACTIVE", liveStatus: "IN_GAME", checkedInAt: { not: null } } });
+      if (!nextResults.some(r => r.place === 1 && r.userId === winner?.userId)) throw new AppError(400, "Первое место должно принадлежать оставшемуся игроку", "WINNER_MISMATCH");
+    }
+    const chipLeaderUserId = chipLeaderAward
+      ? registrationToUser.get(chipLeaderAward.registrationId)
+      : undefined;
+    if (chipLeaderAward && !chipLeaderUserId) {
+      throw new AppError(404, "Chip leader registration not found", "CHIP_LEADER_NOT_FOUND");
+    }
+    if (chipLeaderAward && chipLeaderAward.points <= 0) {
+      throw new AppError(400, "Chip-leader bonus must be greater than zero", "CHIP_LEADER_BONUS_INVALID");
+    }
+
     await rollbackExistingResults(tx, tournament.ratingResults);
+    if (tournament.chipLeaderAward) {
+      await tx.user.update({
+        where: { id: tournament.chipLeaderAward.userId },
+        data: { ratingPoints: { decrement: tournament.chipLeaderAward.points } }
+      });
+    }
     await tx.tournamentRatingResult.deleteMany({ where: { tournamentId } });
+    await tx.tournamentChipLeaderAward.deleteMany({ where: { tournamentId } });
 
     for (const result of nextResults) {
-      const totalRatingPoints = result.points + result.knockouts;
+      const totalRatingPoints = result.points + result.knockouts + result.chipLeaderBonus;
 
       await tx.tournamentRatingResult.create({ data: result });
       await tx.user.update({
@@ -139,6 +190,20 @@ export async function applyTournamentRatingResults(
           ratingPoints: { increment: totalRatingPoints },
           knockouts: { increment: result.knockouts }
         }
+      });
+    }
+
+    if (chipLeaderAward && chipLeaderUserId) {
+      await tx.tournamentChipLeaderAward.create({
+        data: {
+          tournamentId,
+          userId: chipLeaderUserId,
+          points: chipLeaderAward.points
+        }
+      });
+      await tx.user.update({
+        where: { id: chipLeaderUserId },
+        data: { ratingPoints: { increment: chipLeaderAward.points } }
       });
     }
 
@@ -158,9 +223,12 @@ export async function applyTournamentRatingResults(
   });
 }
 
-async function rollbackExistingResults(tx: Prisma.TransactionClient, results: Array<{ userId: string; points: number; knockouts: number }>) {
+async function rollbackExistingResults(
+  tx: Prisma.TransactionClient,
+  results: Array<{ userId: string; points: number; knockouts: number; chipLeaderBonus: number }>
+) {
   for (const result of results) {
-    const totalRatingPoints = result.points + result.knockouts;
+    const totalRatingPoints = result.points + result.knockouts + result.chipLeaderBonus;
 
     await tx.user.update({
       where: { id: result.userId },

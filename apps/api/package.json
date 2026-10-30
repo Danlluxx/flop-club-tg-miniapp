@@ -14,7 +14,8 @@
     "prisma:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "prisma:generate:prod": "prisma generate",
     "prisma:deploy:prod": "prisma migrate deploy",
-    "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts"
+    "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "test:devil": "npm run build && node --test tests/devil-deal.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -8,6 +8,7 @@ import { RatingBoard } from "../components/RatingBoard";
 import { api } from "../lib/api";
 import { startOfBarnaulDayIso } from "../lib/barnaulDate";
 import { getPlayerStatus, getStatusProgress } from "../lib/playerStatuses";
+import { isHalloweenSeason } from "../lib/seasonalTheme";
 import { tournamentEventImage } from "../lib/tournamentAssets";
 import type { Tournament, User } from "../types";
 
@@ -35,10 +36,10 @@ function nextTournamentQuery() {
 function UpcomingTournament({ tournament }: { tournament?: Tournament }) {
   if (!tournament) {
     return (
-      <div className="home-event-card grid min-h-[13.5rem] place-items-center rounded-[1.8rem] p-6 text-center">
+      <div className="home-event-card grid min-h-[13.5rem] place-items-center rounded-[1rem] p-6 text-center">
         <div>
           <p className="text-xl font-black">Ближайший турнир скоро появится</p>
-          <Link to="/tournaments" className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-black text-black">
+          <Link to="/tournaments" className="mt-5 inline-flex items-center gap-2 rounded-[0.75rem] bg-white px-6 py-3 font-black text-black">
             Открыть афишу <ArrowRight className="h-5 w-5" />
           </Link>
         </div>
@@ -47,7 +48,7 @@ function UpcomingTournament({ tournament }: { tournament?: Tournament }) {
   }
 
   return (
-    <Link to={`/tournaments/${tournament.id}`} className="home-event-card tap block rounded-[1.5rem] p-4">
+    <Link to={`/tournaments/${tournament.id}`} className="home-event-card tap block rounded-[1rem] p-4">
       <img className="home-event-art" src={tournamentEventImage(tournament.title)} alt="" />
       <div className="relative z-10 flex min-h-[13.5rem] max-w-[72%] flex-col">
         <div>
@@ -61,8 +62,8 @@ function UpcomingTournament({ tournament }: { tournament?: Tournament }) {
           </span>
           <span className="home-pill">{format(new Date(tournament.startsAt), "HH:mm", { locale: ru })}</span>
         </div>
-        <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-white px-5 py-2.5 text-base font-black text-black">
-          Записаться <ArrowRight className="h-4 w-4 rounded-full bg-black p-1 text-white" />
+        <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-[0.7rem] bg-white px-5 py-2.5 text-base font-black text-black">
+          Записаться <ArrowRight className="h-4 w-4 rounded-[0.35rem] bg-black p-1 text-white" />
         </div>
       </div>
     </Link>
@@ -81,7 +82,27 @@ export function HomePage({ user }: { user: User }) {
   return (
     <section className="space-y-6">
       <Link to="/statuses" className="home-profile tap">
+        {isHalloweenSeason() ? (
+          <svg className="home-halloween-bats" viewBox="0 0 180 70" aria-hidden="true" focusable="false">
+            <defs>
+              <path id="seasonal-bat" d="M0 5 Q12 12 19 20 L21 12 L25 17 L29 12 L31 20 Q38 12 50 5 Q43 17 47 28 Q38 21 34 31 Q29 25 25 36 Q21 25 16 31 Q12 21 3 28 Q7 17 0 5Z" />
+            </defs>
+            <use href="#seasonal-bat" transform="translate(14 25) rotate(-18 25 20) scale(.7)" opacity=".45" />
+            <use href="#seasonal-bat" transform="translate(73 2) rotate(12 25 20)" />
+            <use href="#seasonal-bat" transform="translate(137 30) rotate(-10 25 20) scale(.5)" opacity=".6" />
+          </svg>
+        ) : null}
         <div className="home-avatar-wrap">
+          {isHalloweenSeason() ? (
+            <svg className="home-halloween-pumpkin" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+              <g id="seasonal-pumpkin">
+              <path d="M24 12q-2-7 5-9" fill="none" stroke="#ad8551" strokeWidth="3" strokeLinecap="round" />
+              <path d="M24 13C4 4 0 36 15 41q9 5 18 0C48 36 44 4 24 13Z" fill="#b54d1d" />
+              <ellipse cx="24" cy="27" rx="11" ry="16" fill="#e27a32" />
+              <path d="m12 22 9 4-8 3Zm24 0-9 4 8 3ZM24 27l-3 5h6ZM13 33l7 3 4-2 4 2 7-3-5 7H19Z" fill="#23120e" />
+              </g>
+            </svg>
+          ) : null}
           {user.photoUrl ? (
             <img className="home-avatar" src={user.photoUrl} alt="" />
           ) : (
@@ -94,17 +115,48 @@ export function HomePage({ user }: { user: User }) {
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-300" style={{ width: `${statusProgress}%` }} />
           </div>
-          <div className="mt-2 inline-flex rounded-r-full bg-gradient-to-r from-rose-500 to-amber-300 px-6 py-1 text-xs font-black uppercase text-black">
+          <div className="mt-2 inline-flex rounded-r-[0.45rem] bg-gradient-to-r from-rose-500 to-amber-300 px-6 py-1 text-xs font-black uppercase text-black">
             {currentStatus.title}
           </div>
         </div>
       </Link>
 
+      {isHalloweenSeason() ? (
+        <svg className="home-halloween-web" viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+          <path d="M79 1H1m78 0v78M79 1 20 60M79 1 7 29M79 1 51 73M55 1q0 10 2 10t6 7 16 7M31 1q1 18 9 18t12 13 27 17M7 1q3 26 16 26t17 20 39 25" />
+        </svg>
+      ) : null}
+
       <UpcomingTournament tournament={nextTournament} />
 
-      <RatingBoard user={user} />
+      <div className="relative" style={isHalloweenSeason() ? { marginTop: 44 } : undefined}>
+        {isHalloweenSeason() ? (
+          <svg className="halloween-gap-pumpkin" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+            <use href="#seasonal-pumpkin" />
+          </svg>
+        ) : null}
+        {isHalloweenSeason() ? (
+          <svg className="halloween-gap-bats" viewBox="0 0 160 40" aria-hidden="true" focusable="false">
+            <use href="#seasonal-bat" transform="translate(10 0) scale(.65)" />
+            <use href="#seasonal-bat" transform="translate(65 8) rotate(-12 25 20) scale(.45)" opacity=".65" />
+            <use href="#seasonal-bat" transform="translate(114 0) scale(.55)" opacity=".8" />
+          </svg>
+        ) : null}
+        <RatingBoard user={user} />
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="relative grid grid-cols-2 gap-3" style={isHalloweenSeason() ? { marginTop: 44 } : undefined}>
+        {isHalloweenSeason() ? (
+          <svg className="halloween-gap-pumpkin halloween-gap-pumpkin-right" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+            <use href="#seasonal-pumpkin" />
+          </svg>
+        ) : null}
+        {isHalloweenSeason() ? (
+          <svg className="halloween-gap-bats halloween-gap-bats-left" viewBox="0 0 160 40" aria-hidden="true" focusable="false">
+            <use href="#seasonal-bat" transform="translate(10 0) rotate(10 25 20) scale(.7)" />
+            <use href="#seasonal-bat" transform="translate(80 8) scale(.45)" opacity=".6" />
+          </svg>
+        ) : null}
         <Link to="/support" className="home-action tap">
           <HelpCircle className="home-action-icon h-9 w-9" />
           <span className="home-action-label">
@@ -121,7 +173,12 @@ export function HomePage({ user }: { user: User }) {
         </Link>
       </div>
 
-      <a href={yandexMapsUrl} target="_blank" rel="noreferrer" className="home-address tap">
+      <a href={yandexMapsUrl} target="_blank" rel="noreferrer" className="home-address tap relative">
+        {isHalloweenSeason() ? (
+          <svg className="halloween-address-web" viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+            <path d="M79 1H1m78 0v78M79 1 20 60M79 1 7 29M79 1 51 73M55 1q0 10 2 10t6 7 16 7M31 1q1 18 9 18t12 13 27 17M7 1q3 26 16 26t17 20 39 25" />
+          </svg>
+        ) : null}
         <div className="flex items-center gap-3 text-2xl font-black">
           <MapPin className="h-9 w-9" />
           Адрес

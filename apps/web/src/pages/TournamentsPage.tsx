@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { addDays } from "date-fns";
+import { Check, ChevronDown } from "lucide-react";
 import { api } from "../lib/api";
 import { endOfBarnaulDayIso, startOfBarnaulDayIso } from "../lib/barnaulDate";
 import { SkeletonCard } from "../components/Skeleton";
@@ -11,6 +12,7 @@ const labels = { today: "Сегодня", open: "Открытые", all: "Нед
 
 export function TournamentsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("today");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const query = useMemo(() => {
     const now = new Date();
     const from = startOfBarnaulDayIso(now);
@@ -27,6 +29,7 @@ export function TournamentsPage() {
   }, [filter]);
 
   const { data, isLoading, isError } = useQuery({ queryKey: ["tournaments", query], queryFn: () => api.tournaments(query) });
+  const selectedLabel = labels[filter];
 
   return (
     <section className="space-y-6">
@@ -36,18 +39,38 @@ export function TournamentsPage() {
         <p className="page-subtitle mt-4">Ближайшие турниры</p>
       </div>
 
-      <div className="filter-row">
-        {filters.map((item) => (
-          <button
-            key={item}
-            onClick={() => setFilter(item)}
-            className={`filter-chip tap ${filter === item ? "filter-chip-active" : ""}`}
-          >
-            {labels[item]}
-          </button>
-        ))}
+      <div className="app-select">
+        <button
+          type="button"
+          className="app-select-trigger tap"
+          onClick={() => setIsFilterOpen((value) => !value)}
+          aria-expanded={isFilterOpen}
+        >
+          <span>
+            Показывать
+            <strong>{selectedLabel}</strong>
+          </span>
+          <ChevronDown className={`h-5 w-5 transition-transform ${isFilterOpen ? "rotate-180" : ""}`} />
+        </button>
+        {isFilterOpen && (
+          <div className="app-select-menu">
+            {filters.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={`app-select-option tap ${filter === item ? "app-select-option-active" : ""}`}
+                onClick={() => {
+                  setFilter(item);
+                  setIsFilterOpen(false);
+                }}
+              >
+                {labels[item]}
+                {filter === item && <Check className="h-4 w-4" />}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-
       {isLoading && <div className="space-y-3"><SkeletonCard /><SkeletonCard /></div>}
       {isError && <div className="app-panel p-5 text-sm text-rose-200">Не удалось загрузить турниры. Проверьте подключение и API.</div>}
       {!isLoading && data?.length === 0 && (

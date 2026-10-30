@@ -8,6 +8,28 @@ import { verifyTelegramInitData } from "../utils/telegram.js";
 export const authRouter = express.Router();
 
 const bodySchema = z.object({ initData: z.string().min(1) });
+const userResponseSelect = {
+  id: true,
+  telegramId: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+  displayName: true,
+  email: true,
+  photoUrl: true,
+  role: true,
+  ratingPoints: true,
+  knockouts: true,
+  rulesAcceptedAt: true,
+  rulesVersion: true,
+  personalDataConsentAt: true,
+  personalDataConsentVersion: true,
+  photoVideoConsentAt: true,
+  photoVideoConsentVersion: true,
+  introCompletedAt: true,
+  createdAt: true,
+  updatedAt: true
+} as const;
 
 authRouter.post("/telegram", async (req, res, next) => {
   try {
@@ -22,6 +44,7 @@ authRouter.post("/telegram", async (req, res, next) => {
 
     const user = await prisma.user.upsert({
       where: { telegramId },
+      select: userResponseSelect,
       create: {
         telegramId,
         username: telegramUser.username,

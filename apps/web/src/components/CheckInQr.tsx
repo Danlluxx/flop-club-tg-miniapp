@@ -55,7 +55,7 @@ export function CheckInQr({ registration }: CheckInQrProps) {
             {isCheckedIn ? "Приход уже подтвержден." : "Менеджер сканирует QR обычной камерой, приложение подтвердит участие."}
           </p>
         </div>
-        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-black ${
+        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-[0.55rem] px-3 py-2 text-xs font-black ${
           isCheckedIn ? "bg-emerald/15 text-emerald" : "bg-amber-300/15 text-amber-200"
         }`}>
           {isCheckedIn ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
@@ -64,11 +64,11 @@ export function CheckInQr({ registration }: CheckInQrProps) {
       </div>
 
       {qrUrl ? (
-        <div className="mt-4 grid place-items-center rounded-[1.5rem] bg-white p-4">
+        <div className="mt-4 grid place-items-center rounded-[0.9rem] bg-white p-4">
           <img className="h-52 w-52" src={qrUrl} alt="QR код регистрации" />
         </div>
       ) : (
-        <div className="mt-4 h-60 animate-pulse rounded-[1.5rem] bg-white/10" />
+        <div className="mt-4 h-60 animate-pulse rounded-[0.9rem] bg-white/10" />
       )}
     </section>
   );

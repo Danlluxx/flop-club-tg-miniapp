@@ -11,7 +11,8 @@ export const playerStatuses: PlayerStatus[] = [
   { title: "Tom Dwan", pointsFrom: 15000, icon: "/statuses/tom-dwan.png" },
   { title: "Finalist", pointsFrom: 22000, icon: "/statuses/finalist.png" },
   { title: "Black Stack", pointsFrom: 40000, icon: "/statuses/black-stack.png" },
-  { title: "Flopfather", pointsFrom: 70000, icon: "/statuses/flopfather.png" }
+  { title: "Flopfather", pointsFrom: 70000, icon: "/statuses/flopfather.png" },
+  { title: "Flop Legend", pointsFrom: 100000, icon: "/statuses/flop-legend.png" }
 ];
 
 export function getPlayerStatus(points: number) {

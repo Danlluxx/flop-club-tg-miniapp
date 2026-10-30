@@ -101,7 +101,7 @@ export function AdminCheckInPage({ token }: AdminCheckInPageProps) {
         {checkIn.isSuccess && registration && (
           <div className="space-y-5">
             <div className="flex items-center gap-4">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald/15 text-emerald">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[0.8rem] bg-emerald/15 text-emerald">
                 <CheckCircle2 className="h-8 w-8" />
               </span>
               <div className="min-w-0">
@@ -110,7 +110,7 @@ export function AdminCheckInPage({ token }: AdminCheckInPageProps) {
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+            <div className="rounded-[0.9rem] border border-white/10 bg-black/20 p-4">
               <div className="flex items-start gap-3">
                 <UserCheck className="mt-0.5 h-5 w-5 shrink-0 text-rose-300" />
                 <div className="min-w-0">

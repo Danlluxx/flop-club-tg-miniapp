@@ -2,14 +2,15 @@ import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { awardImage } from "../lib/tournamentAssets";
+import { awardImage, tournamentDisplayTitle } from "../lib/tournamentAssets";
 import type { ClubAward } from "../types";
 
 function AwardTile({ award }: { award: ClubAward }) {
+  const title = tournamentDisplayTitle(award.title);
   return (
-    <div className={award.unlocked ? "awards-page-tile awards-page-tile-open" : "awards-page-tile"} title={award.title} tabIndex={0}>
-      <img src={awardImage(award.title, award.unlocked)} alt={award.title} />
-      <span>{award.title}</span>
+    <div className={award.unlocked ? "awards-page-tile awards-page-tile-open" : "awards-page-tile"} title={title} tabIndex={0}>
+      <img src={awardImage(award.title, award.unlocked)} alt={title} />
+      <span>{title}</span>
     </div>
   );
 }

@@ -14,7 +14,19 @@ const defaultFeatures = [
   "Big Blind Ante с первого уровня"
 ];
 
+const entryChipsByTitle: Record<string, number> = {
+  "Flop Deep Stack": 60000,
+  "Flop Rampage": 50000
+};
+
+const punctualityBonusChips = 10000;
+
 const rules: Record<string, TournamentRule> = {
+  "FLOP DEVIL DEAL": {
+    title: "FLOP DEVIL DEAL", short: "HALLOWEEN SPECIAL · Одна сделка может изменить всё.",
+    rule: "No-Limit Texas Hold’em. Одна бесплатная сделка на восстановление в игру после вылета, бонусы за шестёрки до поздней регистрации и Bounty до конца турнира.",
+    features: ["Стартовый стек 30 000 фишек", "Уровни по 20 минут", "Re-entry доступны до окончания поздней регистрации", "Одна попытка воскрешения на игрока: 50% — без фишек, 30% — 5 BB, 20% — 10 BB", "Выигрыш с карманными 66 на вскрытии: +6 BB; сет шестёрок: +13 BB", "За каждое подтверждённое выбивание: +50 рейтинговых очков"]
+  },
   "Flop Classic": {
     title: "FLOP CLASSIC",
     short: "Классический турнир для комфортной игры и стабильного рейтинга.",
@@ -43,7 +55,10 @@ const rules: Record<string, TournamentRule> = {
     short: "Больше фишек, больше решений, больше настоящего покера.",
     rule: "Глубокий стек дает больше пространства для решений.",
     features: [
-      ...defaultFeatures,
+      "Техасский холдем",
+      "Стартовый стек 60 000 фишек",
+      "Уровни по 15 минут",
+      "Big Blind Ante с первого уровня",
       "Более глубокая игровая дистанция",
       "Больше постфлоп-решений и давления стеком",
       "Подходит для аккуратной и стратегичной игры",
@@ -164,8 +179,8 @@ const rules: Record<string, TournamentRule> = {
     rule: "Быстрый агрессивный формат для любителей экшена.",
     features: [
       "Техасский холдем",
-      "Стартовый стек 30 000 фишек",
-      "Уровни по 15/12 минут",
+      "Стартовый стек 50 000 фишек",
+      "Уровни по 12 минут",
       "Big Blind Ante с первого уровня",
       "Более динамичная структура",
       "Больше all-in ситуаций и давления блайндов",
@@ -197,6 +212,53 @@ const rules: Record<string, TournamentRule> = {
       "Топ-3 финалистов участвуют в профессиональной фото-съемке",
       "Победитель может получить кубок, медаль, статуэтку или другую клубную награду",
       "Победителю турнира может быть организовано такси комфорт+ домой"
+    ]
+  },
+  "FLOP 3 MINUS 1": {
+    title: "FLOP 3 MINUS 1",
+    short: "Холдем с третьей картой на префлопе и выбором лучших двух.",
+    rule: "На префлопе каждый игрок получает 3 карты, выбирает 2 и сбрасывает одну до начала торговли.",
+    features: [
+      "FLOP 3-CARD",
+      "Техасский холдем с дополнительной третьей картой",
+      "На префлопе каждый игрок получает 3 карты",
+      "До начала торговли каждый игрок выбирает 2 карты, а одну сбрасывает в пас",
+      "После сброса третьей карты раздача продолжается по стандартным правилам Техасского холдема",
+      "Стартовый стек 30 000 фишек",
+      "Уровни по 15 минут",
+      "Big Blind Ante с первого уровня",
+      "Безлимитные Re-entry до окончания поздней регистрации",
+      "Рейтинговые очки получают топ-30% участников от общего пула",
+      "Денежный призовой фонд не формируется"
+    ]
+  },
+  "FLOP BOOSTER RE-ENTRY": {
+    title: "FLOP BOOSTER RE-ENTRY",
+    short: "Каждый следующий re-entry дает больше фишек.",
+    rule: "Re-entry формат с растущим стеком за повторный вход.",
+    features: [
+      ...defaultFeatures,
+      "1-й re-entry — 45 000 фишек",
+      "2-й re-entry — 60 000 фишек",
+      "3-й re-entry — 75 000 фишек",
+      "4-й и последующие — 90 000 фишек",
+      "Re-entry доступны до окончания поздней регистрации",
+      "Рейтинговые очки получают лучшие игроки турнира",
+      "Денежный призовой фонд не формируется"
+    ]
+  },
+  "FLOP BOMB POT": {
+    title: "FLOP BOMB POT",
+    short: "Один bomb pot на каждом уровне.",
+    rule: "Один раз на каждом уровне все игроки ставят 3 BB и сразу переходят к флопу.",
+    features: [
+      ...defaultFeatures,
+      "Один раз на каждом уровне разыгрывается Bomb Pot",
+      "Каждый игрок за столом ставит 3 BB",
+      "Все игроки сразу переходят к флопу — префлоп отсутствует",
+      "Далее раздача проходит по стандартным правилам техасского холдема",
+      "Рейтинговые очки получают лучшие игроки турнира",
+      "Денежный призовой фонд не формируется"
     ]
   },
   "Flop Secret Final": {
@@ -265,15 +327,26 @@ export function tournamentRuleFor(title: string) {
   };
 }
 
-export function tournamentPriceFeatures(tournament: Tournament) {
-  const features = [`Вход ${new Intl.NumberFormat("ru-RU").format(tournament.buyIn)} ₽`];
-  const formatNumber = new Intl.NumberFormat("ru-RU");
+export function tournamentEntryChipsFor(title: string) {
+  return entryChipsByTitle[title] ?? 30000;
+}
 
-  if (tournament.profile !== "FREEZE" && tournament.reEntry > 0) {
-    features.push(`Re-entry ${formatNumber.format(tournament.reEntry)} ₽ до конца поздней регистрации`);
+export function tournamentPriceFeatures(tournament: Tournament) {
+  if (tournament.mechanics) return ["Фишки не имеют денежной стоимости", "Add-on и бонус за пунктуальность не предусмотрены"];
+  const formatNumber = new Intl.NumberFormat("ru-RU");
+  const entryChips = tournamentEntryChipsFor(tournament.title);
+  const entryLabel = tournament.buyIn === 0 ? "Вход бесплатный" : `Вход ${formatNumber.format(tournament.buyIn)} ₽`;
+  const features = [`${entryLabel} / ${formatNumber.format(entryChips)} фишек`];
+
+  if (tournament.title === "FLOP BOOSTER RE-ENTRY") {
+    features.push("Re-entry 500 ₽: 45 000 / 60 000 / 75 000 / 90 000 фишек до конца поздней регистрации");
+  } else if (tournament.profile !== "FREEZE" && tournament.reEntry > 0) {
+    features.push(`Re-entry ${formatNumber.format(tournament.reEntry)} ₽ / ${formatNumber.format(entryChips)} фишек до конца поздней регистрации`);
   } else if (!rules[tournament.title]?.features.includes("Без re-entry")) {
     features.push("Без re-entry");
   }
+
+  features.push(`Бонус за пунктуальность: ${formatNumber.format(punctualityBonusChips)} фишек`);
 
   if (tournament.addOnEnabled && tournament.addOnChips > 0) {
     features.push(

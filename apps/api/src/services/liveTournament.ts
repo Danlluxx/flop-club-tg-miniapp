@@ -20,7 +20,7 @@ type SeatMove = {
   seatNumber: number;
 };
 
-export async function checkInTournamentRegistration(checkInToken: string) {
+export async function checkInTournamentRegistration(checkInToken: string, actorId?: string) {
   return prisma.$transaction(async (tx) => {
     const registrationRef = await tx.registration.findUnique({
       where: { checkInToken },
@@ -47,6 +47,7 @@ export async function checkInTournamentRegistration(checkInToken: string) {
       throw new AppError(409, "Participant is not in game", "PARTICIPANT_NOT_IN_GAME");
     }
 
+    if (registration.tournament.mechanics && ["FINISHED", "CANCELLED"].includes(registration.tournament.status)) throw new AppError(409, "Турнир завершён", "TOURNAMENT_NOT_RUNNING");
     const isFirstCheckIn = !registration.checkedInAt;
     if (isFirstCheckIn) {
       await tx.registration.updateMany({
@@ -74,6 +75,7 @@ export async function checkInTournamentRegistration(checkInToken: string) {
       ? { tableNumber: registration.tableNumber, seatNumber: registration.seatNumber }
       : await assignNextAvailableSeat(tx, registration.tournamentId, registration.tournament.maxParticipants, registration.id);
 
+    if (isFirstCheckIn && registration.tournament.mechanics) await tx.tournamentGameEvent.create({ data: { tournamentId: registration.tournamentId, userId: registration.userId, registrationId: registration.id, actorId: actorId ?? registration.userId, eventKey: `checkin:${registration.id}`, type: "CHECK_IN" } });
     return tx.registration.update({
       where: { id: registration.id },
       data: {
@@ -93,6 +95,7 @@ export async function moveLiveSeat(tournamentId: string, registrationId: string,
   assertSeat(tableNumber, seatNumber);
 
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
     const registration = await tx.registration.findUnique({ where: { id: registrationId } });
     if (!registration || registration.tournamentId !== tournamentId) throw notFound("Registration");
     if (registration.status !== RegistrationStatus.ACTIVE || registration.liveStatus !== "IN_GAME" || !registration.checkedInAt) {
@@ -124,6 +127,7 @@ export async function moveLiveSeat(tournamentId: string, registrationId: string,
 
 export async function autoReseatTournament(tournamentId: string) {
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
     await ensureTournamentExists(tx, tournamentId);
     await balanceSeats(tx, tournamentId);
     console.log(`[live:reseat:auto] tournament=${tournamentId}`);
@@ -134,6 +138,7 @@ export async function autoReseatTournament(tournamentId: string) {
 
 export async function formFinalTable(tournamentId: string) {
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
     await ensureTournamentExists(tx, tournamentId);
     const registrations = await tx.registration.findMany({
       where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } },
@@ -172,7 +177,9 @@ export async function recordElimination(
   killerRegistrationId: string | null | undefined
 ) {
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
     const tournament = await ensureTournamentExists(tx, tournamentId);
+    if (tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL для выбивания", "DEVIL_CONTROL_REQUIRED");
 
     const eliminated = await tx.registration.findUnique({ where: { id: eliminatedRegistrationId } });
     if (!eliminated || eliminated.tournamentId !== tournamentId) throw notFound("Eliminated registration");
@@ -244,7 +251,7 @@ export async function recordElimination(
 }
 
 async function ensureTournamentExists(tx: Prisma.TransactionClient, tournamentId: string) {
-  const tournament = await tx.tournament.findUnique({ where: { id: tournamentId }, select: { id: true, profile: true } });
+  const tournament = await tx.tournament.findUnique({ where: { id: tournamentId }, select: { id: true, profile: true, mechanics: true } });
   if (!tournament) throw notFound("Tournament");
   return tournament;
 }

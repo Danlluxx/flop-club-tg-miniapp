@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, Camera, ChevronRight, Folder, Images, Mail, Save, Send, Settings } from "lucide-react";
+import { CalendarClock, Camera, ChevronRight, Folder, Images, Mail, Save, Send, Settings, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RatingBoard } from "../components/RatingBoard";
 import { RatingIcon } from "../components/RatingIcon";
@@ -8,7 +8,7 @@ import { useToast } from "../components/Toast";
 import type { ClubAward, Registration, User } from "../types";
 import { api } from "../lib/api";
 import { getNextPlayerStatus, getPlayerStatus, getStatusProgress } from "../lib/playerStatuses";
-import { awardImage } from "../lib/tournamentAssets";
+import { awardImage, tournamentDisplayTitle } from "../lib/tournamentAssets";
 
 type HistoryTab = "active" | "past";
 
@@ -26,7 +26,7 @@ function fileToAvatarDataUrl(file: File) {
     reader.onload = () => {
       const image = new Image();
       image.onload = () => {
-        const size = 512;
+        const size = 384;
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
@@ -40,7 +40,7 @@ function fileToAvatarDataUrl(file: File) {
         const sourceX = (image.width - sourceSize) / 2;
         const sourceY = (image.height - sourceSize) / 2;
         context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/jpeg", 0.86));
+        resolve(canvas.toDataURL("image/webp", 0.78));
       };
       image.onerror = () => reject(new Error("Не удалось открыть изображение"));
       image.src = String(reader.result);
@@ -52,7 +52,7 @@ function fileToAvatarDataUrl(file: File) {
 
 function RegistrationList({ items, emptyText }: { items: Registration[]; emptyText: string }) {
   if (items.length === 0) {
-    return <div className="profile-empty">Пусто</div>;
+    return <div className="profile-empty">{emptyText}</div>;
   }
 
   return (
@@ -67,6 +67,11 @@ function RegistrationList({ items, emptyText }: { items: Registration[]; emptyTe
                 {new Date(item.tournament.startsAt).toLocaleString("ru-RU")}
               </p>
             </div>
+            {item.tournament.status === "FINISHED" && (
+              <span className="shrink-0 rounded-[0.55rem] border border-rose-400/40 bg-rose-500/10 px-3 py-1 text-sm font-bold text-rose-100">
+                {item.finishPlace ? `${item.finishPlace} место` : "Место не указано"}
+              </span>
+            )}
           </div>
         </Link>
       ))}
@@ -76,9 +81,10 @@ function RegistrationList({ items, emptyText }: { items: Registration[]; emptyTe
 }
 
 function AwardBadge({ award }: { award: ClubAward }) {
+  const title = tournamentDisplayTitle(award.title);
   return (
-    <div className={award.unlocked ? "profile-award profile-award-open" : "profile-award"} title={award.title}>
-      <img src={awardImage(award.title, award.unlocked)} alt={award.title} />
+    <div className={award.unlocked ? "profile-award profile-award-open" : "profile-award"} title={title}>
+      <img src={awardImage(award.title, award.unlocked)} alt={title} />
     </div>
   );
 }
@@ -106,8 +112,10 @@ function AwardsShelf({ awards }: { awards: ClubAward[] }) {
 
 export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated: (user: User) => void }) {
   const { data } = useQuery({ queryKey: ["me", "registrations"], queryFn: api.myRegistrations });
+  const { data: stats } = useQuery({ queryKey: ["me", "stats"], queryFn: api.myStats });
   const { data: awards = [] } = useQuery({ queryKey: ["me", "awards"], queryFn: api.myAwards });
   const [historyTab, setHistoryTab] = useState<HistoryTab>("active");
+  const [winsOpen, setWinsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [nameEditorOpen, setNameEditorOpen] = useState(false);
@@ -317,6 +325,43 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
       </div>
 
       <AwardsShelf awards={awards} />
+
+      <div className="profile-stats-card">
+        <button
+          type="button"
+          className="profile-stat-button profile-stat-button-wins tap"
+          onClick={() => setWinsOpen((value) => !value)}
+          aria-expanded={winsOpen}
+        >
+          <span>
+            <Trophy className="h-5 w-5" />
+            Победы
+          </span>
+          <strong>{stats?.winsCount ?? 0}</strong>
+        </button>
+        <div className="profile-stat-item">
+          <span>Сыграно турниров</span>
+          <strong>{stats?.playedTournaments ?? 0}</strong>
+        </div>
+      </div>
+
+      {winsOpen && (
+        <div className="profile-wins-list">
+          {stats?.wins.length ? (
+            stats.wins.map((win) => (
+              <Link key={win.id} to={`/tournaments/${win.tournamentId}`} className="profile-win-row tap">
+                <div className="min-w-0">
+                  <strong>{win.title}</strong>
+                  <span>{new Date(win.startsAt).toLocaleDateString("ru-RU")}</span>
+                </div>
+                <ChevronRight className="h-5 w-5" />
+              </Link>
+            ))
+          ) : (
+            <div className="profile-empty profile-wins-empty">Побед пока нет</div>
+          )}
+        </div>
+      )}
 
       <div className="profile-status-card">
         <div className="flex items-center justify-between">
