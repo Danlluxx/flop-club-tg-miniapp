@@ -6,7 +6,6 @@ APP_DIR="/root/flop-club-tg-miniapp"
 BACKUP_DIR="/root/flop-deploy-backups"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_FILE="$BACKUP_DIR/devil-control-$STAMP.tar.gz"
-PUBLIC_HEALTH_URL="https://flop-club-app-pages.dev/health"
 
 COMPOSE=(
   docker compose
@@ -39,6 +38,18 @@ test -d .git
 test -f .env.production
 test -f docker-compose.prod.yml
 mkdir -p "$BACKUP_DIR"
+
+PUBLIC_BASE_URL="$(sed -n 's/^FRONTEND_URL=//p' .env.production | tail -n 1 | tr -d '\r')"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL#\"}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL%\"}"
+if [[ -z "$PUBLIC_BASE_URL" ]]; then
+  APP_DOMAIN="$(sed -n 's/^APP_DOMAIN=//p' .env.production | tail -n 1 | tr -d '\r')"
+  APP_DOMAIN="${APP_DOMAIN#\"}"
+  APP_DOMAIN="${APP_DOMAIN%\"}"
+  test -n "$APP_DOMAIN"
+  PUBLIC_BASE_URL="https://$APP_DOMAIN"
+fi
+PUBLIC_HEALTH_URL="${PUBLIC_BASE_URL%/}/health"
 
 echo "Проверяем Docker Compose..."
 "${COMPOSE[@]}" config --quiet
