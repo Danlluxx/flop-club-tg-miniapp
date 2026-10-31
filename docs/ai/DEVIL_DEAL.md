@@ -11,7 +11,7 @@
 - Deal after confirmed elimination: one attempt, 50% no revival / 30% 5 BB / 20% 10 BB.
 - Successful revival automatically restores active status and seating.
 - Sixes: winning showdown with pocket 66 gives +6 BB; set of sixes gives +13 BB, with admin confirmation.
-- Confirmed knockout: +50 rating points; Bounty continues to the end.
+- Bounty is a separate per-player counter: each `+1` gives 50 rating points and does not store who eliminated whom. Bounty continues to the end.
 
 ## Key implementation paths
 
@@ -31,9 +31,12 @@ apps/web/public/awards/color/flop-devil-deal.png
 ## Invariants
 
 - Revival UI appears only after a confirmed elimination and only while an unused attempt is available.
+- Elimination is recorded like an ordinary tournament: only the eliminated player is selected; no opponent is required.
+- Paid Re-entry is an admin action after elimination. It records a new paid entry, issues the starting stack, checks the player in, and seats them atomically.
 - The random outcome is generated and persisted server-side; retry returns the same result.
 - Chip/rating operations are journaled and protected against duplicate requests.
 - Add-on and Re-entry are distinct operations with separate time windows and prices.
+- Bounty increments are append-only `BOUNTY_ELIMINATION` events without an `eliminationId`; corrections use compensating events.
 - Existing registrations must survive schedule synchronization.
 
 The longer `docs/FLOP_DEVIL_DEAL.md` contains historical implementation detail and test instructions. If it conflicts with this capsule, verify against current code/tests; parts of the long document describe pre-release defaults.

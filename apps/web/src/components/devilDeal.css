@@ -38,9 +38,35 @@
 .devil-control input,.devil-control select,.devil-control textarea {width:100%;min-width:0;border:1px solid #53303b;border-radius:8px;padding:12px;background:#170e13;color:#fff7f7;}
 .devil-control input[type=checkbox] {width:18px;height:18px;}
 .devil-control button:disabled {opacity:.45;cursor:not-allowed;}
+.devil-player-list {display:grid;gap:0;}
 .devil-player {border-bottom:1px solid #48222a;padding:16px 0;display:grid;gap:12px;}
+.devil-player:last-child {border-bottom:0;padding-bottom:0;}
+.devil-player-summary {display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.devil-player-summary > div:first-child {display:grid;gap:8px;min-width:0;}
+.devil-player-summary strong {font-size:16px;overflow-wrap:anywhere;}
+.devil-status {width:max-content;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:700;}
+.devil-status-in_game {background:#1f4938;color:#9de8c8;}
+.devil-status-eliminated {background:#4a2029;color:#f1a8b5;}
+.devil-bounty-count {display:grid;min-width:64px;justify-items:end;}
+.devil-bounty-count b {font-size:24px;line-height:1;}
+.devil-bounty-count span {color:#bcadb2;font-size:10px;text-transform:uppercase;letter-spacing:.08em;}
 .devil-player-actions {display:flex;gap:8px;flex-wrap:wrap;}
-.devil-player-actions button {border:1px solid #6e3947;border-radius:6px;padding:8px 12px;font-size:12px;}
+.devil-player-actions button {min-height:40px;border:1px solid #6e3947;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:8px;}
+.devil-player-actions svg {width:16px;height:16px;}
+.devil-player-actions .devil-bounty-button {background:#4a2029;color:#ffd7dc;}
+.devil-player-actions .devil-reentry-button {background:#322016;color:#efc08e;border-color:#74472f;}
+.devil-primary-action {border-color:#6e2939;background:#160c10;}
+.devil-section-heading {display:flex;align-items:flex-start;gap:12px;}
+.devil-section-heading > svg {width:24px;height:24px;flex:none;color:#cf6678;}
+.devil-section-heading h2 {font-size:24px;}
+.devil-place-hint {margin:0;border-radius:8px;background:#4a2029;padding:12px;color:#ffd7dc;font-size:12px;font-weight:700;}
+.devil-checkbox {grid-template-columns:20px 1fr!important;align-items:start;}
+.devil-advanced {min-width:0;border:1px solid #48222a;border-radius:12px;background:#110b0e;overflow:hidden;}
+.devil-advanced > summary {list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;font-size:14px;font-weight:700;cursor:pointer;}
+.devil-advanced > summary::-webkit-details-marker {display:none;}
+.devil-advanced > summary svg {width:20px;height:20px;transition:transform .16s ease;}
+.devil-advanced[open] > summary svg {transform:rotate(180deg);}
+.devil-advanced-content {display:grid;gap:16px;padding:0 12px 12px;}
 .devil-hero .tournament-detail-art,.devil-poster .tournament-art {object-fit:contain;object-position:right center;}
 .devil-hero .tournament-detail-art {opacity:.28;}
 .devil-admin-stats {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}

@@ -16,7 +16,7 @@ for(const outcome of ['DEATH','RESURRECT_5','RESURRECT_10']) {
  const mechanics={...devilDealDefaults,registrationClosesAt:new Date(Date.now()+3600000).toISOString(),resurrection:{...devilDealDefaults.resurrection,probabilities:{death:outcome==='DEATH'?1:0,fiveBB:outcome==='RESURRECT_5'?1:0,tenBB:outcome==='RESURRECT_10'?1:0}}};
  const t=await prisma.tournament.create({data:{title:'FLOP DEVIL DEAL',description:'HALLOWEEN SPECIAL',startsAt:new Date(Date.now()-60000),location:'Flop Club, Барнаул',buyIn:500,reEntry:500,prizePool:0,maxParticipants:50,mechanics}});
  const regs=[]; for(const u of [player,killer,admin]) { const r=await registerForTournament(u.id,t.id); regs.push(await checkInTournamentRegistration(r.checkInToken)); }
- await eliminateDevil(t.id,regs[0].id,regs[1].id,1,admin.id);
+ await eliminateDevil(t.id,regs[0].id,1,admin.id);
  fixture.tournaments.push({id:t.id,outcome,regs});
 }
 // Separate fixture for publishing final placements through the existing admin interface.
@@ -24,8 +24,8 @@ const finalRules={...devilDealDefaults,registrationClosesAt:new Date(Date.now()+
 const finalTournament=await prisma.tournament.create({data:{title:'FLOP DEVIL DEAL',description:'Final results browser test',startsAt:new Date(Date.now()-3600000),location:'Local test',buyIn:500,reEntry:500,prizePool:0,maxParticipants:50,mechanics:finalRules}});
 const finalRegs=[];
 for(const u of [player,killer,admin]) { const r=await registerForTournament(u.id,finalTournament.id); finalRegs.push(await checkInTournamentRegistration(r.checkInToken)); }
-await eliminateDevil(finalTournament.id,finalRegs[0].id,finalRegs[1].id,1,admin.id);
-await eliminateDevil(finalTournament.id,finalRegs[2].id,finalRegs[1].id,1,admin.id);
+await eliminateDevil(finalTournament.id,finalRegs[0].id,1,admin.id);
+await eliminateDevil(finalTournament.id,finalRegs[2].id,1,admin.id);
 await prisma.tournament.update({where:{id:finalTournament.id},data:{mechanics:{...finalRules,registrationClosesAt:new Date(Date.now()-60000).toISOString()}}});
 fixture.finalId=finalTournament.id;
 const params=new URLSearchParams({auth_date:String(Math.floor(Date.now()/1000)),user:JSON.stringify({id:910000111,first_name:'Алексей',username:'devil_test_player'})});

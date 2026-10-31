@@ -1,9 +1,8 @@
 import express from "express";
 import { z } from "zod";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { awardSixes, eliminateDevil, getDevilState, resurrect, reverseAward, setBlindLevel, confirmReturn } from "../services/devilDeal.js";
+import { awardDevilBounty, awardSixes, eliminateDevil, getDevilState, resurrect, reverseAward, setBlindLevel, confirmReturn, issuePaidDevilReEntry } from "../services/devilDeal.js";
 import { devilDealDefaults } from "../services/tournamentMechanics.js";
-import { registerForTournament } from "../services/tournaments.js";
 
 export const devilDealRouter = express.Router({ mergeParams: true });
 devilDealRouter.use(requireAuth);
@@ -21,12 +20,15 @@ devilControlRouter.get("/", async (req, res, next) => {
 });
 devilControlRouter.post("/eliminate", async (req, res, next) => {
   try {
-    const p = z.object({ registrationId: key, killerRegistrationId: key.nullable().optional(), lifeNumber: z.number().int().positive() }).strict().parse(req.body);
-    res.json(await eliminateDevil(String((req.params as Record<string, string>).id), p.registrationId, p.killerRegistrationId, p.lifeNumber, req.user!.id));
+    const p = z.object({ registrationId: key, lifeNumber: z.number().int().positive() }).strict().parse(req.body);
+    res.json(await eliminateDevil(String((req.params as Record<string, string>).id), p.registrationId, p.lifeNumber, req.user!.id));
   } catch (e) { next(e); }
 });
 devilControlRouter.post("/re-entry", async (req, res, next) => {
-  try { const p = z.object({ userId: key }).strict().parse(req.body); res.json(await registerForTournament(p.userId, String((req.params as Record<string, string>).id), req.user!.id)); } catch (e) { next(e); }
+  try { const p = z.object({ userId: key }).strict().parse(req.body); res.json(await issuePaidDevilReEntry(String((req.params as Record<string, string>).id), p.userId, req.user!.id)); } catch (e) { next(e); }
+});
+devilControlRouter.post("/bounty", async (req, res, next) => {
+  try { const p = z.object({ registrationId: key, eventKey: key }).strict().parse(req.body); res.json(await awardDevilBounty(String((req.params as Record<string, string>).id), p.registrationId, p.eventKey, req.user!.id)); } catch (e) { next(e); }
 });
 devilControlRouter.post("/sixes", async (req, res, next) => {
   try {

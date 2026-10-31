@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { Prisma, type Tournament, type Registration } from "@prisma/client";
+import { Prisma, TournamentStatus, type Tournament, type Registration } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { assignNextAvailableSeat } from "./tournaments.js";
@@ -27,7 +27,48 @@ export async function issueEntry(tx: Prisma.TransactionClient, t: Tournament, r:
   const rules = mechanicsFor(t);
   if (!rules) return;
   await tx.registration.update({ where: { id: r.id }, data: { issuedChips: rules.startingStack } });
-  await tx.tournamentGameEvent.create({ data: { tournamentId: t.id, userId: r.userId, registrationId: r.id, actorId, eventKey: `entry:${r.id}`, type: r.entryNumber > 1 ? "RE_ENTRY" : "INITIAL_STACK", chips: rules.startingStack } });
+  await tx.tournamentGameEvent.create({ data: { tournamentId: t.id, userId: r.userId, registrationId: r.id, actorId, eventKey: `entry:${r.id}`, type: r.entryNumber > 1 ? "RE_ENTRY" : "INITIAL_STACK", chips: rules.startingStack, ...(r.entryNumber > 1 ? { details: { price: t.reEntry, paid: true } } : {}) } });
+}
+
+export async function issuePaidDevilReEntry(tournamentId: string, userId: string, actorId: string) {
+  return prisma.$transaction(async tx => {
+    const tournament = await lockTournament(tx, tournamentId);
+    const rules = rulesFor(tournament);
+    const now = await databaseNow(tx);
+    assertRunning(tournament, now);
+    if (tournament.status !== TournamentStatus.OPEN) throw new AppError(409, "Регистрация закрыта", "REGISTRATION_CLOSED");
+    assertMechanicsOpen(rules, now);
+    if (!rules.reEntry.enabled) throw new AppError(409, "Re-entry выключен", "RE_ENTRY_DISABLED");
+
+    const activeEntry = await tx.registration.findFirst({ where: { tournamentId, userId, status: "ACTIVE", liveStatus: "IN_GAME" }, orderBy: [{ entryNumber: "desc" }, { createdAt: "desc" }] });
+    if (activeEntry) {
+      if (activeEntry.entryNumber > 1) return tx.registration.findUniqueOrThrow({ where: { id: activeEntry.id }, include: { user: true } });
+      throw new AppError(409, "Игрок уже находится в игре", "PARTICIPANT_ALREADY_IN_GAME");
+    }
+
+    const entriesCount = await tx.registration.count({ where: { tournamentId, userId, status: "ACTIVE" } });
+    if (!entriesCount) throw new AppError(409, "Сначала отметьте выбытие игрока", "ELIMINATION_REQUIRED");
+    if (rules.reEntry.maxEntries !== null && entriesCount >= rules.reEntry.maxEntries) throw new AppError(409, "Лимит входов исчерпан", "RE_ENTRY_LIMIT_REACHED");
+
+    const inGameCount = await tx.registration.count({ where: { tournamentId, status: "ACTIVE", liveStatus: "IN_GAME", checkedInAt: { not: null } } });
+    if (inGameCount >= tournament.maxParticipants) throw new AppError(409, "В турнире нет свободных мест", "TOURNAMENT_FULL");
+
+    const seat = await assignNextAvailableSeat(tx, tournamentId, tournament.maxParticipants);
+    await tx.registration.updateMany({ where: { tournamentId, userId, status: "ACTIVE", liveStatus: "ELIMINATED" }, data: { finishPlace: null } });
+    await tx.registration.updateMany({ where: { tournamentId, status: "ACTIVE", liveStatus: "ELIMINATED", finishPlace: { not: null } }, data: { finishPlace: { increment: 1 } } });
+    await tx.registration.updateMany({ where: { tournamentId, status: "ACTIVE", liveStatus: "IN_GAME" }, data: { finishPlace: null } });
+
+    const registration = await tx.registration.create({ data: {
+      tournamentId,
+      userId,
+      entryNumber: entriesCount + 1,
+      checkedInAt: now,
+      ...seat
+    } });
+    await issueEntry(tx, tournament, registration, actorId);
+    await tx.tournamentGameEvent.create({ data: { tournamentId, userId, registrationId: registration.id, actorId, eventKey: `checkin:${registration.id}`, type: "CHECK_IN", createdAt: now } });
+    return tx.registration.findUniqueOrThrow({ where: { id: registration.id }, include: { user: true } });
+  });
 }
 
 export async function issueDevilAddOn(tournamentId: string, registrationId: string, actorId: string) {
@@ -119,10 +160,10 @@ export async function resurrect(tournamentId: string, userId: string) {
   });
 }
 
-export async function eliminateDevil(tournamentId: string, registrationId: string, killerId: string | null | undefined, lifeNumber: number, actorId: string) {
+export async function eliminateDevil(tournamentId: string, registrationId: string, lifeNumber: number, actorId: string) {
   return prisma.$transaction(async tx => {
     const t = await lockTournament(tx, tournamentId);
-    const rules = rulesFor(t);
+    rulesFor(t);
     const eventKey = `elimination:${registrationId}:${lifeNumber}`;
     const prior = await tx.tournamentGameEvent.findUnique({ where: { tournamentId_eventKey: { tournamentId, eventKey } } });
     if (prior) return prior;
@@ -131,21 +172,29 @@ export async function eliminateDevil(tournamentId: string, registrationId: strin
     const r = await tx.registration.findUnique({ where: { id: registrationId } });
     if (!r || r.tournamentId !== tournamentId) throw notFound("Registration");
     if (r.lifeNumber !== lifeNumber || r.liveStatus !== "IN_GAME" || r.status !== "ACTIVE" || !r.checkedInAt) throw new AppError(409, "Игрок уже выбыл или состояние изменилось", "PARTICIPANT_NOT_IN_GAME");
-    const killer = killerId ? await tx.registration.findUnique({ where: { id: killerId } }) : null;
-    if (rules.bounty.enabled && !killer) throw new AppError(400, "Укажите игрока, совершившего выбивание", "KILLER_REQUIRED");
-    if (killer && (killer.userId === r.userId || killer.tournamentId !== tournamentId || killer.status !== "ACTIVE" || killer.liveStatus !== "IN_GAME" || !killer.checkedInAt)) throw new AppError(400, "Некорректный соперник", "INVALID_KILLER");
     const count = await tx.registration.count({ where: { tournamentId, status: "ACTIVE", liveStatus: "IN_GAME", checkedInAt: { not: null } } });
     await tx.registration.update({ where: { id: r.id }, data: { liveStatus: "ELIMINATED", finishPlace: count, eliminatedAt: now, tableNumber: null, seatNumber: null } });
-    const event = await tx.tournamentGameEvent.create({ data: { tournamentId, userId: r.userId, registrationId: r.id, actorId, eventKey, type: "ELIMINATION", createdAt: now, details: { killerRegistrationId: killer?.id ?? null, lifeNumber } } });
-    if (killer) {
-      await tx.knockout.create({ data: { tournamentId, eliminatedRegistrationId: r.id, killerRegistrationId: killer.id, lifeNumber } });
-      if (rules.bounty.enabled) {
-        await tx.tournamentGameEvent.create({ data: { tournamentId, userId: killer.userId, registrationId: killer.id, actorId, eventKey: `bounty:${event.id}`, type: "BOUNTY_ELIMINATION", ratingPoints: rules.bounty.ratingPointsPerElimination, eliminationId: event.id, createdAt: now } });
-        await tx.user.update({ where: { id: killer.userId }, data: { ratingPoints: { increment: rules.bounty.ratingPointsPerElimination }, knockouts: { increment: 1 } } });
-      }
-    }
+    const event = await tx.tournamentGameEvent.create({ data: { tournamentId, userId: r.userId, registrationId: r.id, actorId, eventKey, type: "ELIMINATION", createdAt: now, details: { lifeNumber } } });
     // Winner can still be provisional until resurrection/late registration ends.
     if (count === 2) await tx.registration.updateMany({ where: { tournamentId, status: "ACTIVE", liveStatus: "IN_GAME", checkedInAt: { not: null } }, data: { finishPlace: 1 } });
+    return event;
+  });
+}
+
+export async function awardDevilBounty(tournamentId: string, registrationId: string, eventKey: string, actorId: string) {
+  return prisma.$transaction(async tx => {
+    const tournament = await lockTournament(tx, tournamentId);
+    const rules = rulesFor(tournament);
+    const key = `bounty:${eventKey}`;
+    const prior = await tx.tournamentGameEvent.findUnique({ where: { tournamentId_eventKey: { tournamentId, eventKey: key } } });
+    if (prior) return prior;
+    const now = await databaseNow(tx);
+    assertRunning(tournament, now);
+    if (!rules.bounty.enabled) throw new AppError(409, "Bounty выключен", "BOUNTY_DISABLED");
+    const registration = await tx.registration.findUnique({ where: { id: registrationId } });
+    if (!registration || registration.tournamentId !== tournamentId || registration.status !== "ACTIVE" || !registration.checkedInAt) throw new AppError(409, "Игрок не участвовал в турнире", "PARTICIPANT_NOT_CHECKED_IN");
+    const event = await tx.tournamentGameEvent.create({ data: { tournamentId, userId: registration.userId, registrationId, actorId, eventKey: key, type: "BOUNTY_ELIMINATION", ratingPoints: rules.bounty.ratingPointsPerElimination, createdAt: now } });
+    await tx.user.update({ where: { id: registration.userId }, data: { ratingPoints: { increment: rules.bounty.ratingPointsPerElimination }, knockouts: { increment: 1 } } });
     return event;
   });
 }
@@ -219,6 +268,7 @@ export async function getDevilState(tournamentId: string, userId?: string) {
     const latest = registrations[0];
     const dealAvailable = !!(running && open && rules.resurrection.enabled && latest?.liveStatus === "ELIMINATED" && latest.checkedInAt && !attempt && events.some(e => e.eventKey === `elimination:${latest.id}:${latest.lifeNumber}`));
     const status = !latest ? null : dealAvailable ? "ТВОЯ СДЕЛКА ДОСТУПНА" : latest.liveStatus === "ELIMINATED" ? (attempt ? "ТЫ УЖЕ ИСПОЛЬЗОВАЛ СДЕЛКУ" : "ТЫ ВЫБЫЛ") : attempt?.chips && attempt.registrationId === latest.id ? "ТЫ ВОСКРЕС" : "ТЫ В ИГРЕ";
+    const reversed = new Set(events.map(event => event.reversesId).filter((id): id is string => !!id));
     const stats = {
       registered: new Set(registrations.map(r => r.userId)).size,
       active: registrations.filter(r => r.liveStatus === "IN_GAME" && r.checkedInAt).length,
@@ -227,9 +277,10 @@ export async function getDevilState(tournamentId: string, userId?: string) {
       successful: events.filter(e => e.attemptKey && e.chips > 0).length,
       failed: events.filter(e => e.outcome === "DEATH").length,
       sixes: events.filter(e => e.type.startsWith("DEVILS_SIXES")).length,
+      bounties: events.filter(e => e.type === "BOUNTY_ELIMINATION" && !reversed.has(e.id)).length,
       ratingPoints: events.reduce((sum, e) => sum + e.ratingPoints, 0)
     };
-    return { tournamentId, rules, serverNow: now, running, registrationOpen: open && t.status === "OPEN", mechanicsOpen: open && running, blindLevelIndex: t.blindLevelIndex, bigBlind: rules.blindLevels[t.blindLevelIndex], dealAvailable, status, attempt, events, stats, ...(userId ? {} : { registrations }) };
+    return { tournamentId, rules, reEntryPrice: t.reEntry, serverNow: now, running, registrationOpen: open && t.status === "OPEN", mechanicsOpen: open && running, blindLevelIndex: t.blindLevelIndex, bigBlind: rules.blindLevels[t.blindLevelIndex], dealAvailable, status, attempt, events, stats, ...(userId ? {} : { registrations }) };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
 }
 

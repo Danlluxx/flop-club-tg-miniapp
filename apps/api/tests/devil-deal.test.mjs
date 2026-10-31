@@ -12,7 +12,7 @@ const { prisma } = await import('../dist/prisma.js');
 const { mechanicsSchema, devilDealDefaults, resurrectionOutcome, assertMechanicsOpen } = await import('../dist/services/tournamentMechanics.js');
 const { registerForTournament, cancelRegistration } = await import('../dist/services/tournaments.js');
 const { checkInTournamentRegistration } = await import('../dist/services/liveTournament.js');
-const { eliminateDevil, resurrect, awardSixes, setBlindLevel, reverseAward, getDevilState, issueDevilAddOn, removeDevilAddOn } = await import('../dist/services/devilDeal.js');
+const { eliminateDevil, resurrect, awardDevilBounty, awardSixes, setBlindLevel, reverseAward, getDevilState, issueDevilAddOn, removeDevilAddOn, issuePaidDevilReEntry } = await import('../dist/services/devilDeal.js');
 const { applyTournamentRatingResults } = await import('../dist/services/rating.js');
 const { devilDealRouter, devilControlRouter } = await import('../dist/routes/devilDeal.js');
 const { ratingRouter } = await import('../dist/routes/rating.js');
@@ -40,7 +40,8 @@ async function setup(outcome = 'DEATH', options = {}) {
   for (const u of users) { const r = await registerForTournament(u.id, t.id); regs.push(await checkInTournamentRegistration(r.checkInToken)); }
   return { t, users, regs };
 }
-async function eliminate(f, index=0) { return eliminateDevil(f.t.id, f.regs[index].id, f.regs[1].id, f.regs[index].lifeNumber, admin.id); }
+async function eliminate(f, index=0) { return eliminateDevil(f.t.id, f.regs[index].id, f.regs[index].lifeNumber, admin.id); }
+async function bounty(f, index=1) { return awardDevilBounty(f.t.id, f.regs[index].id, randomUUID(), admin.id); }
 async function close(f) { const rules = { ...f.t.mechanics, registrationClosesAt: new Date(Date.now() - 1000).toISOString() }; await prisma.tournament.update({ where: { id: f.t.id }, data: { mechanics: rules } }); }
 
 test('configuration validates probabilities, precision, unknown keys and required fields', () => {
@@ -64,12 +65,21 @@ test('registration issues 30000 chips once, concurrent registration is idempoten
   assert.equal((await getDevilState(f.t.id,f.users[0].id)).dealAvailable,false);
   await assert.rejects(resurrect(f.t.id,f.users[0].id),e=>e.code==='ELIMINATION_REQUIRED');
 });
-test('confirmed first elimination opens deal, records event, awards +50 once under concurrent replay', async () => {
+test('confirmed first elimination opens deal once without requiring or recording an opponent', async () => {
   const f=await setup(); const before=(await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints;
   const events=await Promise.all(Array.from({length:5},()=>eliminate(f)));
   assert.ok(events.every(e=>e.id===events[0].id));
-  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,before+50);
+  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,before);
+  assert.equal(await prisma.knockout.count({where:{tournamentId:f.t.id}}),0);
   assert.equal((await getDevilState(f.t.id,f.users[0].id)).dealAvailable,true);
+});
+test('bounty counter increments independently and idempotently without identifying a victim',async()=>{
+  const f=await setup(); const eventKey=randomUUID(); const before=(await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints;
+  const events=await Promise.all(Array.from({length:5},()=>awardDevilBounty(f.t.id,f.regs[1].id,eventKey,admin.id)));
+  assert.ok(events.every(event=>event.id===events[0].id));
+  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,before+50);
+  assert.equal((await getDevilState(f.t.id)).stats.bounties,1);
+  assert.equal(events[0].eliminationId,null);
 });
 for (const outcome of ['DEATH','RESURRECT_5','RESURRECT_10']) test(`draw ${outcome}, simultaneous retries, BB snapshot, restored active state`, async()=>{
   const f=await setup(outcome); await setBlindLevel(f.t.id,6,randomUUID(),admin.id); await eliminate(f);
@@ -83,20 +93,21 @@ for (const outcome of ['DEATH','RESURRECT_5','RESURRECT_10']) test(`draw ${outco
   assert.equal(reg.lifeNumber,chips?2:1);
   await close(f); assert.equal((await resurrect(f.t.id,f.users[0].id)).id,result.id);
 });
-test('failed draw permits re-entry but never resets attempt, including repeated elimination',async()=>{
+test('failed draw permits paid re-entry with automatic check-in and seating but never resets attempt',async()=>{
   const f=await setup('DEATH'); await eliminate(f); const attempt=await resurrect(f.t.id,f.users[0].id);
-  const r=await registerForTournament(f.users[0].id,f.t.id,admin.id); assert.equal(r.entryNumber,2); assert.equal(r.issuedChips,30000);
-  await checkInTournamentRegistration(r.checkInToken); await eliminateDevil(f.t.id,r.id,f.regs[1].id,1,admin.id);
+  const reEntries=await Promise.all(Array.from({length:5},()=>issuePaidDevilReEntry(f.t.id,f.users[0].id,admin.id))); const r=reEntries[0];
+  assert.ok(reEntries.every(entry=>entry.id===r.id)); assert.equal(r.entryNumber,2); assert.equal(r.issuedChips,30000); assert.ok(r.checkedInAt); assert.ok(r.tableNumber); assert.ok(r.seatNumber);
+  await eliminateDevil(f.t.id,r.id,1,admin.id);
   assert.equal((await resurrect(f.t.id,f.users[0].id)).id,attempt.id); assert.equal((await getDevilState(f.t.id,f.users[0].id)).dealAvailable,false);
-  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,100);
+  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,0);
 });
-test('resurrected player can be eliminated again with a new bounty, stale life replay cannot eliminate new life',async()=>{
+test('resurrected player can be eliminated again and stale life replay cannot eliminate new life',async()=>{
   const f=await setup('RESURRECT_5'); const first=await eliminate(f); await resurrect(f.t.id,f.users[0].id);
   assert.equal((await eliminate(f)).id,first.id);
   assert.equal((await prisma.registration.findUnique({where:{id:f.regs[0].id}})).liveStatus,'IN_GAME');
-  await eliminateDevil(f.t.id,f.regs[0].id,f.regs[1].id,2,admin.id);
-  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,100);
-  assert.equal(await prisma.knockout.count({where:{eliminatedRegistrationId:f.regs[0].id}}),2);
+  await eliminateDevil(f.t.id,f.regs[0].id,2,admin.id);
+  assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,0);
+  assert.equal(await prisma.knockout.count({where:{eliminatedRegistrationId:f.regs[0].id}}),0);
 });
 for(const kind of ['POCKET_SIXES','DEVILS_666']) test(`sixes ${kind}: BB scaling, one award per hand, corrections append`,async()=>{
   const f=await setup(); await setBlindLevel(f.t.id,6,randomUUID(),admin.id);
@@ -109,7 +120,7 @@ for(const kind of ['POCKET_SIXES','DEVILS_666']) test(`sixes ${kind}: BB scaling
   assert.equal((await prisma.registration.findUnique({where:{id:f.regs[0].id}})).issuedChips,30000);
 });
 test('cutoff blocks new draws, initial registrations, re-entry and sixes; bounty continues',async()=>{
-  const f=await setup(); await close(f); await eliminate(f);
+  const f=await setup(); await close(f); await eliminate(f); await bounty(f);
   await assert.rejects(resurrect(f.t.id,f.users[0].id),e=>e.code==='MECHANICS_CLOSED');
   await assert.rejects(registerForTournament(f.users[0].id,f.t.id),e=>e.code==='MECHANICS_CLOSED');
   await assert.rejects(registerForTournament(admin.id,f.t.id),e=>e.code==='MECHANICS_CLOSED');
@@ -130,25 +141,24 @@ test('add-on opens after late registration, issues 100000 chips once, and can be
   registration=await issueDevilAddOn(f.t.id,f.regs[0].id,admin.id);
   assert.equal(registration.addOnCount,1); assert.equal(registration.issuedChips,130000);
 });
-test('cannot self-eliminate, use a foreign registration, or award on stale blind level',async()=>{
+test('cannot eliminate a foreign registration or award on stale blind level',async()=>{
   const f=await setup(); const other=await setup();
-  await assert.rejects(eliminateDevil(f.t.id,f.regs[0].id,f.regs[0].id,1,admin.id),e=>e.code==='INVALID_KILLER');
-  await assert.rejects(eliminateDevil(f.t.id,f.regs[0].id,other.regs[1].id,1,admin.id),e=>e.code==='INVALID_KILLER');
+  await assert.rejects(eliminateDevil(f.t.id,other.regs[1].id,1,admin.id),e=>e.statusCode===404);
   await setBlindLevel(f.t.id,2,randomUUID(),admin.id);
   await assert.rejects(awardSixes(f.t.id,{registrationId:f.regs[0].id,handId:'stale',kind:'POCKET_SIXES',levelIndex:0,showdownConfirmed:true,wonHand:true,pocketSixesConfirmed:true},admin.id),e=>e.code==='BLIND_CHANGED');
 });
 test('HTTP auth, admin guards, outcome/userId tampering and private history',async()=>{
   const f=await setup(); await eliminate(f);
   assert.equal((await fetch(base+`/api/tournaments/${f.t.id}/devil`)).status,401);
-  for(const endpoint of ['eliminate','sixes','blinds','reverse','re-entry']) assert.equal((await request(`/api/admin/tournaments/${f.t.id}/devil/${endpoint}`,f.users[0],{})).status,403);
+  for(const endpoint of ['eliminate','bounty','sixes','blinds','reverse','re-entry']) assert.equal((await request(`/api/admin/tournaments/${f.t.id}/devil/${endpoint}`,f.users[0],{})).status,403);
   for(const payload of [{userId:f.users[1].id},{outcome:'RESURRECT_10'},{probabilities:{death:0}}]) assert.equal((await request(`/api/tournaments/${f.t.id}/devil/resurrect`,f.users[0],payload)).status,400);
   const state=await (await request(`/api/tournaments/${f.t.id}/devil`,f.users[0])).json();
   assert.equal(state.registrations,undefined); assert.ok(state.events.every(e=>e.userId===f.users[0].id));
   const response=await request(`/api/tournaments/${f.t.id}`,f.users[0],{mechanics:devilDealDefaults},'PATCH'); assert.equal(response.status,403);
 });
 test('bounty survives placement recalculation and contributes to global and seasonal leaderboards',async()=>{
-  const f=await setup(); await eliminate(f);
-  await eliminateDevil(f.t.id,f.regs[2].id,f.regs[1].id,1,admin.id); await close(f);
+  const f=await setup(); await eliminate(f); await bounty(f);
+  await eliminateDevil(f.t.id,f.regs[2].id,1,admin.id); await bounty(f); await close(f);
   await applyTournamentRatingResults(f.t.id,3,[{userId:f.users[1].id,place:1,knockouts:0}]);
   const first=await prisma.user.findUnique({where:{id:f.users[1].id}});
   await applyTournamentRatingResults(f.t.id,3,[{userId:f.users[1].id,place:1,knockouts:0}]);
@@ -160,7 +170,7 @@ test('bounty survives placement recalculation and contributes to global and seas
   await assert.rejects(applyTournamentRatingResults(f.t.id,3,[{userId:f.users[1].id,place:1,knockouts:50}]),e=>e.code==='BOUNTY_ALREADY_ACCOUNTED');
 });
 test('append-only journal refuses SQL mutation, history keeps every chip source and correction',async()=>{
-  const f=await setup(); await eliminate(f); await resurrect(f.t.id,f.users[0].id);
+  const f=await setup(); await eliminate(f); await bounty(f); await resurrect(f.t.id,f.users[0].id);
   const state=await getDevilState(f.t.id); const event=state.events[0];
   await assert.rejects(prisma.tournamentGameEvent.update({where:{id:event.id},data:{chips:999}}),/append-only/);
   assert.equal(state.stats.registered,3); assert.equal(state.stats.eliminations,1); assert.equal(state.stats.attempts,1); assert.equal(state.stats.failed,1); assert.equal(state.stats.ratingPoints,50);
@@ -182,9 +192,9 @@ test('correct 6 BB to 13 BB with one compensating event and the original BB',asy
   assert.equal((await reverseAward(f.t.id,event.id,'Повторная отправка',admin.id,'DEVILS_666')).id,correction.id);
 });
 test('bounty correction adjusts existing user counters and cannot change into chips',async()=>{
-  const f=await setup(); await eliminate(f); const bounty=(await getDevilState(f.t.id)).events.find(e=>e.type==='BOUNTY_ELIMINATION');
-  await assert.rejects(reverseAward(f.t.id,bounty.id,'Неверная комбинация',admin.id,'DEVILS_666'),e=>e.code==='INVALID_CORRECTION');
-  await reverseAward(f.t.id,bounty.id,'Неверно указан соперник',admin.id);
+  const f=await setup(); await bounty(f); const bountyEvent=(await getDevilState(f.t.id)).events.find(e=>e.type==='BOUNTY_ELIMINATION');
+  await assert.rejects(reverseAward(f.t.id,bountyEvent.id,'Неверная комбинация',admin.id,'DEVILS_666'),e=>e.code==='INVALID_CORRECTION');
+  await reverseAward(f.t.id,bountyEvent.id,'Bounty добавлен по ошибке',admin.id);
   const user=await prisma.user.findUnique({where:{id:f.users[1].id}}); assert.equal(user.ratingPoints,0); assert.equal(user.knockouts,0);
 });
 test('capacity checked before every draw, including a death outcome; attempt stays unused',async()=>{
@@ -221,7 +231,7 @@ test('return confirmation is journaled once without issuing chips again',async()
   assert.equal((await prisma.registration.findUnique({where:{id:f.regs[0].id}})).issuedChips,31000);
 });
 test('published results expose final places and bounty totals, not private registrations',async()=>{
-  const f=await setup(); await eliminate(f); await eliminateDevil(f.t.id,f.regs[2].id,f.regs[1].id,1,admin.id); await close(f); await applyTournamentRatingResults(f.t.id,3,[{userId:f.users[1].id,place:1}]);
+  const f=await setup(); await eliminate(f); await bounty(f); await eliminateDevil(f.t.id,f.regs[2].id,1,admin.id); await bounty(f); await close(f); await applyTournamentRatingResults(f.t.id,3,[{userId:f.users[1].id,place:1}]);
   const rows=await (await request(`/api/tournaments/${f.t.id}/results`,f.users[0])).json();
   assert.equal(rows.find(r=>r.userId===f.users[1].id).points,10100);
   assert.equal(rows.find(r=>r.userId===f.users[1].id).place,1);
