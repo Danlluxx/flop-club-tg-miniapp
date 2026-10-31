@@ -262,6 +262,7 @@ export async function getDevilState(tournamentId: string, userId?: string) {
     const registrations = await tx.registration.findMany({ where: { tournamentId, ...(userId ? { userId } : {}), status: "ACTIVE" }, orderBy: [{ entryNumber: "desc" }, { createdAt: "desc" }], include: { user: { select: { id: true, displayName: true, firstName: true, username: true } } } });
     const open = now.getTime() < new Date(rules.registrationClosesAt).getTime();
     const running = ["OPEN", "CLOSED"].includes(t.status) && now >= t.startsAt;
+    const paidReEntryOpen = running && rules.reEntry.enabled;
     const attempt = events.find(e => e.attemptKey === `resurrection:${userId}`) ?? null;
     const latest = registrations[0];
     const dealAvailable = !!(running && open && rules.resurrection.enabled && latest?.liveStatus === "ELIMINATED" && latest.checkedInAt && !attempt && events.some(e => e.eventKey === `elimination:${latest.id}:${latest.lifeNumber}`));
@@ -278,7 +279,11 @@ export async function getDevilState(tournamentId: string, userId?: string) {
       bounties: events.filter(e => e.type === "BOUNTY_ELIMINATION" && !reversed.has(e.id)).length,
       ratingPoints: events.reduce((sum, e) => sum + e.ratingPoints, 0)
     };
-    return { tournamentId, rules, reEntryPrice: t.reEntry, serverNow: now, running, registrationOpen: open && t.status === "OPEN", paidReEntryOpen: running && rules.reEntry.enabled, mechanicsOpen: open && running, blindLevelIndex: t.blindLevelIndex, bigBlind: rules.blindLevels[t.blindLevelIndex], dealAvailable, status, attempt, events, stats, ...(userId ? {} : { registrations }) };
+    // Older cached admin clients used registrationOpen to gate paid Re-entry.
+    // Keep the player response strict while allowing those admin clients to use
+    // the new until-tournament-finish Re-entry rule without a forced cache clear.
+    const registrationOpen = userId ? open && t.status === "OPEN" : paidReEntryOpen;
+    return { tournamentId, rules, reEntryPrice: t.reEntry, serverNow: now, running, registrationOpen, paidReEntryOpen, mechanicsOpen: open && running, blindLevelIndex: t.blindLevelIndex, bigBlind: rules.blindLevels[t.blindLevelIndex], dealAvailable, status, attempt, events, stats, ...(userId ? {} : { registrations }) };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
 }
 

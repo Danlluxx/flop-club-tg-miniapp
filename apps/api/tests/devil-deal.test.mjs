@@ -104,8 +104,8 @@ test('failed draw permits paid re-entry with automatic check-in and seating but 
 test('eliminated player can take paid re-entry after registration and mechanics close',async()=>{
   const f=await setup('DEATH'); await eliminate(f); await close(f);
   await prisma.tournament.update({where:{id:f.t.id},data:{status:'CLOSED'}});
-  const state=await getDevilState(f.t.id);
-  assert.equal(state.registrationOpen,false); assert.equal(state.mechanicsOpen,false); assert.equal(state.paidReEntryOpen,true);
+  const state=await getDevilState(f.t.id); const playerState=await getDevilState(f.t.id,f.users[0].id);
+  assert.equal(state.registrationOpen,true); assert.equal(playerState.registrationOpen,false); assert.equal(state.mechanicsOpen,false); assert.equal(state.paidReEntryOpen,true);
   const r=await issuePaidDevilReEntry(f.t.id,f.users[0].id,admin.id);
   assert.equal(r.liveStatus,'IN_GAME'); assert.equal(r.entryNumber,2); assert.ok(r.checkedInAt); assert.ok(r.tableNumber); assert.ok(r.seatNumber);
 });

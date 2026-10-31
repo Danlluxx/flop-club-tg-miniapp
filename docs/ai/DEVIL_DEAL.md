@@ -33,6 +33,7 @@ apps/web/public/awards/color/flop-devil-deal.png
 - Revival UI appears only after a confirmed elimination and only while an unused attempt is available.
 - Elimination is recorded like an ordinary tournament: only the eliminated player is selected; no opponent is required.
 - Paid Re-entry is an admin action after elimination and remains available while the tournament is running, even after registration and resurrection close. It records a new paid entry, issues the starting stack, checks the player in, and seats them atomically.
+- The admin state keeps `registrationOpen` aligned with paid Re-entry availability for compatibility with cached pre-change clients; authenticated player state keeps the strict late-registration meaning. New clients use `paidReEntryOpen` explicitly.
 - The legacy `Registration_active_once_key` partial index must be absent: special formats intentionally keep each paid Re-entry as a separate active registration row. Registration changes remain serialized by the tournament-row lock.
 - The random outcome is generated and persisted server-side; retry returns the same result.
 - Chip/rating operations are journaled and protected against duplicate requests.
