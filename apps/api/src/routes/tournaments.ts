@@ -92,7 +92,7 @@ tournamentsRouter.post("/", requireAuth, requireAdmin, async (req, res, next) =>
     const data = tournamentSchema.parse(req.body);
     if (data.mechanics) {
       if (new Date(data.mechanics.registrationClosesAt) <= data.startsAt) throw new AppError(400, "Закрытие регистрации должно быть после начала", "INVALID_CUTOFF");
-      data.lateRegistrationEndsAt = new Date(data.mechanics.registrationClosesAt); data.prizePool = 0; data.addOnEnabled = false;
+      data.lateRegistrationEndsAt = new Date(data.mechanics.registrationClosesAt); data.prizePool = 0;
     }
     const tournament = await prisma.tournament.create({ data, include: tournamentInclude });
     console.log(`[tournament:create] admin=${req.user!.id} tournament=${tournament.id}`);
@@ -114,7 +114,7 @@ tournamentsRouter.patch("/:id", requireAuth, requireAdmin, async (req, res, next
         const count = await tx.registration.count({ where: { tournamentId: id } });
         if (count && (data.mechanics || (data.startsAt && data.startsAt.getTime() !== old.startsAt.getTime()) || (data.lateRegistrationEndsAt && data.lateRegistrationEndsAt.getTime() !== old.lateRegistrationEndsAt?.getTime()) || (data.title && data.title !== old.title))) throw new AppError(409, "Правила и время нельзя менять после регистрации участников", "RULES_LOCKED");
         const mechanics = data.mechanics ?? old.mechanics;
-        if (mechanics) { const rules = mechanicsSchema.parse(mechanics); if (new Date(rules.registrationClosesAt) <= (data.startsAt ?? old.startsAt)) throw new AppError(400, "Некорректное время закрытия", "INVALID_CUTOFF"); data.lateRegistrationEndsAt = new Date(rules.registrationClosesAt); data.prizePool = 0; data.addOnEnabled = false; }
+        if (mechanics) { const rules = mechanicsSchema.parse(mechanics); if (new Date(rules.registrationClosesAt) <= (data.startsAt ?? old.startsAt)) throw new AppError(400, "Некорректное время закрытия", "INVALID_CUTOFF"); data.lateRegistrationEndsAt = new Date(rules.registrationClosesAt); data.prizePool = 0; }
       }
       return tx.tournament.update({ where: { id }, data, include: tournamentInclude });
     });

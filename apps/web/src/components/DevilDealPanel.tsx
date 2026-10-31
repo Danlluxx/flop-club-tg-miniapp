@@ -11,7 +11,7 @@ export const eventLabels: Record<string, string> = {
   INITIAL_STACK: "Стартовый стек", RE_ENTRY: "Повторный вход", ELIMINATION: "Выбивание подтверждено",
   RESURRECTION_DEATH: "Сделка: без воскрешения", RESURRECTION_5BB: "Воскрешение · 5 BB", RESURRECTION_10BB: "Воскрешение · 10 BB",
   DEVILS_SIXES_6BB: "Карманные 66", DEVILS_SIXES_13BB: "Сет шестёрок", BOUNTY_ELIMINATION: "Bounty за выбивание",
-  ADMIN_CORRECTION: "Коррекция начисления", BLIND_LEVEL: "Уровень блайндов", RETURN_CONFIRMED: "Возвращение подтверждено", CHECK_IN: "Участник отмечен"
+  ADD_ON: "Add-on", ADMIN_CORRECTION: "Коррекция начисления", BLIND_LEVEL: "Уровень блайндов", RETURN_CONFIRMED: "Возвращение подтверждено", CHECK_IN: "Участник отмечен"
 };
 export function GameHistory({ events }: { events: GameEvent[] }) {
   return <ol className="devil-history">{events.map(e => <li key={e.id}><div><strong>{eventLabels[e.type] ?? e.type}</strong><time>{formatBarnaulDateTime(e.createdAt)}</time>{e.handId && <small>Раздача: {e.handId}</small>}{e.reason && <small>{e.reason}</small>}</div><span>{e.chips !== 0 && `${e.chips > 0 ? "+" : ""}${e.chips.toLocaleString("ru-RU")} фишек`}{e.ratingPoints !== 0 && `${e.ratingPoints > 0 ? "+" : ""}${e.ratingPoints} очков`}{!e.chips && !e.ratingPoints && e.bigBlind > 0 && `BB ${e.bigBlind}`}</span></li>)}</ol>;

@@ -30,6 +30,64 @@ export async function issueEntry(tx: Prisma.TransactionClient, t: Tournament, r:
   await tx.tournamentGameEvent.create({ data: { tournamentId: t.id, userId: r.userId, registrationId: r.id, actorId, eventKey: `entry:${r.id}`, type: r.entryNumber > 1 ? "RE_ENTRY" : "INITIAL_STACK", chips: rules.startingStack } });
 }
 
+export async function issueDevilAddOn(tournamentId: string, registrationId: string, actorId: string) {
+  return prisma.$transaction(async tx => {
+    const tournament = await lockTournament(tx, tournamentId);
+    const rules = rulesFor(tournament);
+    const now = await databaseNow(tx);
+    assertRunning(tournament, now);
+    if (!tournament.addOnEnabled || tournament.addOnChips <= 0) throw new AppError(409, "Add-on выключен для этого турнира", "ADD_ON_DISABLED");
+    const opensAt = tournament.lateRegistrationEndsAt ?? new Date(rules.registrationClosesAt);
+    if (now < opensAt) throw new AppError(409, "Add-on доступен после окончания поздней регистрации", "ADD_ON_NOT_OPEN");
+    const registration = await tx.registration.findUnique({ where: { id: registrationId } });
+    if (!registration || registration.tournamentId !== tournamentId) throw notFound("Registration");
+    if (registration.status !== "ACTIVE" || registration.liveStatus !== "IN_GAME" || !registration.checkedInAt) throw new AppError(409, "Игрок должен быть в игре", "PARTICIPANT_NOT_IN_GAME");
+    if (registration.addOnCount >= 1) return registration;
+    const priorAwards = await tx.tournamentGameEvent.count({ where: { tournamentId, registrationId, type: "ADD_ON" } });
+    await tx.tournamentGameEvent.create({ data: {
+      tournamentId,
+      userId: registration.userId,
+      registrationId,
+      actorId,
+      eventKey: `add-on:${registrationId}:${priorAwards + 1}`,
+      type: "ADD_ON",
+      chips: tournament.addOnChips,
+      createdAt: now,
+      details: { price: tournament.addOnPrice }
+    } });
+    return tx.registration.update({ where: { id: registrationId }, data: { addOnCount: { increment: 1 }, issuedChips: { increment: tournament.addOnChips } } });
+  });
+}
+
+export async function removeDevilAddOn(tournamentId: string, registrationId: string, actorId: string) {
+  return prisma.$transaction(async tx => {
+    const tournament = await lockTournament(tx, tournamentId);
+    rulesFor(tournament);
+    const registration = await tx.registration.findUnique({ where: { id: registrationId } });
+    if (!registration || registration.tournamentId !== tournamentId) throw notFound("Registration");
+    if (registration.addOnCount <= 0) throw new AppError(409, "Add-on не отмечен", "ADD_ON_NOT_MARKED");
+    const event = await tx.tournamentGameEvent.findFirst({
+      where: { tournamentId, registrationId, type: "ADD_ON", reversal: null },
+      orderBy: { createdAt: "desc" }
+    });
+    if (!event) throw new AppError(409, "Начисление Add-on не найдено", "ADD_ON_EVENT_NOT_FOUND");
+    const now = await databaseNow(tx);
+    await tx.tournamentGameEvent.create({ data: {
+      tournamentId,
+      userId: registration.userId,
+      registrationId,
+      actorId,
+      eventKey: `add-on-reversal:${event.id}`,
+      type: "ADMIN_CORRECTION",
+      chips: -event.chips,
+      reversesId: event.id,
+      reason: "Add-on отменён администратором",
+      createdAt: now
+    } });
+    return tx.registration.update({ where: { id: registrationId }, data: { addOnCount: { decrement: 1 }, issuedChips: { decrement: event.chips } } });
+  });
+}
+
 export async function resurrect(tournamentId: string, userId: string) {
   return prisma.$transaction(async tx => {
     const t = await lockTournament(tx, tournamentId);

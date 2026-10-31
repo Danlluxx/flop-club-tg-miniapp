@@ -17,6 +17,7 @@ import {
 import { buildGameDayRatingWorkbook } from "../services/dayReport.js";
 import { dateKey } from "../services/tournamentSchedule.js";
 import { getTournamentRatingText, publishTournamentRatingResults } from "../services/telegramRatingResults.js";
+import { issueDevilAddOn, removeDevilAddOn } from "../services/devilDeal.js";
 
 export const adminRouter = express.Router();
 adminRouter.use(requireAuth, requireAdmin);
@@ -281,7 +282,10 @@ adminRouter.post("/registrations/:registrationId/add-on", async (req, res, next)
       include: { tournament: true }
     });
     if (!registration) throw notFound("Registration");
-    if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
+    if (registration.tournament.mechanics) {
+      res.json(await issueDevilAddOn(registration.tournamentId, registration.id, req.user!.id));
+      return;
+    }
     if (!registration.tournament.addOnEnabled) {
       throw new AppError(409, "Add-on is disabled for this tournament", "ADD_ON_DISABLED");
     }
@@ -311,7 +315,10 @@ adminRouter.delete("/registrations/:registrationId/add-on", async (req, res, nex
       include: { tournament: true }
     });
     if (!registration) throw notFound("Registration");
-    if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
+    if (registration.tournament.mechanics) {
+      res.json(await removeDevilAddOn(registration.tournamentId, registration.id, req.user!.id));
+      return;
+    }
     if (registration.addOnCount <= 0) {
       throw new AppError(409, "Add-on is not marked", "ADD_ON_NOT_MARKED");
     }

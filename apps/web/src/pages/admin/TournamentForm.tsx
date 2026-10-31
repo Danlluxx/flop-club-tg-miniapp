@@ -118,7 +118,7 @@ export function TournamentForm() {
           if (e.target.value === "regular") { if (!data?.mechanics) setMechanicsText(""); return; }
           if (template.data) {
             setMechanicsText(JSON.stringify(template.data, null, 2));
-            setForm({ ...form, title: "FLOP DEVIL DEAL", description: "HALLOWEEN SPECIAL · Сделка с дьяволом, шестёрки и Bounty", startsAt: "2026-10-31T18:00", buyIn: "500", reEntry: "500", prizePool: "0", ratingPool: "15000", addOnEnabled: false });
+            setForm({ ...form, title: "FLOP DEVIL DEAL", description: "HALLOWEEN SPECIAL · Сделка с дьяволом, шестёрки и Bounty", startsAt: "2026-10-31T18:00", buyIn: "500", reEntry: "500", prizePool: "0", ratingPool: "15000", addOnEnabled: true, addOnPrice: "1000", addOnChips: "100000" });
           }
         }}><option value="regular">Обычный турнир</option><option value="devil" disabled={!template.data}>FLOP DEVIL DEAL</option></select>
       </label>

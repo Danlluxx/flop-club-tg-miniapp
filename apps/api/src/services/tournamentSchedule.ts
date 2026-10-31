@@ -137,7 +137,15 @@ const specialEvents: Record<string, {
   addOnPrice?: number;
   addOnChips?: number;
 }> = {
-  "2026-10-31": { title: "FLOP DEVIL DEAL", buyIn: 500, reEntry: 500, ratingPool: 15000, addOnEnabled: false },
+  "2026-10-31": {
+    title: "FLOP DEVIL DEAL",
+    buyIn: 500,
+    reEntry: 500,
+    ratingPool: 15000,
+    addOnEnabled: true,
+    addOnPrice: 1000,
+    addOnChips: 100000
+  },
   "2026-06-05": {
     title: "FLOP GRAND OPENNING",
     buyIn: 0,
@@ -433,6 +441,9 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
             reEntry: data.reEntry,
             startsAt: data.startsAt,
             lateRegistrationEndsAt: data.lateRegistrationEndsAt,
+            addOnEnabled: data.addOnEnabled,
+            addOnPrice: data.addOnPrice,
+            addOnChips: data.addOnChips,
             mechanics: data.mechanics
           } });
           continue;

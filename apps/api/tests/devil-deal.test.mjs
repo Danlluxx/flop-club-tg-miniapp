@@ -12,7 +12,7 @@ const { prisma } = await import('../dist/prisma.js');
 const { mechanicsSchema, devilDealDefaults, resurrectionOutcome, assertMechanicsOpen } = await import('../dist/services/tournamentMechanics.js');
 const { registerForTournament, cancelRegistration } = await import('../dist/services/tournaments.js');
 const { checkInTournamentRegistration } = await import('../dist/services/liveTournament.js');
-const { eliminateDevil, resurrect, awardSixes, setBlindLevel, reverseAward, getDevilState } = await import('../dist/services/devilDeal.js');
+const { eliminateDevil, resurrect, awardSixes, setBlindLevel, reverseAward, getDevilState, issueDevilAddOn, removeDevilAddOn } = await import('../dist/services/devilDeal.js');
 const { applyTournamentRatingResults } = await import('../dist/services/rating.js');
 const { devilDealRouter, devilControlRouter } = await import('../dist/routes/devilDeal.js');
 const { ratingRouter } = await import('../dist/routes/rating.js');
@@ -115,6 +115,20 @@ test('cutoff blocks new draws, initial registrations, re-entry and sixes; bounty
   await assert.rejects(registerForTournament(admin.id,f.t.id),e=>e.code==='MECHANICS_CLOSED');
   await assert.rejects(awardSixes(f.t.id,{registrationId:f.regs[1].id,handId:'late',kind:'POCKET_SIXES',levelIndex:0,showdownConfirmed:true,wonHand:true,pocketSixesConfirmed:true},admin.id),e=>e.code==='MECHANICS_CLOSED');
   assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,50);
+});
+test('add-on opens after late registration, issues 100000 chips once, and can be corrected',async()=>{
+  const f=await setup('DEATH',{addOnEnabled:true,addOnPrice:1000,addOnChips:100000});
+  await assert.rejects(issueDevilAddOn(f.t.id,f.regs[0].id,admin.id),e=>e.code==='ADD_ON_NOT_OPEN');
+  await close(f);
+  const issued=await Promise.all(Array.from({length:5},()=>issueDevilAddOn(f.t.id,f.regs[0].id,admin.id)));
+  assert.ok(issued.every(r=>r.addOnCount===1));
+  let registration=await prisma.registration.findUnique({where:{id:f.regs[0].id}});
+  assert.equal(registration.addOnCount,1); assert.equal(registration.issuedChips,130000);
+  assert.equal(await prisma.tournamentGameEvent.count({where:{tournamentId:f.t.id,registrationId:f.regs[0].id,type:'ADD_ON'}}),1);
+  registration=await removeDevilAddOn(f.t.id,f.regs[0].id,admin.id);
+  assert.equal(registration.addOnCount,0); assert.equal(registration.issuedChips,30000);
+  registration=await issueDevilAddOn(f.t.id,f.regs[0].id,admin.id);
+  assert.equal(registration.addOnCount,1); assert.equal(registration.issuedChips,130000);
 });
 test('cannot self-eliminate, use a foreign registration, or award on stale blind level',async()=>{
   const f=await setup(); const other=await setup();
@@ -236,5 +250,6 @@ test('Halloween schedule uses the existing event identity and the required Barna
   assert.equal(event.startsAt.toISOString(),'2026-10-31T11:00:00.000Z');
   assert.equal(event.lateRegistrationEndsAt.toISOString(),'2026-10-31T14:00:00.000Z');
   assert.equal(event.prizePool,0); assert.equal(event.buyIn,500); assert.equal(event.reEntry,500);
+  assert.equal(event.addOnEnabled,true); assert.equal(event.addOnPrice,1000); assert.equal(event.addOnChips,100000);
   assert.deepEqual(event.mechanics,devilDealDefaults);
 });

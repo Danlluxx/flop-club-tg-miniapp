@@ -332,8 +332,16 @@ export function tournamentEntryChipsFor(title: string) {
 }
 
 export function tournamentPriceFeatures(tournament: Tournament) {
-  if (tournament.mechanics) return ["Фишки не имеют денежной стоимости", "Add-on и бонус за пунктуальность не предусмотрены"];
   const formatNumber = new Intl.NumberFormat("ru-RU");
+  if (tournament.mechanics) {
+    return [
+      "Фишки не имеют денежной стоимости",
+      tournament.addOnEnabled && tournament.addOnChips > 0
+        ? `Add-on после окончания поздней регистрации: ${formatNumber.format(tournament.addOnPrice)} ₽ / ${formatNumber.format(tournament.addOnChips)} фишек`
+        : "Add-on не предусмотрен",
+      "Бонус за пунктуальность не предусмотрен"
+    ];
+  }
   const entryChips = tournamentEntryChipsFor(tournament.title);
   const entryLabel = tournament.buyIn === 0 ? "Вход бесплатный" : `Вход ${formatNumber.format(tournament.buyIn)} ₽`;
   const features = [`${entryLabel} / ${formatNumber.format(entryChips)} фишек`];
