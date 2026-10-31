@@ -171,6 +171,7 @@ model Registration {
 
   @@index([tournamentId])
   @@index([userId])
+  @@index([userId, tournamentId, status])
   @@index([tournamentId, liveStatus])
   @@index([tournamentId, checkedInAt])
   @@index([tournamentId, finishPlace])

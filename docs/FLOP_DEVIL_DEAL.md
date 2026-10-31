@@ -86,6 +86,7 @@ node tools/run-devil-ui-checks.mjs
 | `apps/api/package.json` | Команда серверных тестов |
 | `apps/api/prisma/schema.prisma` | Конфигурация, номер жизни, журнал |
 | `apps/api/prisma/migrations/20261030090000_tournament_mechanics/migration.sql` | Миграция и защита журнала |
+| `apps/api/prisma/migrations/20261031194000_allow_multiple_active_entries/migration.sql` | Удаление legacy-ограничения, мешавшего платному Re-entry |
 | `apps/api/src/index.ts` | Подключение маршрутов |
 | `apps/api/src/routes/devilDeal.ts` | Игрок, администратор, шаблон конфигурации |
 | `apps/api/src/routes/admin.ts` | Автор действий, защита старых обходных маршрутов |

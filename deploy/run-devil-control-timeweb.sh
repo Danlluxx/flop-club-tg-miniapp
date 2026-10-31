@@ -14,6 +14,8 @@ COMPOSE=(
 )
 
 RUNTIME_FILES=(
+  apps/api/prisma/schema.prisma
+  apps/api/prisma/migrations/20261031194000_allow_multiple_active_entries/migration.sql
   apps/api/src/routes/devilDeal.ts
   apps/api/src/services/devilDeal.ts
   apps/web/src/components/DevilDealPanel.tsx
@@ -65,13 +67,19 @@ if [[ "$ACTUAL_COMMIT" != "$EXPECTED_COMMIT" ]]; then
   exit 1
 fi
 
+EXISTING_RUNTIME_FILES=()
+NEW_RUNTIME_FILES=()
 for file in "${RUNTIME_FILES[@]}"; do
   git cat-file -e "$EXPECTED_COMMIT:$file"
-  test -f "$file"
+  if [[ -f "$file" ]]; then
+    EXISTING_RUNTIME_FILES+=("$file")
+  else
+    NEW_RUNTIME_FILES+=("$file")
+  fi
 done
 
 echo "Создаём резервную копию..."
-tar -czf "$BACKUP_FILE" "${RUNTIME_FILES[@]}"
+tar -czf "$BACKUP_FILE" "${EXISTING_RUNTIME_FILES[@]}"
 sha256sum "$BACKUP_FILE"
 
 rollback() {
@@ -82,6 +90,9 @@ rollback() {
   echo "Deploy завершился ошибкой. Восстанавливаем файлы..."
   cd "$APP_DIR" || exit "$exit_code"
   tar -xzf "$BACKUP_FILE"
+  if [[ "${#NEW_RUNTIME_FILES[@]}" -gt 0 ]]; then
+    rm -f -- "${NEW_RUNTIME_FILES[@]}"
+  fi
 
   "${COMPOSE[@]}" build api web
   local rollback_build_code=$?
