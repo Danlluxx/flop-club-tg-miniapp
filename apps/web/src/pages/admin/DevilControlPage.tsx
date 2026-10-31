@@ -70,7 +70,7 @@ export function DevilControlPage() {
     <header>
       <p className="devil-kicker">FLOP DEVIL DEAL</p>
       <h1 className="page-title mt-3">DEVIL CONTROL</h1>
-      <p className="devil-muted mt-3">Время сервера: {formatBarnaulDateTime(data.serverNow)} · Барнаул<br />Re-entry и воскрешение до {formatBarnaulDateTime(data.rules.registrationClosesAt)}</p>
+      <p className="devil-muted mt-3">Время сервера: {formatBarnaulDateTime(data.serverNow)} · Барнаул<br />Воскрешение до {formatBarnaulDateTime(data.rules.registrationClosesAt)} · Платный re-entry доступен до завершения турнира</p>
     </header>
 
     <div className="devil-admin-stats">{stats.map(([value, label]) => <div key={label}><b>{value}</b><span>{label}</span></div>)}</div>
@@ -102,7 +102,7 @@ export function DevilControlPage() {
             </div>
             <div className="devil-player-actions">
               <button className="devil-bounty-button" type="button" disabled={action.isPending || !registration.checkedInAt} onClick={() => run("bounty", { registrationId: registration.id, eventKey: crypto.randomUUID() })}><Plus />Bounty</button>
-              {registration.liveStatus === "ELIMINATED" && <button className="devil-reentry-button" type="button" disabled={action.isPending || !data.registrationOpen} onClick={() => run("re-entry", { userId: registration.userId })}><RotateCcw />Платный re-entry · {data.reEntryPrice.toLocaleString("ru-RU")} ₽</button>}
+              {registration.liveStatus === "ELIMINATED" && <button className="devil-reentry-button" type="button" disabled={action.isPending || !data.paidReEntryOpen} onClick={() => run("re-entry", { userId: registration.userId })}><RotateCcw />Платный re-entry · {data.reEntryPrice.toLocaleString("ru-RU")} ₽</button>}
               {registration.liveStatus === "IN_GAME" && !registration.checkedInAt && <button type="button" disabled={action.isPending} onClick={() => api.adminCheckIn(registration.checkInToken).then(() => queryClient.invalidateQueries({ queryKey: ["admin", "devil", id] })).catch(error => showToast(error.message, "error"))}>Отметить участника</button>}
             </div>
           </article>;

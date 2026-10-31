@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { Prisma, TournamentStatus, type Tournament, type Registration } from "@prisma/client";
+import { Prisma, type Tournament, type Registration } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { assignNextAvailableSeat } from "./tournaments.js";
@@ -36,8 +36,6 @@ export async function issuePaidDevilReEntry(tournamentId: string, userId: string
     const rules = rulesFor(tournament);
     const now = await databaseNow(tx);
     assertRunning(tournament, now);
-    if (tournament.status !== TournamentStatus.OPEN) throw new AppError(409, "Регистрация закрыта", "REGISTRATION_CLOSED");
-    assertMechanicsOpen(rules, now);
     if (!rules.reEntry.enabled) throw new AppError(409, "Re-entry выключен", "RE_ENTRY_DISABLED");
 
     const activeEntry = await tx.registration.findFirst({ where: { tournamentId, userId, status: "ACTIVE", liveStatus: "IN_GAME" }, orderBy: [{ entryNumber: "desc" }, { createdAt: "desc" }] });
@@ -280,7 +278,7 @@ export async function getDevilState(tournamentId: string, userId?: string) {
       bounties: events.filter(e => e.type === "BOUNTY_ELIMINATION" && !reversed.has(e.id)).length,
       ratingPoints: events.reduce((sum, e) => sum + e.ratingPoints, 0)
     };
-    return { tournamentId, rules, reEntryPrice: t.reEntry, serverNow: now, running, registrationOpen: open && t.status === "OPEN", mechanicsOpen: open && running, blindLevelIndex: t.blindLevelIndex, bigBlind: rules.blindLevels[t.blindLevelIndex], dealAvailable, status, attempt, events, stats, ...(userId ? {} : { registrations }) };
+    return { tournamentId, rules, reEntryPrice: t.reEntry, serverNow: now, running, registrationOpen: open && t.status === "OPEN", paidReEntryOpen: running && rules.reEntry.enabled, mechanicsOpen: open && running, blindLevelIndex: t.blindLevelIndex, bigBlind: rules.blindLevels[t.blindLevelIndex], dealAvailable, status, attempt, events, stats, ...(userId ? {} : { registrations }) };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
 }
 

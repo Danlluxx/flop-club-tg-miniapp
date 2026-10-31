@@ -101,6 +101,14 @@ test('failed draw permits paid re-entry with automatic check-in and seating but 
   assert.equal((await resurrect(f.t.id,f.users[0].id)).id,attempt.id); assert.equal((await getDevilState(f.t.id,f.users[0].id)).dealAvailable,false);
   assert.equal((await prisma.user.findUnique({where:{id:f.users[1].id}})).ratingPoints,0);
 });
+test('eliminated player can take paid re-entry after registration and mechanics close',async()=>{
+  const f=await setup('DEATH'); await eliminate(f); await close(f);
+  await prisma.tournament.update({where:{id:f.t.id},data:{status:'CLOSED'}});
+  const state=await getDevilState(f.t.id);
+  assert.equal(state.registrationOpen,false); assert.equal(state.mechanicsOpen,false); assert.equal(state.paidReEntryOpen,true);
+  const r=await issuePaidDevilReEntry(f.t.id,f.users[0].id,admin.id);
+  assert.equal(r.liveStatus,'IN_GAME'); assert.equal(r.entryNumber,2); assert.ok(r.checkedInAt); assert.ok(r.tableNumber); assert.ok(r.seatNumber);
+});
 test('resurrected player can be eliminated again and stale life replay cannot eliminate new life',async()=>{
   const f=await setup('RESURRECT_5'); const first=await eliminate(f); await resurrect(f.t.id,f.users[0].id);
   assert.equal((await eliminate(f)).id,first.id);
@@ -119,7 +127,7 @@ for(const kind of ['POCKET_SIXES','DEVILS_666']) test(`sixes ${kind}: BB scaling
   assert.equal(correction.chips,-event.chips); assert.equal((await reverseAward(f.t.id,event.id,'Повторный запрос',admin.id)).id,correction.id);
   assert.equal((await prisma.registration.findUnique({where:{id:f.regs[0].id}})).issuedChips,30000);
 });
-test('cutoff blocks new draws, initial registrations, re-entry and sixes; bounty continues',async()=>{
+test('cutoff blocks new draws, initial registrations and sixes; bounty continues',async()=>{
   const f=await setup(); await close(f); await eliminate(f); await bounty(f);
   await assert.rejects(resurrect(f.t.id,f.users[0].id),e=>e.code==='MECHANICS_CLOSED');
   await assert.rejects(registerForTournament(f.users[0].id,f.t.id),e=>e.code==='MECHANICS_CLOSED');

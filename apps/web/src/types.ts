@@ -194,7 +194,7 @@ export type GameEvent = {
   applied: boolean; reason: string | null; reversesId: string | null; createdAt: string;
 };
 export type DevilState = {
-  tournamentId: string; rules: TournamentMechanics; reEntryPrice: number; serverNow: string; running: boolean; registrationOpen: boolean;
+  tournamentId: string; rules: TournamentMechanics; reEntryPrice: number; serverNow: string; running: boolean; registrationOpen: boolean; paidReEntryOpen: boolean;
   mechanicsOpen: boolean; blindLevelIndex: number; bigBlind: number; dealAvailable: boolean; status: string | null;
   attempt: GameEvent | null; events: GameEvent[];
   registrations?: Registration[];
