@@ -7,10 +7,13 @@
 #   EXPECTED_COMMIT=<40-char sha> APPLY=1 bash run-soft-design-timeweb.sh  # backup, apply, build, verify
 #
 # BASE_COMMIT defaults to the sha stored in .deploy-commit; set it explicitly when that file is stale.
+# ALLOW_OVERWRITE="path1 path2" accepts specific server-side differences after they were reviewed
+# (the files are still backed up first).
 set -Eeuo pipefail
 
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-ВСТАВИТЬ_SHA}"
 APPLY="${APPLY:-0}"
+ALLOW_OVERWRITE="${ALLOW_OVERWRITE:-}"
 APP_DIR="${APP_DIR:-/root/flop-club-tg-miniapp}"
 BACKUP_DIR="${BACKUP_DIR:-/root/flop-deploy-backups}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -97,6 +100,7 @@ done
 EXISTING_FILES=()
 NEW_FILES=()
 CONFLICTS=()
+ACCEPTED=()
 # Portable "$@"-style expansion of possibly-empty arrays under set -u (bash < 4.4).
 
 for file in "${FILES[@]}"; do
@@ -107,7 +111,11 @@ for file in "${FILES[@]}"; do
     target_hash="$(git rev-parse "$EXPECTED_COMMIT:$file")"
     # Already identical to the target is fine; otherwise it must still be what was last deployed.
     if [[ "$server_hash" != "$target_hash" && "$server_hash" != "$base_hash" ]]; then
-      CONFLICTS+=("$file")
+      if [[ " $ALLOW_OVERWRITE " == *" $file "* ]]; then
+        ACCEPTED+=("$file")
+      else
+        CONFLICTS+=("$file")
+      fi
     fi
   else
     NEW_FILES+=("$file")
@@ -124,6 +132,12 @@ if [[ "${#CONFLICTS[@]}" -gt 0 ]]; then
   printf '  %s\n' "${CONFLICTS[@]}"
   echo "Сверьте их вручную или укажите верный BASE_COMMIT."
   exit 1
+fi
+
+if [[ "${#ACCEPTED[@]}" -gt 0 ]]; then
+  echo
+  echo "Перезаписываем с вашего разрешения (резервная копия будет сделана):"
+  printf '  %s\n' "${ACCEPTED[@]}"
 fi
 
 if [[ "$APPLY" != "1" ]]; then
