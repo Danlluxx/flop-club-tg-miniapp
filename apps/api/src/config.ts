@@ -28,6 +28,8 @@ const schema = z.object({
   TELEGRAM_REMINDER_CHAT_ID: z.string().optional(),
   TELEGRAM_RATING_CHAT_ID: z.string().min(1).default("@flopclub"),
   TELEGRAM_API_BASE_URL: z.string().url().default("https://api.telegram.org"),
+  TELEGRAM_BOT_USERNAME: z.string().min(1).default("FlopClubBot"),
+  TELEGRAM_APP_NAME: z.string().default(""),
   TELEGRAM_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   TOURNAMENT_REMINDER_BROADCAST_USERS: booleanFromEnv.default(true),
   TOURNAMENT_REMINDERS_ENABLED: booleanFromEnv.default(true),

@@ -24,6 +24,19 @@ export function getStartParam() {
   }
 }
 
+// Bots cannot message a user who never started them, so the QR message needs this permission first.
+// Always resolves: a declined or unavailable request must not block the registration.
+export function requestBotWriteAccess() {
+  return new Promise<void>((resolve) => {
+    try {
+      if (WebApp.initDataUnsafe.user?.allows_write_to_pm || !WebApp.isVersionAtLeast("6.9")) return resolve();
+      WebApp.requestWriteAccess(() => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
 export function haptic(type: "success" | "error" | "warning" = "success") {
   try {
     WebApp.HapticFeedback.notificationOccurred(type);

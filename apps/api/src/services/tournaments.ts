@@ -5,6 +5,7 @@ import { AppError, notFound } from "../utils/errors.js";
 
 import { assertMechanicsOpen, mechanicsFor } from "./tournamentMechanics.js";
 import { databaseNow, issueEntry, lockTournament } from "./devilDeal.js";
+import { notifyRegistrationCreated } from "./telegramRegistrationQr.js";
 
 export const TABLES_COUNT = 5;
 export const SEATS_PER_TABLE = 10;
@@ -27,7 +28,8 @@ export async function getTournament(id: string) {
 }
 
 export async function registerForTournament(userId: string, tournamentId: string, actorId = userId) {
-  return prisma.$transaction(async (tx) => {
+  let createdRegistrationId: string | null = null;
+  const result = await prisma.$transaction(async (tx) => {
     const tournament = await lockTournament(tx, tournamentId);
     if (!tournament) throw notFound("Tournament");
     if (tournament.status !== TournamentStatus.OPEN) {
@@ -73,8 +75,11 @@ export async function registerForTournament(userId: string, tournamentId: string
     console.log(
       `[registration:create] user=${userId} tournament=${tournamentId} seat=pending entry=${registration.entryNumber}`
     );
+    createdRegistrationId = registration.id;
     return mechanics ? tx.registration.findUniqueOrThrow({ where: { id: registration.id } }) : registration;
   });
+  if (createdRegistrationId) notifyRegistrationCreated(createdRegistrationId);
+  return result;
 }
 
 export async function assignNextAvailableSeat(

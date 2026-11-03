@@ -5,7 +5,7 @@ import { ArrowLeft, CalendarDays, MapPin, Users, WalletCards } from "lucide-reac
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { haptic } from "../lib/telegram";
+import { haptic, requestBotWriteAccess } from "../lib/telegram";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/Toast";
 import { DevilDealPanel } from "../components/DevilDealPanel";
@@ -36,7 +36,10 @@ export function TournamentPage() {
   });
 
   const register = useMutation({
-    mutationFn: () => api.register(id),
+    mutationFn: async () => {
+      await requestBotWriteAccess();
+      return api.register(id);
+    },
     onSuccess: async () => {
       haptic("success");
       showToast("Вы записаны на турнир");
