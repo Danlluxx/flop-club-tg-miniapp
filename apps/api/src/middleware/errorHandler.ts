@@ -11,6 +11,17 @@ export function errorHandler(error: unknown, req: Request, res: Response, _next:
     return;
   }
 
+  // body-parser errors (oversized or malformed JSON) carry their own 4xx status.
+  const bodyError = error as { type?: string; status?: number };
+  if (bodyError.type === "entity.too.large") {
+    res.status(413).json({ message: "Файл слишком большой", code: "PAYLOAD_TOO_LARGE" });
+    return;
+  }
+  if (bodyError.type === "entity.parse.failed") {
+    res.status(400).json({ message: "Некорректный запрос", code: "BAD_JSON" });
+    return;
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     res.status(409).json({ message: "Duplicate record", code: "DUPLICATE_RECORD" });
     return;

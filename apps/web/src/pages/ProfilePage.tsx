@@ -20,6 +20,21 @@ function avatarFallback(user: User) {
   return displayName(user).slice(0, 1).toUpperCase();
 }
 
+// Stays well under the API's 128kb JSON body limit (base64 text counts in full).
+const avatarMaxLength = 90000;
+
+function encodeAvatar(canvas: HTMLCanvasElement) {
+  for (const type of ["image/webp", "image/jpeg"]) {
+    for (const quality of [0.82, 0.7, 0.58, 0.46, 0.34]) {
+      const dataUrl = canvas.toDataURL(type, quality);
+      // Safari and iOS Telegram do not encode WebP and silently return a much larger PNG.
+      if (!dataUrl.startsWith(`data:${type}`)) break;
+      if (dataUrl.length <= avatarMaxLength) return dataUrl;
+    }
+  }
+  return null;
+}
+
 function fileToAvatarDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -39,8 +54,14 @@ function fileToAvatarDataUrl(file: File) {
         const sourceSize = Math.min(image.width, image.height);
         const sourceX = (image.width - sourceSize) / 2;
         const sourceY = (image.height - sourceSize) / 2;
+        // JPEG has no alpha: transparent PNG avatars would turn black without a backdrop.
+        context.fillStyle = "#120a0d";
+        context.fillRect(0, 0, size, size);
         context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/webp", 0.78));
+
+        const dataUrl = encodeAvatar(canvas);
+        if (dataUrl) resolve(dataUrl);
+        else reject(new Error("Не удалось сжать фото, выберите другое"));
       };
       image.onerror = () => reject(new Error("Не удалось открыть изображение"));
       image.src = String(reader.result);
