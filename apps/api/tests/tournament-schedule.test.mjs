@@ -21,3 +21,18 @@ test("2026-11-03 is a free-entry FLOP BOMB POT tournament", () => {
   assert.equal(tournament.ratingPool, 15000);
   assert.equal(tournament.profile, "BASE");
 });
+
+test("2026-11-05 is a FLOP Phoenix tournament with standard pricing", () => {
+  const tournament = scheduledTournamentForDate("2026-11-05");
+
+  assert.ok(tournament);
+  assert.equal(tournament.id, "2026-11-05-flop-phoenix");
+  assert.equal(tournament.title, "Flop Phoenix");
+  assert.equal(tournament.startsAt.toISOString(), "2026-11-05T12:00:00.000Z");
+  assert.equal(tournament.lateRegistrationEndsAt.toISOString(), "2026-11-05T15:00:00.000Z");
+  assert.equal(tournament.buyIn, 500);
+  assert.equal(tournament.reEntry, 1000);
+  assert.equal(tournament.prizePool, 25000);
+  assert.equal(tournament.ratingPool, 10000);
+  assert.equal(tournament.profile, "PHOENIX");
+});

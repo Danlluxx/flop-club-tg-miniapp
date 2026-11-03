@@ -221,6 +221,12 @@ const specialEvents: Record<string, {
     buyIn: 0,
     reEntry: 500,
     ratingPool: ratingPools["FLOP BOMB POT"]
+  },
+  "2026-11-05": {
+    title: "Flop Phoenix",
+    buyIn: 500,
+    reEntry: 1000,
+    ratingPool: ratingPools["Flop Phoenix"]
   }
 };
 
