@@ -216,12 +216,6 @@ const specialEvents: Record<string, {
     reEntry: 500,
     ratingPool: ratingPools["FLOP BOOSTER RE-ENTRY"]
   },
-  "2026-11-02": {
-    title: "FLOP BOOSTER RE-ENTRY",
-    buyIn: 0,
-    reEntry: 500,
-    ratingPool: ratingPools["FLOP BOOSTER RE-ENTRY"]
-  },
   "2026-11-03": {
     title: "FLOP BOMB POT",
     buyIn: 0,
