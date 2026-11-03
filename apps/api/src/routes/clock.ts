@@ -27,12 +27,16 @@ function requireClockToken(req: express.Request, _res: express.Response, next: e
   next();
 }
 
-function currentTournamentWindow() {
-  const now = Date.now();
-  return {
-    from: new Date(now - 8 * 60 * 60 * 1000),
-    to: new Date(now + 18 * 60 * 60 * 1000)
-  };
+// The club "day" runs from 08:00 to 08:00 Barnaul time, so tonight's tournament stays on the
+// clock after midnight and the next day's one takes over at 08:00. Barnaul is UTC+7 without DST.
+const BARNAUL_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+const CLUB_DAY_START_MS = 8 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function currentTournamentWindow(now = Date.now()) {
+  const shiftedLocal = now + BARNAUL_UTC_OFFSET_MS - CLUB_DAY_START_MS;
+  const from = Math.floor(shiftedLocal / DAY_MS) * DAY_MS + CLUB_DAY_START_MS - BARNAUL_UTC_OFFSET_MS;
+  return { from: new Date(from), to: new Date(from + DAY_MS) };
 }
 
 clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
@@ -40,8 +44,9 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
     const window = currentTournamentWindow();
     const tournaments = await prisma.tournament.findMany({
       where: {
-        status: TournamentStatus.OPEN,
-        startsAt: { gte: window.from, lte: window.to }
+        // registration may already be closed while the tournament is being played
+        status: { in: [TournamentStatus.OPEN, TournamentStatus.CLOSED] },
+        startsAt: { gte: window.from, lt: window.to }
       },
       select: {
         id: true,
