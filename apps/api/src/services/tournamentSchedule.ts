@@ -215,6 +215,18 @@ const specialEvents: Record<string, {
     buyIn: 0,
     reEntry: 500,
     ratingPool: ratingPools["FLOP BOOSTER RE-ENTRY"]
+  },
+  "2026-11-02": {
+    title: "FLOP BOOSTER RE-ENTRY",
+    buyIn: 0,
+    reEntry: 500,
+    ratingPool: ratingPools["FLOP BOOSTER RE-ENTRY"]
+  },
+  "2026-11-03": {
+    title: "FLOP BOMB POT",
+    buyIn: 0,
+    reEntry: 500,
+    ratingPool: ratingPools["FLOP BOMB POT"]
   }
 };
 
@@ -432,6 +444,8 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
       const key = dateKey(tournament.startsAt as Date);
       const { start, end } = barnaulDayRange(key);
       const { id, ...data } = tournament;
+      // Расписание задаёт только начальный статус: завершённый или отменённый турнир не должен снова открываться.
+      const { status: _initialStatus, ...syncData } = data;
 
       const existingExpected = await tx.tournament.findUnique({ where: { id: String(id) } });
       if (existingExpected) {
@@ -448,7 +462,7 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
           } });
           continue;
         }
-        await tx.tournament.update({ where: { id: String(id) }, data });
+        await tx.tournament.update({ where: { id: String(id) }, data: syncData });
         await mergeDuplicateScheduledTournaments(tx, key, String(id), { start, end });
         await initializeScheduledMechanics(tx, String(id));
         continue;
@@ -465,7 +479,7 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
       if (existingForDate) {
         await tx.tournament.update({
           where: { id: existingForDate.id },
-          data: { id: String(id), ...data }
+          data: { id: String(id), ...syncData }
         });
         await mergeDuplicateScheduledTournaments(tx, key, String(id), { start, end });
         await initializeScheduledMechanics(tx, String(id));
