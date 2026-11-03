@@ -3,10 +3,11 @@ import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 
 const timeZone = "Asia/Barnaul";
+const clubAddress = "Flop Club, Барнаул, Геблера 33б";
 
 type RegistrationQrMessage = {
   entryNumber: number;
-  tournament: { title: string; startsAt: Date; location: string };
+  tournament: { title: string; startsAt: Date };
 };
 
 function formatDate(date: Date) {
@@ -17,6 +18,10 @@ function formatTime(date: Date) {
   return new Intl.DateTimeFormat("ru-RU", { timeZone, hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 // Must stay in sync with buildCheckInUrl in apps/web/src/components/CheckInQr.tsx: the manager scans both.
 export function buildCheckInUrl(token: string) {
   const botUsername = config.TELEGRAM_BOT_USERNAME.replace(/^@/, "");
@@ -25,13 +30,14 @@ export function buildCheckInUrl(token: string) {
   return `https://t.me/${botPath}?startapp=${encodeURIComponent(`checkin_${token}`)}`;
 }
 
+// Same text for every tournament; the format rule is in docs/ai/PATTERNS.md.
 export function buildRegistrationCaption({ entryNumber, tournament }: RegistrationQrMessage) {
   return [
     entryNumber > 1 ? `Re-entry подтверждён ✅ Вход №${entryNumber}` : "Запись на турнир подтверждена ✅",
-    tournament.title.toUpperCase(),
+    `<b>${escapeHtml(tournament.title.toUpperCase())}</b>`,
     "",
-    `📅 ${formatDate(tournament.startsAt)}, ${formatTime(tournament.startsAt)}`,
-    `📍 ${tournament.location}`,
+    `<blockquote>📅 ${formatDate(tournament.startsAt)}, ${formatTime(tournament.startsAt)}`,
+    `📍 ${clubAddress}</blockquote>`,
     "",
     "Покажи этот QR-код на входе — открывать приложение не нужно.",
     "",
@@ -47,7 +53,7 @@ export async function sendRegistrationQr(registrationId: string) {
       checkInToken: true,
       entryNumber: true,
       user: { select: { telegramId: true } },
-      tournament: { select: { title: true, startsAt: true, location: true } }
+      tournament: { select: { title: true, startsAt: true } }
     }
   });
   if (!registration || registration.status !== "ACTIVE") return;
@@ -63,6 +69,7 @@ export async function sendRegistrationQr(registrationId: string) {
   const body = new FormData();
   body.set("chat_id", chatId);
   body.set("caption", buildRegistrationCaption(registration));
+  body.set("parse_mode", "HTML");
   body.set("reply_markup", JSON.stringify({
     inline_keyboard: [[{ text: "Открыть приложение", web_app: { url: config.FRONTEND_URL } }]]
   }));

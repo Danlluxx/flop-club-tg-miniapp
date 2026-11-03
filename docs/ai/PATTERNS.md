@@ -35,6 +35,18 @@
 - Respect `prefers-reduced-motion` for nonessential animation.
 - User-facing tournament copy is Russian unless a branded mechanic name is intentionally English.
 
+## Registration QR message
+
+Every tournament gets the same bot text, built only in `buildRegistrationCaption` (`apps/api/src/services/telegramRegistrationQr.ts`). Only the title, date and entry number vary; do not add per-tournament rules, prices or chips here.
+
+1. Status: `Запись на турнир подтверждена ✅`, or `Re-entry подтверждён ✅ Вход №N` from the second entry.
+2. Title in bold and upper case, on the next line.
+3. Blockquote: `📅 <weekday>, <day> <month>, <HH:mm>` in `Asia/Barnaul`, then `📍 Flop Club, Барнаул, Геблера 33б`. The address is a constant, not `Tournament.location`.
+4. `Покажи этот QR-код на входе — открывать приложение не нужно.`
+5. `Удачи в игре! 🍀`
+
+Blank lines separate the title, blockquote, instruction and wish. The caption is sent with `parse_mode: HTML`, so escape any dynamic text.
+
 ## Testing pattern
 
 - Type safety: workspace `lint` scripts run `tsc --noEmit`.
