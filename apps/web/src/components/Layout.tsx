@@ -1,5 +1,6 @@
 import { DevilDealNotice } from "./DevilDealNotice";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { CalendarDays, Home, Shield, UserRound } from "lucide-react";
 import { isHalloweenSeason } from "../lib/seasonalTheme";
 import type { User } from "../types";
@@ -13,6 +14,13 @@ const nav = [
 export function Layout({ user }: { user: User }) {
   const items = user.role === "ADMIN" ? [...nav, { to: "/admin", label: "Админ", icon: Shield }] : nav;
   const halloween = isHalloweenSeason();
+  const { pathname } = useLocation();
+  const adminArea = pathname.startsWith("/admin") || pathname.startsWith("/check-in");
+
+  // Admin screens keep the original dense styling; the soft layer is for players.
+  useEffect(() => {
+    document.documentElement.classList.toggle("soft", !adminArea);
+  }, [adminArea]);
 
   return (
     <div className={`page-shell mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-6${halloween ? " halloween-season" : ""}`}>

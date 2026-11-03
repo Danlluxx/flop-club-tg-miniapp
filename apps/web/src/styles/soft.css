@@ -1,0 +1,1535 @@
+/*
+  FLOP CLUB soft design: a visual layer over index.css. Nothing here changes markup or data;
+  every rule is scoped to html.soft (set in main.tsx, removed on admin routes).
+*/
+
+html.soft {
+  --ink: #fff6f3;
+  --ink-2: rgba(255, 236, 232, 0.68);
+  --ink-3: rgba(255, 228, 223, 0.44);
+  --base: #0e080b;
+  --surface: rgba(255, 238, 233, 0.055);
+  --surface-2: rgba(255, 238, 233, 0.095);
+  --hair: rgba(255, 226, 220, 0.085);
+  --coral: #ff5468;
+  --ember: #ff8f5e;
+  --gold: #f5cd86;
+  --accent: linear-gradient(120deg, #ff4560 0%, #ff7a5c 100%);
+  --r-xl: 1.75rem;
+  --r-lg: 1.35rem;
+  --r-md: 1rem;
+  --lift: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 18px 40px -26px rgba(0, 0, 0, 0.9);
+  --spring: cubic-bezier(0.2, 0.85, 0.25, 1);
+  --font-text: "Manrope", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-display: "Unbounded", "Manrope", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  background: var(--base);
+  font-family: var(--font-text);
+}
+
+html.soft body {
+  background: var(--base);
+  color: var(--ink);
+  font-family: var(--font-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Slow ambient light instead of the hard red band at the top of every screen. */
+html.soft .page-shell::before {
+  inset: -20% -30% auto;
+  height: 42rem;
+  background:
+    radial-gradient(closest-side at 26% 38%, rgba(214, 42, 72, 0.3), transparent),
+    radial-gradient(closest-side at 78% 22%, rgba(255, 130, 84, 0.16), transparent),
+    radial-gradient(closest-side at 62% 72%, rgba(120, 36, 92, 0.2), transparent);
+  animation: soft-drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes soft-drift {
+  from { transform: translate3d(-4%, -3%, 0) scale(1); }
+  to { transform: translate3d(5%, 4%, 0) scale(1.1); }
+}
+
+/* ---------- Motion: screens settle in, elements press softly. ---------- */
+html.soft main > section > * {
+  animation: soft-rise 0.6s var(--spring) backwards;
+}
+
+html.soft main > section > *:nth-child(2) { animation-delay: 50ms; }
+html.soft main > section > *:nth-child(3) { animation-delay: 100ms; }
+html.soft main > section > *:nth-child(4) { animation-delay: 150ms; }
+html.soft main > section > *:nth-child(n + 5) { animation-delay: 200ms; }
+
+@keyframes soft-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+html.soft .tap {
+  transition: transform 260ms var(--spring), background-color 200ms ease, box-shadow 200ms ease;
+}
+
+html.soft .tap:active {
+  transform: scale(0.965);
+}
+
+/* ---------- Type ---------- */
+html.soft h1,
+html.soft h2,
+html.soft h3,
+html.soft .page-title,
+html.soft .brand-display,
+html.soft .screen-title,
+html.soft .rating-section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+html.soft .font-black { font-weight: 700; }
+
+html.soft .page-kicker {
+  color: var(--coral);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+html.soft .page-title,
+html.soft .support-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 8.4vw, 2.3rem);
+  font-weight: 600;
+  line-height: 1.08;
+  text-transform: none;
+}
+
+html.soft .page-subtitle {
+  margin-top: 0.5rem;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+html.soft h1.text-4xl { font-size: 1.8rem; }
+html.soft h2.text-3xl { font-size: 1.1rem; }
+
+html.soft .text-slate-300,
+html.soft .text-slate-400 { color: var(--ink-2); }
+html.soft .text-slate-500 { color: var(--ink-3); }
+html.soft .text-electric { color: var(--coral); }
+html.soft .text-violet,
+html.soft .text-rose-400 { color: var(--ember); }
+
+html.soft .from-electric.to-violet {
+  background-image: linear-gradient(140deg, #ff4f67, #ff9a62);
+}
+
+/* ---------- Shared surfaces ---------- */
+html.soft .glass,
+html.soft .app-panel,
+html.soft .home-action,
+html.soft .home-address,
+html.soft .profile-info-card,
+html.soft .profile-status-card,
+html.soft .profile-stats-card,
+html.soft .profile-awards-shelf,
+html.soft .profile-wins-list,
+html.soft .status-card,
+html.soft .rule-note,
+html.soft .tournament-rule-section,
+html.soft .participants-table,
+html.soft .participants-open-button {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--lift);
+  backdrop-filter: none;
+}
+
+/* ---------- Dock: floats, and the active tab grows to show its name.
+   It stays quiet so the gradient is reserved for the screen's main action. ---------- */
+html.soft .club-capsule {
+  bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  width: min(88vw, 21rem);
+  gap: 0.2rem;
+  border: 1px solid rgba(255, 232, 226, 0.1);
+  border-radius: 999px;
+  background: rgba(32, 20, 25, 0.72);
+  padding: 0.35rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 44px -12px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+}
+
+html.soft .club-capsule a {
+  display: flex;
+  min-height: 3.1rem;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 0.5rem;
+  color: var(--ink-2);
+  box-shadow: none;
+  transition: flex-grow 420ms var(--spring), background-color 240ms ease, color 240ms ease;
+}
+
+html.soft .club-capsule a svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+}
+
+html.soft .club-capsule a::after {
+  max-width: 0;
+  overflow: hidden;
+  color: inherit;
+  content: attr(aria-label);
+  font-size: 0.8rem;
+  font-weight: 700;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width 420ms var(--spring), opacity 240ms ease, margin 420ms var(--spring);
+}
+
+html.soft .club-capsule a[aria-current="page"] {
+  flex-grow: 1.9;
+  background: rgba(255, 84, 104, 0.17);
+  color: #ffd9d6;
+}
+
+html.soft .club-capsule a[aria-current="page"]::after {
+  max-width: 6rem;
+  margin-left: 0.45rem;
+  opacity: 1;
+}
+
+/* ---------- Home: player card ---------- */
+html.soft .home-profile {
+  min-height: 0;
+  gap: 0.85rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  padding: 0.75rem 0.95rem 0.75rem 0.75rem;
+  box-shadow: var(--lift);
+}
+
+html.soft .home-avatar {
+  width: 3.4rem;
+  height: 3.4rem;
+  border: 2px solid var(--base);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(255, 110, 96, 0.75), 0 8px 22px -6px rgba(255, 84, 104, 0.6);
+}
+
+html.soft .home-status-badge {
+  left: auto;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+html.soft .home-profile > .min-w-0 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem 0.5rem;
+}
+
+html.soft .home-profile > .min-w-0 > p {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+html.soft .home-profile .inline-flex {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  border-radius: 999px;
+  background: rgba(245, 205, 134, 0.13);
+  padding: 0.28rem 0.62rem;
+  color: var(--gold);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+html.soft .home-profile .overflow-hidden {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 0.32rem;
+  margin: 0;
+  background: rgba(255, 238, 233, 0.09);
+}
+
+/* ---------- Progress bars share one warm gradient ---------- */
+html.soft .tournament-poster .bg-gradient-to-r,
+html.soft .home-profile .overflow-hidden > .bg-gradient-to-r,
+html.soft .profile-status-card .bg-gradient-to-r {
+  background-image: linear-gradient(90deg, #ff4f67, #ff9a62 62%, #f5cd86);
+  box-shadow: 0 0 14px rgba(255, 122, 92, 0.45);
+}
+
+/* ---------- Tournament emblems: the club's art comes forward instead of hiding. ---------- */
+html.soft .home-event-card,
+html.soft .tournament-poster,
+html.soft .tournament-detail-hero {
+  border: 1px solid rgba(255, 226, 220, 0.1);
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(18rem 16rem at 88% 34%, rgba(255, 70, 88, 0.14), transparent 72%),
+    radial-gradient(14rem 12rem at 0% 104%, rgba(255, 143, 94, 0.1), transparent 70%),
+    #170d11;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 26px 52px -30px rgba(255, 60, 84, 0.55);
+}
+
+html.soft .home-event-card::before,
+html.soft .tournament-poster::before,
+html.soft .tournament-detail-hero::before {
+  background: linear-gradient(100deg, rgba(23, 13, 17, 0.72) 0%, rgba(23, 13, 17, 0.28) 46%, transparent 72%);
+}
+
+html.soft .home-event-art,
+html.soft .tournament-art,
+html.soft .tournament-detail-art {
+  opacity: 0.9;
+  filter: brightness(0.74) contrast(1.05) saturate(0.88) drop-shadow(0 14px 26px rgba(0, 0, 0, 0.6));
+  transform-origin: center;
+  animation: soft-float 7s ease-in-out infinite;
+}
+
+@keyframes soft-float {
+  0%, 100% { translate: 0 0; rotate: -2deg; }
+  50% { translate: 0 -7px; rotate: 2deg; }
+}
+
+html.soft .home-event-art {
+  top: 0.5rem;
+  right: -2.7rem;
+  height: 12rem;
+}
+
+html.soft .home-event-card {
+  min-height: 0;
+  padding: 1.25rem;
+}
+
+html.soft .home-event-card > .relative {
+  min-height: 0;
+  max-width: 66%;
+}
+
+html.soft .home-event-card p.text-electric {
+  color: var(--coral);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+html.soft .home-event-card h2 {
+  margin-top: 0.55rem;
+  font-size: 1.42rem;
+  line-height: 1.12;
+}
+
+html.soft .home-event-card .mt-6 {
+  margin-top: 0.95rem;
+  gap: 0.35rem;
+}
+
+html.soft .home-pill,
+html.soft .tournament-pill {
+  min-height: 1.95rem;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 238, 233, 0.11);
+  padding: 0 0.7rem;
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 700;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+html.soft .home-pill svg,
+html.soft .tournament-pill svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--ember);
+}
+
+/* Main actions: warm gradient pill instead of a flat white block. */
+html.soft .home-event-card .bg-white,
+html.soft .home-event-card a.bg-white,
+html.soft .app-button-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 14px 30px -12px rgba(255, 70, 96, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+html.soft .home-event-card .bg-white {
+  margin-top: 1rem;
+  gap: 0.55rem;
+  border-radius: 999px;
+  padding: 0.6rem 0.65rem 0.6rem 1.05rem;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+html.soft .home-event-card .bg-white svg {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  padding: 0.22rem;
+}
+
+/* ---------- Rating: top three become a podium, everyone else stays a list. ---------- */
+html.soft .rating-section-title {
+  font-size: 1.1rem;
+}
+
+html.soft .rank-header,
+html.soft .rank-header ~ .flex.justify-center {
+  display: none;
+}
+
+html.soft .rank-header + .space-y-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.16fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 0.55rem;
+}
+
+html.soft .rank-header + .space-y-3 > * {
+  margin: 0 !important;
+}
+
+html.soft .rank-header + .space-y-3 > .animate-pulse {
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+html.soft .rank-row {
+  gap: 0.55rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+html.soft .rank-header + .space-y-3 > .rank-row-gold,
+html.soft .rank-header + .space-y-3 > .rank-row-silver,
+html.soft .rank-header + .space-y-3 > .rank-row-bronze {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  grid-row: 1;
+  border-radius: var(--r-lg);
+  padding: 1rem 0.4rem 0.8rem;
+  text-align: center;
+}
+
+html.soft .rank-header + .space-y-3 > .rank-row-silver {
+  grid-column: 1;
+  border-color: rgba(218, 222, 232, 0.16);
+  background: linear-gradient(180deg, rgba(218, 222, 232, 0.13), rgba(218, 222, 232, 0.025));
+}
+
+html.soft .rank-header + .space-y-3 > .rank-row-gold {
+  grid-column: 2;
+  border-color: rgba(245, 205, 134, 0.3);
+  background: linear-gradient(180deg, rgba(245, 205, 134, 0.22), rgba(245, 205, 134, 0.035));
+  padding-top: 1.45rem;
+  padding-bottom: 1rem;
+  box-shadow: 0 22px 42px -26px rgba(245, 190, 100, 0.8);
+}
+
+html.soft .rank-header + .space-y-3 > .rank-row-bronze {
+  grid-column: 3;
+  border-color: rgba(226, 139, 92, 0.2);
+  background: linear-gradient(180deg, rgba(226, 139, 92, 0.16), rgba(226, 139, 92, 0.025));
+}
+
+html.soft .rank-header + .space-y-3 > .rank-row-player {
+  grid-column: 1 / -1;
+}
+
+html.soft .rank-row-gold .rank-player,
+html.soft .rank-row-silver .rank-player,
+html.soft .rank-row-bronze .rank-player {
+  width: 100%;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+html.soft .rank-row-gold .rank-avatar,
+html.soft .rank-row-silver .rank-avatar,
+html.soft .rank-row-bronze .rank-avatar {
+  width: 3rem;
+  height: 3rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+html.soft .rank-row-gold .rank-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  box-shadow: 0 0 0 2px var(--gold), 0 8px 24px -4px rgba(245, 190, 100, 0.65);
+}
+
+html.soft .rank-row-silver .rank-avatar { box-shadow: 0 0 0 2px #cfd3dd; }
+html.soft .rank-row-bronze .rank-avatar { box-shadow: 0 0 0 2px #dd8b5c; }
+
+html.soft .rank-row-gold .rank-medal,
+html.soft .rank-row-silver .rank-medal,
+html.soft .rank-row-bronze .rank-medal {
+  position: absolute;
+  top: 3.3rem;
+  left: 50%;
+  z-index: 1;
+  width: 1.32rem;
+  height: 1.32rem;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 2px #1a1014;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+html.soft .rank-row-gold .rank-medal {
+  top: 4.2rem;
+}
+
+html.soft .rank-row-gold .rank-name,
+html.soft .rank-row-silver .rank-name,
+html.soft .rank-row-bronze .rank-name {
+  display: block;
+  width: 100%;
+  margin-top: 0.45rem;
+  overflow: hidden;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.soft .rank-row-gold .rank-points,
+html.soft .rank-row-silver .rank-points,
+html.soft .rank-row-bronze .rank-points {
+  justify-content: center;
+  font-size: 0.78rem;
+}
+
+html.soft .rank-row-gold .rank-points svg,
+html.soft .rank-row-silver .rank-points svg,
+html.soft .rank-row-bronze .rank-points svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+html.soft .rank-row-gold .rank-points { color: var(--gold); }
+
+/* Everyone below the podium. */
+html.soft .rank-row-player {
+  min-height: 3.5rem;
+  background: var(--surface);
+}
+
+html.soft .rank-medal-player {
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.82rem;
+}
+
+html.soft .rank-row-player .rank-name {
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+html.soft .rank-row-player .rank-points {
+  font-size: 0.88rem;
+}
+
+html.soft .rank-row-player .rank-points svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--ember);
+}
+
+/* The player's own row outside the top: tinted so it is found instantly. */
+html.soft .rank-header ~ .rank-row-player {
+  border-color: rgba(255, 84, 104, 0.3);
+  background: linear-gradient(100deg, rgba(255, 84, 104, 0.17), rgba(255, 143, 94, 0.05));
+}
+
+/* ---------- Home: quick links ---------- */
+html.soft .home-action {
+  min-height: 0;
+  gap: 0.75rem;
+  padding: 0.95rem;
+}
+
+html.soft .home-action-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 84, 104, 0.14);
+  padding: 0.6rem;
+  color: var(--coral);
+  fill: none;
+  stroke-width: 2;
+}
+
+html.soft .home-action-icon.fill-white {
+  fill: currentColor;
+}
+
+html.soft .home-action-label {
+  width: 100%;
+  justify-content: space-between;
+  font-family: var(--font-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+html.soft .home-action-label svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--ink-3);
+  stroke-width: 2.4;
+}
+
+html.soft .home-address {
+  padding: 0.95rem;
+}
+
+html.soft .home-address > .flex {
+  gap: 0.65rem;
+  font-family: var(--font-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+html.soft .home-address > .flex svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 84, 104, 0.14);
+  padding: 0.6rem;
+  color: var(--coral);
+}
+
+html.soft .home-address > p {
+  margin-top: 0.6rem;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ---------- Tournaments list ---------- */
+html.soft .app-select-trigger {
+  min-height: 3.2rem;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 0.4rem 1.1rem;
+  box-shadow: none;
+}
+
+html.soft .app-select-trigger span {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+html.soft .app-select-trigger strong {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+html.soft .app-select-menu {
+  border: 1px solid rgba(255, 232, 226, 0.1);
+  border-radius: var(--r-lg);
+  background: rgba(32, 20, 25, 0.94);
+  padding: 0.3rem;
+  backdrop-filter: blur(20px);
+}
+
+html.soft .app-select-option {
+  min-height: 2.9rem;
+  border: 0;
+  border-radius: var(--r-md);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+html.soft .app-select-option-active {
+  background: rgba(255, 84, 104, 0.16);
+}
+
+html.soft .tournament-poster > .relative {
+  min-height: 15.5rem;
+  padding: 1.25rem;
+}
+
+html.soft .tournament-poster > .relative > .max-w-\[78\%\] {
+  max-width: 68%;
+}
+
+html.soft .tournament-art {
+  top: 0.5rem;
+  right: -3.2rem;
+  height: 11rem;
+}
+
+html.soft .tournament-title {
+  font-size: 1.32rem;
+  line-height: 1.14;
+}
+
+html.soft .tournament-meta-block {
+  padding-top: 0.5rem;
+}
+
+html.soft .tournament-poster .mt-5.h-1\.5 {
+  height: 0.32rem;
+  margin-top: 0.8rem;
+}
+
+html.soft .tournament-poster .border-t {
+  margin-top: 0.8rem;
+  border-color: var(--hair);
+  padding-top: 0.7rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+html.soft .tournament-poster .mb-4 {
+  margin-bottom: 0.55rem;
+}
+
+/* Status label reads as a small tag on every tournament surface. */
+html.soft .tournament-poster .mb-4 span,
+html.soft .tournament-detail-hero .justify-between > span {
+  display: inline-flex;
+  border-radius: 999px;
+  background: rgba(23, 13, 17, 0.72);
+  padding: 0.24rem 0.6rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* ---------- Tournament details ---------- */
+html.soft main a.h-10.w-10,
+html.soft main button.h-10.w-10 {
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+html.soft .tournament-detail-art {
+  top: 1.6rem;
+  right: -3.4rem;
+  height: 12rem;
+}
+
+html.soft .tournament-detail-title {
+  max-width: 72%;
+  margin-top: 0.9rem;
+  font-size: 1.6rem;
+  line-height: 1.12;
+}
+
+html.soft .tournament-detail-hero .space-y-3 > * + * {
+  margin-top: 0.45rem;
+}
+
+html.soft .tournament-detail-hero .mt-6 {
+  margin-top: 1.4rem;
+  font-size: 0.82rem;
+}
+
+html.soft .detail-price-card {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: rgba(23, 13, 17, 0.55);
+  padding: 0.75rem 0.9rem;
+  backdrop-filter: blur(10px);
+}
+
+html.soft .detail-price-card p {
+  color: var(--ink-3);
+  font-size: 0.72rem;
+}
+
+html.soft .detail-price-card strong {
+  margin-top: 0.15rem;
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+html.soft .participants-open-button {
+  min-height: 3.6rem;
+  padding: 0.6rem 0.7rem 0.6rem 1.1rem;
+}
+
+html.soft .participants-open-button span {
+  font-family: var(--font-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+html.soft .participants-open-button strong {
+  min-width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  background: rgba(255, 84, 104, 0.16);
+  color: var(--coral);
+  font-size: 0.86rem;
+}
+
+html.soft .tournament-rule-stack {
+  gap: 0.65rem;
+}
+
+html.soft .tournament-rule-section {
+  padding: 1.05rem 1.1rem;
+}
+
+html.soft .tournament-rule-section h2 {
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+html.soft .tournament-rule-section p,
+html.soft .rule-list {
+  margin-top: 0.5rem;
+  color: var(--ink-2);
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+html.soft .rule-list li::before {
+  background: var(--coral);
+}
+
+html.soft .rule-note {
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-3);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* "Записаться" stays reachable while the rules scroll, right above the dock. */
+html.soft .app-button-primary {
+  position: sticky;
+  bottom: calc(5.05rem + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  min-height: 3.5rem;
+  border-radius: 999px;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+html.soft .app-button-primary:disabled {
+  background: #2b2024;
+  color: var(--ink-2);
+  box-shadow: none;
+  opacity: 1;
+}
+
+html.soft button.border-rose-400\/40 {
+  border-color: rgba(255, 84, 104, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 84, 104, 0.1);
+  color: #ffc5cb;
+  font-weight: 700;
+}
+
+/* Tournament facts: date / place / players as tinted tiles with friendlier glyphs. */
+html.soft .tournament-detail-hero .mt-6.space-y-3 > div {
+  gap: 0.7rem;
+}
+
+html.soft .tournament-detail-hero .mt-6.space-y-3 > div > svg {
+  display: none;
+}
+
+html.soft .tournament-detail-hero .mt-6.space-y-3 > div::before {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 1.05rem;
+  content: "";
+}
+
+html.soft .tournament-detail-hero .mt-6.space-y-3 > div:nth-child(1)::before {
+  background-color: rgba(255, 111, 111, 0.14);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff6f6f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5'/%3E%3Cpath d='M16 2v4'/%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M3 10h5'/%3E%3Cpath d='M17.5 17.5 16 16.3V14'/%3E%3Ccircle cx='16' cy='16' r='6'/%3E%3C/svg%3E");
+}
+
+html.soft .tournament-detail-hero .mt-6.space-y-3 > div:nth-child(2)::before {
+  background-color: rgba(255, 154, 98, 0.14);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff9a62' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0'/%3E%3Ccircle cx='12' cy='8' r='2'/%3E%3Cpath d='M8.714 14h-3.71a1 1 0 0 0-.948.683l-2.004 6A1 1 0 0 0 3 22h18a1 1 0 0 0 .948-1.316l-2-6a1 1 0 0 0-.949-.684h-3.712'/%3E%3C/svg%3E");
+}
+
+html.soft .tournament-detail-hero .mt-6.space-y-3 > div:nth-child(3)::before {
+  background-color: rgba(245, 205, 134, 0.14);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f5cd86' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 21a8 8 0 0 0-16 0'/%3E%3Ccircle cx='10' cy='8' r='5'/%3E%3Cpath d='M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3'/%3E%3C/svg%3E");
+}
+
+/* Card facts (entry / re-entry / place): own glyphs instead of the wallet icon. */
+html.soft .tournament-poster .border-t > span {
+  gap: 0.5rem;
+}
+
+html.soft .tournament-poster .border-t > span > svg,
+html.soft .rule-note > svg {
+  display: none;
+}
+
+html.soft .tournament-poster .border-t > span::before,
+html.soft .rule-note::before {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: "";
+}
+
+html.soft .tournament-poster .border-t > span:nth-child(1)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff7a6a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='M18.09 10.37A6 6 0 1 1 10.34 18'/%3E%3Cpath d='M7 6h1v4'/%3E%3Cpath d='m16.71 13.88.7.71-2.82 2.82'/%3E%3C/svg%3E");
+}
+
+html.soft .tournament-poster .border-t > span:nth-child(2)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff9a62' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8'/%3E%3Cpath d='M3 3v5h5'/%3E%3C/svg%3E");
+}
+
+html.soft .tournament-poster .border-t > span:nth-child(3)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f5cd86' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0'/%3E%3Ccircle cx='12' cy='8' r='2'/%3E%3Cpath d='M8.714 14h-3.71a1 1 0 0 0-.948.683l-2.004 6A1 1 0 0 0 3 22h18a1 1 0 0 0 .948-1.316l-2-6a1 1 0 0 0-.949-.684h-3.712'/%3E%3C/svg%3E");
+}
+
+html.soft .rule-note::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff9a62' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+}
+
+html.soft .rule-note::before {
+  margin-top: 0.1rem;
+}
+
+/* Card pills (seats / date): own glyphs instead of the default icons. */
+html.soft .tournament-pill {
+  gap: 0.45rem;
+}
+
+html.soft .tournament-pill > svg {
+  display: none;
+}
+
+html.soft .tournament-pill::before {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: "";
+}
+
+html.soft .tournament-pill:nth-child(1)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff9a62' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3'/%3E%3Cpath d='M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z'/%3E%3Cpath d='M5 18v2'/%3E%3Cpath d='M19 18v2'/%3E%3C/svg%3E");
+}
+
+html.soft .tournament-pill:nth-child(2)::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff6f6f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16.5 12'/%3E%3C/svg%3E");
+}
+
+/* ---------- Participants ---------- */
+html.soft .participants-title {
+  font-size: 1.35rem;
+  text-transform: none;
+}
+
+html.soft .participants-table-head {
+  min-height: 2.6rem;
+  background: transparent;
+  border-bottom: 1px solid var(--hair);
+  color: var(--ink-3);
+  font-size: 0.72rem;
+}
+
+html.soft .participants-table-row {
+  min-height: 3.5rem;
+  background: transparent;
+}
+
+html.soft .participants-table-row + .participants-table-row {
+  border-color: var(--hair);
+}
+
+html.soft .participants-user img,
+html.soft .participants-user span {
+  background: linear-gradient(140deg, #ff4f67, #ff9a62);
+}
+
+html.soft .participants-number {
+  color: var(--ink-3);
+}
+
+html.soft .participants-user strong,
+html.soft .participants-rating {
+  font-size: 0.88rem;
+}
+
+/* ---------- Rating controls ---------- */
+html.soft .rating-page > a:first-child {
+  height: 2.5rem;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 0 0.9rem 0 0.7rem;
+}
+
+html.soft .rating-scope-tabs,
+html.soft .profile-tabs {
+  gap: 0.2rem;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 0.25rem;
+}
+
+html.soft .rating-scope-tab,
+html.soft .profile-tab {
+  min-height: 2.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: background-color 240ms ease, color 240ms ease;
+}
+
+html.soft .rating-scope-tab-active,
+html.soft .profile-tab-active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 20px -10px rgba(255, 70, 96, 0.9);
+}
+
+html.soft .rating-month-select,
+html.soft .rating-search-field,
+html.soft .profile-email-input,
+html.soft .profile-inline-name-input {
+  min-height: 3rem;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background-color: var(--surface);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+html.soft .profile-inline-name-input,
+html.soft .profile-email-input {
+  padding: 0 1rem;
+}
+
+html.soft .rating-search-button {
+  min-height: 3rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+/* ---------- Profile ---------- */
+html.soft .profile-avatar,
+html.soft .status-avatar {
+  border: 2px solid var(--base);
+  font-family: var(--font-display);
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(255, 110, 96, 0.75), 0 10px 26px -6px rgba(255, 84, 104, 0.6);
+}
+
+html.soft .profile-user h2.truncate {
+  font-size: 1.3rem;
+}
+
+html.soft .profile-settings-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+html.soft .profile-settings-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+html.soft .profile-info-card {
+  padding: 0.85rem 1rem;
+}
+
+html.soft .profile-info-label {
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+html.soft .profile-chip {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+html.soft .profile-chip svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--ember);
+}
+
+html.soft .profile-edit {
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+html.soft .profile-settings-action,
+html.soft .avatar-source-option {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-weight: 700;
+}
+
+html.soft .profile-stat-button,
+html.soft .profile-stat-item {
+  border-radius: var(--r-md);
+  background: transparent;
+}
+
+html.soft .profile-stat-button span,
+html.soft .profile-stat-item span {
+  color: var(--ink-2);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+html.soft .profile-stat-button strong,
+html.soft .profile-stat-item strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+html.soft .profile-status-card {
+  border-color: rgba(245, 205, 134, 0.16);
+  background:
+    radial-gradient(14rem 9rem at 12% 0%, rgba(245, 205, 134, 0.13), transparent 70%),
+    var(--surface);
+  padding: 1.05rem 1.1rem;
+}
+
+html.soft .profile-status-name {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+html.soft .profile-status-next {
+  color: var(--ink-3);
+  font-family: var(--font-text);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+html.soft .profile-status-card .rating-number {
+  font-size: 0.92rem;
+}
+
+html.soft .profile-status-card .rating-number svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+html.soft .profile-awards-shelf {
+  padding: 0.75rem;
+}
+
+html.soft .profile-empty {
+  border: 1px dashed var(--hair);
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+html.soft .glass h3 {
+  font-size: 0.86rem;
+}
+
+html.soft .glass .rounded-\[0\.55rem\] {
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+/* ---------- Statuses and awards ---------- */
+html.soft .screen-back {
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+html.soft .screen-title {
+  font-size: 1.35rem;
+  text-transform: none;
+}
+
+html.soft .status-card-current {
+  border-color: rgba(245, 205, 134, 0.32);
+  background: linear-gradient(120deg, rgba(245, 205, 134, 0.16), rgba(245, 205, 134, 0.03));
+}
+
+html.soft .awards-page-tile {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+html.soft .awards-page-tile-open {
+  border-color: rgba(255, 84, 104, 0.28);
+  background: radial-gradient(circle at 50% 40%, rgba(255, 84, 104, 0.18), transparent 70%), var(--surface);
+}
+
+/* ---------- First-run screens: rules, consent, name, intro ---------- */
+html.soft .rules-screen,
+html.soft .consent-screen,
+html.soft .name-screen,
+html.soft .intro-screen {
+  font-family: var(--font-text);
+  background:
+    radial-gradient(26rem 20rem at 12% -4%, rgba(214, 42, 72, 0.22), transparent 70%),
+    radial-gradient(22rem 18rem at 100% 100%, rgba(255, 130, 84, 0.12), transparent 70%),
+    var(--base);
+}
+
+html.soft .rules-title,
+html.soft .name-title,
+html.soft .intro-title,
+html.soft .consent-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+
+html.soft .rules-title {
+  font-size: clamp(1.25rem, 5.6vw, 1.6rem);
+  line-height: 1.16;
+}
+
+html.soft .rules-kicker,
+html.soft .intro-kicker,
+html.soft .consent-kicker {
+  color: var(--coral);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+html.soft .rules-section-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+html.soft .rules-lead,
+html.soft .rules-paragraph,
+html.soft .consent-text {
+  color: var(--ink-2);
+  font-size: 0.93rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+html.soft .rules-paragraph strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+html.soft .rules-date {
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+html.soft .rules-heading {
+  margin-top: 2rem;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+html.soft .rules-link {
+  color: var(--coral);
+}
+
+html.soft .rules-actions {
+  background: linear-gradient(180deg, rgba(14, 8, 11, 0) 0%, rgba(14, 8, 11, 0.9) 34%, var(--base) 66%);
+}
+
+html.soft .rules-scroll {
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: rgba(42, 26, 32, 0.9);
+  color: var(--ink);
+}
+
+html.soft .rules-accept,
+html.soft .consent-accept,
+html.soft .name-accept,
+html.soft .intro-next {
+  min-height: 3.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-text);
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 0 14px 30px -12px rgba(255, 70, 96, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+html.soft .rules-accept:disabled,
+html.soft .consent-accept:disabled,
+html.soft .name-accept:disabled {
+  background: #2b2024;
+  color: var(--ink-3);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Consent sheet */
+html.soft .consent-backdrop {
+  background: linear-gradient(180deg, rgba(14, 8, 11, 0.1), rgba(14, 8, 11, 0.78));
+}
+
+html.soft .consent-sheet,
+html.soft .name-card {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(16rem 10rem at 0% 0%, rgba(255, 84, 104, 0.14), transparent 70%),
+    rgba(26, 16, 21, 0.94);
+  box-shadow: var(--lift), 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+}
+
+html.soft .consent-icon {
+  border-radius: 1rem;
+  background: rgba(255, 84, 104, 0.14);
+  color: var(--coral);
+}
+
+html.soft .consent-title {
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+
+html.soft .consent-doc-link {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+html.soft .consent-doc-link svg {
+  color: var(--ember);
+}
+
+html.soft .consent-check {
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+html.soft .consent-check-box {
+  border: 1.5px solid rgba(255, 226, 220, 0.28);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  transition: background-color 200ms ease, border-color 200ms ease, transform 260ms var(--spring);
+}
+
+html.soft .consent-check input:checked + .consent-check-box {
+  border-color: transparent;
+  background: var(--accent);
+  transform: scale(1.06);
+}
+
+html.soft .consent-back {
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+/* Club mark: the snake-and-spade "A" of the logo, framed instead of a random crop. */
+html.soft .brand-mark {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 84, 104, 0.2), transparent 70%),
+    #120a0d;
+}
+
+html.soft .brand-mark img {
+  left: 50%;
+  top: 50%;
+  width: 330%;
+  transform: translate(-55.9%, -26%);
+}
+
+/* Name */
+html.soft .name-title {
+  font-size: clamp(1.5rem, 7vw, 1.9rem);
+  line-height: 1.15;
+}
+
+html.soft .name-card .text-2xl {
+  font-family: var(--font-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+html.soft .name-mark {
+  border: 2px solid rgba(255, 110, 96, 0.75);
+  box-shadow: 0 12px 30px -8px rgba(255, 84, 104, 0.55);
+}
+
+html.soft .name-input {
+  min-height: 3.6rem;
+  margin-top: 1.6rem;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+html.soft .name-input:focus {
+  border-color: rgba(255, 110, 96, 0.7);
+  box-shadow: 0 0 0 4px rgba(255, 84, 104, 0.14);
+}
+
+html.soft .name-accept {
+  min-height: 3.5rem;
+  margin-top: 1rem;
+}
+
+/* Intro */
+html.soft .intro-slide {
+  border: 1px solid var(--hair);
+  border-radius: 2rem;
+  background:
+    radial-gradient(20rem 14rem at 50% 100%, rgba(255, 84, 104, 0.2), transparent 70%),
+    rgba(20, 12, 16, 0.92);
+}
+
+html.soft .intro-title {
+  font-size: clamp(1.45rem, 7.4cqw, 1.9rem);
+  line-height: 1.16;
+  text-wrap: balance;
+}
+
+html.soft .intro-body {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+html.soft .intro-dot {
+  background: rgba(255, 226, 220, 0.22);
+}
+
+html.soft .intro-dot-active {
+  background: var(--coral);
+}
+
+/* ---------- Toast ---------- */
+html.soft .fixed.top-4 > .glass {
+  border-radius: 999px;
+  background: #2a1a20;
+  font-weight: 600;
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.soft .page-shell::before,
+  html.soft main > section > *,
+  html.soft .home-event-art,
+  html.soft .tournament-art,
+  html.soft .tournament-detail-art {
+    animation: none;
+  }
+
+  html.soft .club-capsule a,
+  html.soft .club-capsule a::after,
+  html.soft .tap {
+    transition: none;
+  }
+}

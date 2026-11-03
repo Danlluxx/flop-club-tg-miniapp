@@ -26,7 +26,8 @@ const tournamentSlugs: Record<string, string> = {
 const tournamentDisplayTitles: Record<string, string> = {
   "FLOP 3 MINUS 1": "Flop 3 Minus 1",
   "FLOP BOOSTER RE-ENTRY": "Flop Booster Re-Entry",
-  "FLOP BOMB POT": "Flop Bomb Pot"
+  "FLOP BOMB POT": "Flop Bomb Pot",
+  "FLOP DEVIL DEAL": "Flop Devil Deal"
 };
 
 const awardAssetVersion = "20261012-transparent";
@@ -40,8 +41,7 @@ export function tournamentDisplayTitle(title: string) {
 }
 
 export function tournamentEventImage(title: string) {
-  if (title === "FLOP DEVIL DEAL") return "/awards/color/flop-devil-deal.png";
-  return `/events/${tournamentSlug(title)}.jpg`;
+  return `/awards/color/${tournamentSlug(title)}.png?v=${awardAssetVersion}`;
 }
 
 export function awardImage(title: string, unlocked: boolean) {
