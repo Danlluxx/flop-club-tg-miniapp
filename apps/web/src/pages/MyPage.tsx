@@ -20,7 +20,7 @@ export function MyPage() {
         {active.map((item) => item.tournament && (
           <Link key={item.id} to={`/tournaments/${item.tournament.id}`} className="app-panel tap block p-4">
             <div className="flex items-start justify-between gap-3">
-              <h3 className="font-bold">{item.tournament.title}</h3>
+              <h3 className="font-bold">{item.tournament.title.toUpperCase()}</h3>
             </div>
             <p className="mt-2 text-sm text-slate-400">{new Date(item.tournament.startsAt).toLocaleString("ru-RU")}</p>
             <div className={`mt-3 inline-flex rounded-[0.55rem] px-3 py-2 text-xs font-black uppercase ${
@@ -36,7 +36,7 @@ export function MyPage() {
         <div className="space-y-2">
           {history.map((item) => item.tournament && (
             <div key={item.id} className="rounded-[0.75rem] border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-400">
-              {item.tournament.title} · отменена {new Date(item.updatedAt).toLocaleDateString("ru-RU")}
+              {item.tournament.title.toUpperCase()} · отменена {new Date(item.updatedAt).toLocaleDateString("ru-RU")}
             </div>
           ))}
         </div>

@@ -53,7 +53,7 @@ function UpcomingTournament({ tournament }: { tournament?: Tournament }) {
       <div className="relative z-10 flex min-h-[13.5rem] max-w-[72%] flex-col">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.34em] text-electric">Ближайший турнир</p>
-          <h2 className="brand-display mt-2 text-[2rem] text-white">{tournament.title}</h2>
+          <h2 className="brand-display mt-2 text-[2rem] text-white">{tournament.title.toUpperCase()}</h2>
         </div>
         <div className="mt-6 flex flex-wrap gap-2">
           <span className="home-pill">

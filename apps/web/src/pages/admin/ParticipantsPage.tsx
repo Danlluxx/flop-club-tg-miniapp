@@ -529,7 +529,7 @@ export function ParticipantsPage() {
           <h2 className="page-title text-[3rem]">Участники</h2>
           {liveState && (
             <p className="mt-2 text-sm font-semibold text-slate-400">
-              {liveState.tournament.title} · {formatBarnaulDateTime(liveState.tournament.startsAt)}
+              {liveState.tournament.title.toUpperCase()} · {formatBarnaulDateTime(liveState.tournament.startsAt)}
             </p>
           )}
         </div>

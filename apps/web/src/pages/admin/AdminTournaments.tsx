@@ -65,7 +65,7 @@ export function AdminTournaments() {
           <div key={item.id} className="app-panel p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-bold">{item.title}</h3>
+                <h3 className="font-bold">{item.title.toUpperCase()}</h3>
                 <p className="mt-1 text-sm text-slate-400">{formatBarnaulDateTime(item.startsAt)}</p>
               </div>
               <StatusBadge status={item.status} />

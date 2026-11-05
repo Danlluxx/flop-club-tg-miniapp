@@ -25,7 +25,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
             <StatusBadge status={tournament.status} />
           </div>
           {tournament.mechanics && <p className="devil-kicker mb-2">HALLOWEEN SPECIAL</p>}
-          <h3 className="brand-display tournament-title text-white">{tournament.title}</h3>
+          <h3 className="brand-display tournament-title text-white">{tournament.title.toUpperCase()}</h3>
         </div>
 
         <div className="tournament-meta-block">

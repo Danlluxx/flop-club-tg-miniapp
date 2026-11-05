@@ -137,7 +137,7 @@ export function AdminFillRatesPage() {
             <Link key={item.id} to={`/admin/tournaments/${item.id}/participants`} className="app-panel admin-stat-panel tap block p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-black text-white">{item.title}</p>
+                  <p className="truncate text-lg font-black text-white">{item.title.toUpperCase()}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{format(parseISO(item.startsAt), "d MMMM, HH:mm", { locale: ru })}</p>
                 </div>
                 <p className="shrink-0 text-2xl font-black text-white">{percent}%</p>

@@ -82,7 +82,7 @@ function RegistrationList({ items, emptyText }: { items: Registration[]; emptyTe
         <Link key={item.id} to={`/tournaments/${item.tournament.id}`} className="glass tap block rounded-[1.25rem] p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-black">{item.tournament.title}</h3>
+              <h3 className="truncate text-lg font-black">{item.tournament.title.toUpperCase()}</h3>
               <p className="mt-1 flex items-center gap-2 text-sm text-slate-400">
                 <CalendarClock className="h-4 w-4" />
                 {new Date(item.tournament.startsAt).toLocaleString("ru-RU")}
@@ -372,7 +372,7 @@ export function ProfilePage({ user, onUserUpdated }: { user: User; onUserUpdated
             stats.wins.map((win) => (
               <Link key={win.id} to={`/tournaments/${win.tournamentId}`} className="profile-win-row tap">
                 <div className="min-w-0">
-                  <strong>{win.title}</strong>
+                  <strong>{win.title.toUpperCase()}</strong>
                   <span>{new Date(win.startsAt).toLocaleDateString("ru-RU")}</span>
                 </div>
                 <ChevronRight className="h-5 w-5" />

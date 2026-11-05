@@ -40,7 +40,7 @@ export function AdminCheckInPage({ token }: AdminCheckInPageProps) {
   }, [checkIn, checkInToken, started]);
 
   const registration = checkIn.data;
-  const title = registration?.tournament?.title ?? "Турнир";
+  const title = registration?.tournament?.title.toUpperCase() ?? "Турнир";
   const seatText = registration?.tableNumber && registration?.seatNumber ? `Стол ${registration.tableNumber}, бокс ${registration.seatNumber}` : "Место будет назначено автоматически";
 
   return (
