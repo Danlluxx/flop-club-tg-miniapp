@@ -18,7 +18,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
 
   return (
     <Link to={`/tournaments/${tournament.id}`} className={`tournament-poster tap block rounded-[1.2rem] ${tournament.mechanics ? "devil-poster" : ""}`}>
-      <img className="tournament-art" src={tournamentEventImage(tournament.title)} alt="" />
+      <img className="tournament-art" src={tournamentEventImage(tournament.title)} alt="" width={520} height={520} loading="lazy" decoding="async" />
       <div className="relative z-10 flex min-h-[310px] flex-col justify-between p-6">
         <div className="max-w-[78%]">
           <div className="mb-4 flex items-center gap-2">

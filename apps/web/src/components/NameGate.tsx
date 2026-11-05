@@ -29,7 +29,7 @@ export function NameGate({ user, onSaved }: { user: User; onSaved: (user: User) 
     <section className="name-screen">
       <form onSubmit={submit} className="name-card">
         <div className="brand-mark name-mark rounded-full border border-electric/40">
-          <img src="/flop-club-logo.jpg" alt="" />
+          <img src="/flop-club-logo.webp" alt="" width={1064} height={797} />
         </div>
         <p className="mt-7 text-[11px] font-bold uppercase tracking-[0.34em] text-electric">Flop Club / Barnaul</p>
         <h1 className="name-title mt-4">Добро пожаловать</h1>

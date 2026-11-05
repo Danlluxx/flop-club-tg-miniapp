@@ -5,14 +5,14 @@ export type PlayerStatus = {
 };
 
 export const playerStatuses: PlayerStatus[] = [
-  { title: "Salmon", pointsFrom: 0, icon: "/statuses/salmon.png" },
-  { title: "Flop Beginner", pointsFrom: 3500, icon: "/statuses/flop-beginner.png" },
-  { title: "Pot Hunter", pointsFrom: 10000, icon: "/statuses/pot-hunter.png" },
-  { title: "Tom Dwan", pointsFrom: 15000, icon: "/statuses/tom-dwan.png" },
-  { title: "Finalist", pointsFrom: 22000, icon: "/statuses/finalist.png" },
-  { title: "Black Stack", pointsFrom: 40000, icon: "/statuses/black-stack.png" },
-  { title: "Flopfather", pointsFrom: 70000, icon: "/statuses/flopfather.png" },
-  { title: "Flop Legend", pointsFrom: 100000, icon: "/statuses/flop-legend.png" }
+  { title: "Salmon", pointsFrom: 0, icon: "/statuses/salmon.webp" },
+  { title: "Flop Beginner", pointsFrom: 3500, icon: "/statuses/flop-beginner.webp" },
+  { title: "Pot Hunter", pointsFrom: 10000, icon: "/statuses/pot-hunter.webp" },
+  { title: "Tom Dwan", pointsFrom: 15000, icon: "/statuses/tom-dwan.webp" },
+  { title: "Finalist", pointsFrom: 22000, icon: "/statuses/finalist.webp" },
+  { title: "Black Stack", pointsFrom: 40000, icon: "/statuses/black-stack.webp" },
+  { title: "Flopfather", pointsFrom: 70000, icon: "/statuses/flopfather.webp" },
+  { title: "Flop Legend", pointsFrom: 100000, icon: "/statuses/flop-legend.webp" }
 ];
 
 export function getPlayerStatus(points: number) {

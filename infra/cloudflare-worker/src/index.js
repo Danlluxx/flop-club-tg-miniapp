@@ -1,5 +1,16 @@
 const STATIC_PATH = /\.(?:avif|css|gif|ico|jpe?g|js|png|svg|webp|woff2?)$/i;
-const STATIC_CACHE_TTL_SECONDS = 86400;
+const EDGE_CACHE_TTL_SECONDS = 86400;
+const HASHED_BROWSER_TTL_SECONDS = 31536000;
+const IMAGE_BROWSER_TTL_SECONDS = 604800;
+
+// Vite fingerprints /assets/* by content, so a year-long immutable copy in the browser is safe.
+// Other static files keep their name across releases: a week in the browser, a day at the edge.
+function staticCacheControl(pathname) {
+  if (pathname.startsWith("/assets/")) {
+    return `public, max-age=${HASHED_BROWSER_TTL_SECONDS}, s-maxage=${HASHED_BROWSER_TTL_SECONDS}, immutable`;
+  }
+  return `public, max-age=${IMAGE_BROWSER_TTL_SECONDS}, s-maxage=${EDGE_CACHE_TTL_SECONDS}`;
+}
 
 function isStaticAsset(request, url) {
   return request.method === "GET" && (
@@ -50,7 +61,7 @@ function buildOriginRequest(request, env) {
   };
 }
 
-function withEdgeHeaders(response, cacheable, api, publicOrigin) {
+function withEdgeHeaders(response, cacheable, api, publicOrigin, pathname) {
   const headers = new Headers(response.headers);
   headers.set("x-flop-edge", "workers-vpc");
 
@@ -60,7 +71,7 @@ function withEdgeHeaders(response, cacheable, api, publicOrigin) {
   }
 
   if (cacheable && response.ok) {
-    headers.set("cache-control", `public, max-age=0, s-maxage=${STATIC_CACHE_TTL_SECONDS}, immutable`);
+    headers.set("cache-control", staticCacheControl(pathname));
   }
 
   return new Response(response.body, {
@@ -84,7 +95,7 @@ export default {
     try {
       const origin = buildOriginRequest(request, env);
       const originResponse = await env.FLOP_TUNNEL.fetch(origin.request);
-      const response = withEdgeHeaders(originResponse, cacheable, origin.api, url.origin);
+      const response = withEdgeHeaders(originResponse, cacheable, origin.api, url.origin, url.pathname);
 
       if (cacheable && response.ok) {
         ctx.waitUntil(cache.put(request, response.clone()));

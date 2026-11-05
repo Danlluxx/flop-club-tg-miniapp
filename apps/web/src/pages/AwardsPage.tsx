@@ -9,7 +9,7 @@ function AwardTile({ award }: { award: ClubAward }) {
   const title = tournamentDisplayTitle(award.title);
   return (
     <div className={award.unlocked ? "awards-page-tile awards-page-tile-open" : "awards-page-tile"} title={title} tabIndex={0}>
-      <img src={awardImage(award.title, award.unlocked)} alt={title} />
+      <img src={awardImage(award.title, award.unlocked)} alt={title} width={520} height={520} loading="lazy" decoding="async" />
       <span>{title}</span>
     </div>
   );

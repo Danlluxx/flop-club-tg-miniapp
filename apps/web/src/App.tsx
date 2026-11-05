@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { BrowserRouter } from "react-router-dom";
@@ -8,23 +8,6 @@ import type { User } from "./types";
 import { Layout } from "./components/Layout";
 import { ToastProvider } from "./components/Toast";
 import { HomePage } from "./pages/HomePage";
-import { TournamentsPage } from "./pages/TournamentsPage";
-import { TournamentPage } from "./pages/TournamentPage";
-import { MyPage } from "./pages/MyPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { RatingPage } from "./pages/RatingPage";
-import { SupportPage } from "./pages/SupportPage";
-import { ClubPage } from "./pages/ClubPage";
-import { StatusesPage } from "./pages/StatusesPage";
-import { AwardsPage } from "./pages/AwardsPage";
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminTournaments } from "./pages/admin/AdminTournaments";
-import { TournamentForm } from "./pages/admin/TournamentForm";
-import { DevilControlPage } from "./pages/admin/DevilControlPage";
-import { ParticipantsPage } from "./pages/admin/ParticipantsPage";
-import { AdminCheckInPage } from "./pages/admin/AdminCheckInPage";
-import { AdminFillRatesPage } from "./pages/admin/AdminFillRatesPage";
-import { AdminAnalyticsPage } from "./pages/admin/AdminAnalyticsPage";
 import { currentRulesVersion, RulesGate } from "./components/RulesGate";
 import { NameGate } from "./components/NameGate";
 import { IntroCarousel } from "./components/IntroCarousel";
@@ -33,6 +16,25 @@ import {
   currentPhotoVideoConsentVersion,
   PersonalDataConsentGate
 } from "./components/PersonalDataConsentGate";
+
+// Only the home page ships in the first bundle; everything else loads on first visit.
+const TournamentsPage = lazy(() => import("./pages/TournamentsPage").then((m) => ({ default: m.TournamentsPage })));
+const TournamentPage = lazy(() => import("./pages/TournamentPage").then((m) => ({ default: m.TournamentPage })));
+const MyPage = lazy(() => import("./pages/MyPage").then((m) => ({ default: m.MyPage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const RatingPage = lazy(() => import("./pages/RatingPage").then((m) => ({ default: m.RatingPage })));
+const SupportPage = lazy(() => import("./pages/SupportPage").then((m) => ({ default: m.SupportPage })));
+const ClubPage = lazy(() => import("./pages/ClubPage").then((m) => ({ default: m.ClubPage })));
+const StatusesPage = lazy(() => import("./pages/StatusesPage").then((m) => ({ default: m.StatusesPage })));
+const AwardsPage = lazy(() => import("./pages/AwardsPage").then((m) => ({ default: m.AwardsPage })));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard })));
+const AdminTournaments = lazy(() => import("./pages/admin/AdminTournaments").then((m) => ({ default: m.AdminTournaments })));
+const TournamentForm = lazy(() => import("./pages/admin/TournamentForm").then((m) => ({ default: m.TournamentForm })));
+const DevilControlPage = lazy(() => import("./pages/admin/DevilControlPage").then((m) => ({ default: m.DevilControlPage })));
+const ParticipantsPage = lazy(() => import("./pages/admin/ParticipantsPage").then((m) => ({ default: m.ParticipantsPage })));
+const AdminCheckInPage = lazy(() => import("./pages/admin/AdminCheckInPage").then((m) => ({ default: m.AdminCheckInPage })));
+const AdminFillRatesPage = lazy(() => import("./pages/admin/AdminFillRatesPage").then((m) => ({ default: m.AdminFillRatesPage })));
+const AdminAnalyticsPage = lazy(() => import("./pages/admin/AdminAnalyticsPage").then((m) => ({ default: m.AdminAnalyticsPage })));
 
 const queryClient = new QueryClient();
 

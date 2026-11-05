@@ -18,7 +18,7 @@ export function ClubPage() {
         <p className="page-subtitle mt-4">
           Flop Club — клуб спортивного офлайн-покера в Барнауле. Здесь вы найдете атмосферу настоящего покера, бар, кальяны и кухню. В приложении можно смотреть ближайшие турниры, бронировать место и следить за своим рейтингом.
         </p>
-        <img className="club-photo mt-5" src="/flop-club-room.jpg" alt="Flop Club Барнаул" />
+        <img className="club-photo mt-5" src="/flop-club-room.webp" alt="Flop Club Барнаул" width={960} height={1280} loading="lazy" decoding="async" />
       </div>
 
       <a

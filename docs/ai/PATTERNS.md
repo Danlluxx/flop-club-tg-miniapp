@@ -35,6 +35,9 @@
 - Mobile Telegram viewport is the primary target; also check desktop admin pages.
 - Respect `prefers-reduced-motion` for nonessential animation.
 - The soft design is on for every screen. Admin screens add `apps/web/src/styles/soft-admin.css`, scoped to `.admin-area` (set in `Layout`) so it never reaches player screens. Local check with mock data: dev server `flop-soft-test`, open `/admin?admin=1`.
+- Images in `apps/web/public` are served as WebP (`awards`, `statuses`, club photos); the PNG/JPG originals stay for old clients. Convert new art with `cwebp -q 82 -alpha_q 90`, bump `awardAssetVersion` in `lib/tournamentAssets.ts`, and give below-the-fold `<img>` `width`/`height` and `loading="lazy"`.
+- Only `HomePage` and the gates are in the first bundle: every other page is `React.lazy` in `App.tsx`, with `Suspense` around the `Outlet` in `Layout`. Add new pages the same way.
+- Browser cache headers come from `infra/cloudflare-worker/src/index.js`: `/assets/*` one year immutable, other statics one week. Changing them needs a worker deploy, not a VPS release.
 - User-facing tournament copy is Russian unless a branded mechanic name is intentionally English.
 
 ## Admin participants screen

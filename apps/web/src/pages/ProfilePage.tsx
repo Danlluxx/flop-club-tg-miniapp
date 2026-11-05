@@ -105,7 +105,7 @@ function AwardBadge({ award }: { award: ClubAward }) {
   const title = tournamentDisplayTitle(award.title);
   return (
     <div className={award.unlocked ? "profile-award profile-award-open" : "profile-award"} title={title}>
-      <img src={awardImage(award.title, award.unlocked)} alt={title} />
+      <img src={awardImage(award.title, award.unlocked)} alt={title} width={520} height={520} loading="lazy" decoding="async" />
     </div>
   );
 }

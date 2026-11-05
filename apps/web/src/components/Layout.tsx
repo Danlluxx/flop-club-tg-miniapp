@@ -1,4 +1,6 @@
 import { DevilDealNotice } from "./DevilDealNotice";
+import { SkeletonCard } from "./Skeleton";
+import { Suspense } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { CalendarDays, Home, Shield, UserRound } from "lucide-react";
 import { isHalloweenSeason } from "../lib/seasonalTheme";
@@ -20,7 +22,9 @@ export function Layout({ user }: { user: User }) {
     <div className={`page-shell mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-6${halloween ? " halloween-season" : ""}${adminArea ? " admin-area" : ""}`}>
       <main className="flex-1">
         <DevilDealNotice />
-        <Outlet />
+        <Suspense fallback={<SkeletonCard />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <nav

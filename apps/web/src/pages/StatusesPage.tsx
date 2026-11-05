@@ -58,7 +58,7 @@ export function StatusesPage({ user }: { user: User }) {
           return (
             <div key={status.title} className={isCurrent ? "status-card status-card-current" : "status-card"}>
               <div className="flex min-w-0 items-center gap-3">
-                <img className={isLocked ? "status-icon status-icon-locked" : "status-icon"} src={status.icon} alt="" />
+                <img className={isLocked ? "status-icon status-icon-locked" : "status-icon"} src={status.icon} alt="" width={320} height={320} loading="lazy" decoding="async" />
                 <span className="truncate text-lg font-black uppercase text-white">{status.title}</span>
               </div>
               <div className="rating-number flex shrink-0 items-center gap-1.5 text-lg text-slate-500">

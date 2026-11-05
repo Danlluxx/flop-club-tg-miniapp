@@ -30,7 +30,7 @@ const tournamentDisplayTitles: Record<string, string> = {
   "FLOP DEVIL DEAL": "Flop Devil Deal"
 };
 
-const awardAssetVersion = "20261012-transparent";
+const awardAssetVersion = "20261105-webp";
 
 export function tournamentSlug(title: string) {
   return tournamentSlugs[title] ?? title.toLowerCase().replace(/\s+/g, "-");
@@ -41,10 +41,10 @@ export function tournamentDisplayTitle(title: string) {
 }
 
 export function tournamentEventImage(title: string) {
-  return `/awards/color/${tournamentSlug(title)}.png?v=${awardAssetVersion}`;
+  return `/awards/color/${tournamentSlug(title)}.webp?v=${awardAssetVersion}`;
 }
 
 export function awardImage(title: string, unlocked: boolean) {
-  if (title === "FLOP DEVIL DEAL") return "/awards/color/flop-devil-deal.png";
-  return `/awards/${unlocked ? "color" : "bw"}/${tournamentSlug(title)}.png?v=${awardAssetVersion}`;
+  if (title === "FLOP DEVIL DEAL") return "/awards/color/flop-devil-deal.webp";
+  return `/awards/${unlocked ? "color" : "bw"}/${tournamentSlug(title)}.webp?v=${awardAssetVersion}`;
 }
