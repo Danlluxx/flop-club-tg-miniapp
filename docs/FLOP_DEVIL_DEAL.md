@@ -121,6 +121,6 @@ node tools/run-devil-ui-checks.mjs
 | `tools/run-devil-ui-checks.mjs` | Запуск сценариев Playwright |
 | `docs/FLOP_DEVIL_DEAL.md` | Этот отчёт и инструкция |
 
-Иконка `apps/web/public/awards/color/flop-devil-deal.png` создана в предыдущем запросе и использована без изменения.
+Иконка `apps/web/public/awards/color/flop-devil-deal.webp` создана в предыдущем запросе и использована без изменения.
 
 Справочные материалы: [транзакции Prisma Client](https://www.prisma.io/docs/orm/v6/prisma-client/queries/transactions), [Node.js crypto.randomInt](https://nodejs.org/api/crypto.html#cryptorandomintmin-max-callback). Context7 не был доступен среди подключённых инструментов; использована официальная документация с совместимым API Prisma 5.

@@ -25,7 +25,7 @@ apps/web/src/components/DevilDealPanel.tsx
 apps/web/src/components/devilDeal.css
 apps/web/src/pages/admin/DevilControlPage.tsx
 apps/web/src/lib/tournamentRules.ts
-apps/web/public/awards/color/flop-devil-deal.png
+apps/web/public/awards/color/flop-devil-deal.webp
 ```
 
 ## Invariants

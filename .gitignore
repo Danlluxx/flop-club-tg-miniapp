@@ -5,3 +5,11 @@ dist
 .DS_Store
 coverage
 *.log
+.env.production
+output/
+outputs/
+tmp/
+tools/
+assets/
+.playwright-cli/
+*.tar.gz
