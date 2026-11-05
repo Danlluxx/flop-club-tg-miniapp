@@ -25,7 +25,7 @@ export const adminRouter = express.Router();
 adminRouter.use(requireAuth, requireAdmin);
 
 const analyticsQuerySchema = z.object({
-  period: z.enum(["week", "month"]).default("month"),
+  period: z.enum(["day", "week", "month"]).default("month"),
   anchor: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => !Number.isNaN(Date.parse(value))).optional()
 });
 
@@ -60,7 +60,7 @@ adminRouter.get("/analytics", requireAnalyticsOwner, async (req, res, next) => {
         }
       }
     });
-    res.json(buildAdminAnalytics(tournaments, query.period, query.anchor ?? today, today));
+    res.json(buildAdminAnalytics(tournaments, query.period, query.anchor, today));
   } catch (error) {
     next(error);
   }

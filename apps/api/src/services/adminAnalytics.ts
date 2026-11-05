@@ -2,7 +2,7 @@ import { TournamentStatus } from "@prisma/client";
 import { entriesByUser } from "./tournamentEntries.js";
 import { dateKey } from "./tournamentSchedule.js";
 
-export type AnalyticsPeriod = "week" | "month";
+export type AnalyticsPeriod = "day" | "week" | "month";
 
 type AnalyticsUser = {
   displayName: string | null;
@@ -39,6 +39,7 @@ function addDays(key: string, days: number) {
 }
 
 export function periodRange(period: AnalyticsPeriod, anchor: string) {
+  if (period === "day") return { from: anchor, to: anchor };
   if (period === "week") {
     const weekday = (new Date(`${anchor}T00:00:00.000Z`).getUTCDay() + 6) % 7;
     const from = addDays(anchor, -weekday);
@@ -81,6 +82,8 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
     reEntryRevenue,
     addOnRevenue,
     revenue: buyInRevenue + reEntryRevenue + addOnRevenue,
+    entriesByUser: entries,
+    addOnsByUser,
     spentByUser: new Map([...entries].map(([userId, count]) => [
       userId,
       tournament.buyIn + (count - 1) * tournament.reEntry + (addOnsByUser.get(userId) ?? 0) * tournament.addOnPrice
@@ -125,7 +128,19 @@ function displayName(user: AnalyticsUser) {
   return user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || user.telegramId;
 }
 
-export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: AnalyticsPeriod, anchor: string, today: string) {
+function rosterOf(item: HeldTournament, firstVisit: Map<string, string>) {
+  return [...item.figures.spentByUser]
+    .map(([userId, spent]) => ({
+      name: displayName(item.registrations.find((registration) => registration.userId === userId)!.user),
+      entries: item.figures.entriesByUser.get(userId) ?? 1,
+      addOns: item.figures.addOnsByUser.get(userId) ?? 0,
+      spent,
+      isNew: firstVisit.get(userId) === item.key
+    }))
+    .sort((left, right) => right.spent - left.spent || left.name.localeCompare(right.name, "ru-RU"));
+}
+
+export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: AnalyticsPeriod, requestedAnchor: string | undefined, today: string) {
   // A tournament counts as held once somebody was checked in, so upcoming ones never add to the money.
   const held: HeldTournament[] = tournaments
     .filter((tournament) => tournament.status !== TournamentStatus.CANCELLED)
@@ -140,8 +155,16 @@ export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: 
     }
   }
 
+  // Without a date the day view opens on the latest day that had a tournament: today is usually still empty.
+  const latestDay = held.filter((item) => item.key <= today).at(-1)?.key;
+  const anchor = requestedAnchor ?? (period === "day" ? latestDay : undefined) ?? today;
   const range = periodRange(period, anchor);
   const previous = previousRange(period, range);
+  // A format comes back on its weekday, so a day is compared with the same weekday a week earlier.
+  const comparison = period === "day" ? periodRange("day", addDays(range.from, -7)) : previous;
+  // Day arrows step over days without tournaments.
+  const dayBefore = period === "day" ? held.filter((item) => item.key < range.from).at(-1)?.key : undefined;
+  const dayAfter = period === "day" ? held.find((item) => item.key > range.to && item.key <= today)?.key : undefined;
 
   const trendRanges = [range];
   while (trendRanges.length < TREND_LENGTH) trendRanges.unshift(previousRange(period, trendRanges[0]));
@@ -181,11 +204,11 @@ export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: 
     from: range.from,
     to: range.to,
     isComplete: range.to < today,
-    hasNext: addDays(range.to, 1) <= today,
-    previousFrom: previous.from,
-    nextAnchor: addDays(range.to, 1),
+    hasNext: period === "day" ? Boolean(dayAfter) : addDays(range.to, 1) <= today,
+    previousFrom: dayBefore ?? previous.from,
+    nextAnchor: dayAfter ?? addDays(range.to, 1),
     summary: summarize(held, firstVisit, range),
-    previous: summarize(held, firstVisit, previous),
+    previous: summarize(held, firstVisit, comparison),
     trend: trendRanges.map((item) => {
       const summary = summarize(held, firstVisit, item);
       return { from: item.from, to: item.to, revenue: summary.revenue, tournaments: summary.tournaments, visits: summary.visits };
@@ -212,7 +235,8 @@ export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: 
       buyInRevenue: item.figures.buyInRevenue,
       reEntryRevenue: item.figures.reEntryRevenue,
       addOnRevenue: item.figures.addOnRevenue,
-      revenue: item.figures.revenue
+      revenue: item.figures.revenue,
+      roster: period === "day" ? rosterOf(item, firstVisit) : []
     }))
   };
 }

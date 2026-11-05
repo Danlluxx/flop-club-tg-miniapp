@@ -56,7 +56,7 @@ export type AdminStats = {
   }>;
 };
 
-export type AnalyticsPeriod = "week" | "month";
+export type AnalyticsPeriod = "day" | "week" | "month";
 
 type AnalyticsSummary = {
   revenue: number;
@@ -108,6 +108,7 @@ export type AdminAnalytics = {
     reEntryRevenue: number;
     addOnRevenue: number;
     revenue: number;
+    roster: Array<{ name: string; entries: number; addOns: number; spent: number; isNew: boolean }>;
   }>;
 };
 

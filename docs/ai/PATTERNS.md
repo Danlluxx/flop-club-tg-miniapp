@@ -50,6 +50,8 @@ A marked re-entry on an eliminated player returns them to the game (`addMarkedRe
 
 `apps/api/src/services/adminAnalytics.ts` estimates revenue from marks, not payments: checked-in players × `buyIn`, re-entries × `reEntry`, add-ons × `addOnPrice`, at each tournament's own prices, with no prize deduction. Entries come from `entriesByUser` (shared with the clock). A tournament falls in a period by its Barnaul date; weeks start on Monday.
 
+The day period is the per-tournament view: it opens on the latest held day, arrows skip days without tournaments, it compares with the same weekday a week earlier, and only it returns a per-player `roster` for each tournament.
+
 Revenue is owner-only: `requireAnalyticsOwner` (`apps/api/src/middleware/auth.ts`) allows just `danlluxx`, other admins get 403. The client asks `/api/admin/analytics/access` and hides the block and page; the server check is the real boundary.
 
 ## Registration QR message

@@ -498,6 +498,8 @@ html.soft .admin-area .bg-emerald\/15 {
 }
 
 /* ---------- Analytics ---------- */
+html.soft .analytics-period-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
 html.soft .analytics-hero,
 html.soft .analytics-value {
   color: var(--ink);

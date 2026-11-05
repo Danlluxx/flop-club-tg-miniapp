@@ -106,3 +106,50 @@ test("new players are those whose first visit falls in the period", () => {
   assert.equal(data.summary.newPlayers, 1);
   assert.equal(data.summary.returningPlayers, 1);
 });
+
+test("a day covers one Barnaul date and lists who brought how much", () => {
+  const data = buildAdminAnalytics([
+    tournament("old", "2026-10-27", [entry("a")]),
+    tournament("day", "2026-11-03", [entry("a", 2, 1), entry("b"), entry("c", 1, 0, false)]),
+    tournament("next", "2026-11-04", [entry("b")])
+  ], "day", "2026-11-03", "2026-11-05");
+  assert.deepEqual([data.from, data.to], ["2026-11-03", "2026-11-03"]);
+  assert.equal(data.summary.tournaments, 1);
+  assert.equal(data.summary.revenue, 2300);
+  assert.equal(data.summary.noShows, 1);
+  assert.deepEqual(data.tournaments[0].roster, [
+    { name: "a", entries: 2, addOns: 1, spent: 1800, isNew: false },
+    { name: "b", entries: 1, addOns: 0, spent: 500, isNew: true }
+  ]);
+});
+
+test("a day compares with the same weekday a week earlier", () => {
+  const data = buildAdminAnalytics([
+    tournament("week-ago", "2026-10-27", [entry("a")]),
+    tournament("yesterday", "2026-11-02", [entry("a"), entry("b")]),
+    tournament("day", "2026-11-03", [entry("a")])
+  ], "day", "2026-11-03", "2026-11-05");
+  assert.equal(data.previous.revenue, 500);
+  assert.equal(data.trend.length, 12);
+  assert.equal(data.trend.at(-2).revenue, 1000);
+});
+
+test("day arrows skip empty days and stop at the last held day", () => {
+  const held = [
+    tournament("first", "2026-10-30", [entry("a")]),
+    tournament("middle", "2026-11-02", [entry("a")]),
+    tournament("last", "2026-11-04", [entry("a")])
+  ];
+  const middle = buildAdminAnalytics(held, "day", "2026-11-02", "2026-11-05");
+  assert.equal(middle.previousFrom, "2026-10-30");
+  assert.equal(middle.nextAnchor, "2026-11-04");
+  assert.equal(middle.hasNext, true);
+  assert.equal(buildAdminAnalytics(held, "day", "2026-11-04", "2026-11-05").hasNext, false);
+});
+
+test("without a date the day view opens on the latest held day, others on today", () => {
+  const held = [tournament("last", "2026-11-04", [entry("a")])];
+  assert.equal(buildAdminAnalytics(held, "day", undefined, "2026-11-05").from, "2026-11-04");
+  assert.equal(buildAdminAnalytics([], "day", undefined, "2026-11-05").from, "2026-11-05");
+  assert.equal(buildAdminAnalytics(held, "week", undefined, "2026-11-05").from, "2026-11-02");
+});
