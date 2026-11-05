@@ -41,6 +41,22 @@ function searchWhere(search: string): Prisma.UserWhereInput | undefined {
   };
 }
 
+// Every player can read the leaderboard, so a row exposes only what the client shows.
+// Never spread the whole User here: it carries telegramId, email and consent data.
+function toLeaderboardEntry(user: RatedUser) {
+  return {
+    id: user.id,
+    username: user.username,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    displayName: user.displayName,
+    photoUrl: user.photoUrl,
+    ratingPoints: user.ratingPoints,
+    knockouts: user.knockouts,
+    rank: user.rank
+  };
+}
+
 function rankUsers(users: Array<User & { ratingPoints: number; knockouts: number }>): RatedUser[] {
   return users
     .sort((a, b) => b.ratingPoints - a.ratingPoints || b.knockouts - a.knockouts || a.createdAt.getTime() - b.createdAt.getTime())
@@ -160,7 +176,7 @@ ratingRouter.get("/leaderboard", requireAuth, async (req, res, next) => {
     const currentRank = leaderboard.allUsers.findIndex((user) => user.id === req.user!.id) + 1;
 
     res.json({
-      leaders: leaderboard.leaders,
+      leaders: leaderboard.leaders.map(toLeaderboardEntry),
       currentUserRank: currentRank > 0 ? currentRank : null,
       scope,
       month: "month" in leaderboard ? leaderboard.month : null

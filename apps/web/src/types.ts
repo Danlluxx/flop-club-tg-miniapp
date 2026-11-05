@@ -118,7 +118,11 @@ export type TournamentLiveState = {
   knockouts: Knockout[];
 };
 
-export type RatingLeaderboardEntry = User & {
+// The leaderboard is visible to every player, so it carries only what a row shows.
+export type RatingLeaderboardEntry = Pick<
+  User,
+  "id" | "username" | "firstName" | "lastName" | "displayName" | "photoUrl" | "ratingPoints" | "knockouts"
+> & {
   rank: number | string;
 };
 

@@ -5,7 +5,7 @@ import { api, type LeaderboardParams } from "../lib/api";
 import { RatingIcon } from "./RatingIcon";
 import type { RatingLeaderboardEntry, User } from "../types";
 
-function userName(user: User) {
+function userName(user: Pick<User, "displayName" | "username" | "firstName" | "lastName">) {
   return user.displayName || user.username || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Игрок";
 }
 
