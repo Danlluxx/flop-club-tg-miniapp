@@ -724,6 +724,11 @@ export function ParticipantsPage() {
                   {liveState?.tournament.addOnEnabled || item.addOnCount > 0 ? (
                     <span className="rounded-[0.55rem] bg-violet/15 px-2.5 py-1 text-violet">Add-on: {item.addOnCount}</span>
                   ) : null}
+                  {!liveState?.tournament.mechanics && item.issuedChips > 0 ? (
+                    <span className="rounded-[0.55rem] bg-emerald/15 px-2.5 py-1 text-emerald">
+                      +{item.issuedChips.toLocaleString("ru-RU")} к стеку
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

@@ -69,6 +69,8 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
     if (!tournament) {
       res.json({
         count: 0,
+        entries: 0,
+        bonusChips: 0,
         capacity: 50,
         tournamentId: null,
         tournamentTitle: null
@@ -84,8 +86,19 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       }
     });
 
+    // Chips stay in play after a bust-out, so the clock divides all entries by the players left.
+    const [entries, bonus] = await Promise.all([
+      prisma.registration.count({ where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE } }),
+      prisma.tournamentGameEvent.aggregate({
+        where: { tournamentId: tournament.id, type: "STACK_BONUS", registration: { status: RegistrationStatus.ACTIVE } },
+        _sum: { chips: true }
+      })
+    ]);
+
     res.json({
       count,
+      entries,
+      bonusChips: bonus._sum.chips ?? 0,
       capacity: tournament.maxParticipants,
       tournamentId: tournament.id,
       tournamentTitle: tournament.title
