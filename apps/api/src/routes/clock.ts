@@ -49,6 +49,17 @@ export function clockChipTotals(
   return { entries, addOnTotal: addOns * addOnChips };
 }
 
+// Everyone checked in before 19:10 Barnaul time (on the tournament's day) gets this many extra chips.
+const EARLY_CHECK_IN_MINUTES = 19 * 60 + 10;
+const EARLY_CHECK_IN_CHIPS = 10_000;
+
+export function earlyCheckInBonus(checkedInAt: (Date | null)[], startsAt: Date) {
+  const localDayStart = Math.floor((startsAt.getTime() + BARNAUL_UTC_OFFSET_MS) / DAY_MS) * DAY_MS;
+  const cutoff = localDayStart + EARLY_CHECK_IN_MINUTES * 60_000 - BARNAUL_UTC_OFFSET_MS;
+  const count = checkedInAt.filter((value) => value && value.getTime() < cutoff).length;
+  return { count, chips: count * EARLY_CHECK_IN_CHIPS };
+}
+
 clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
   try {
     const window = currentTournamentWindow();
@@ -103,7 +114,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
     const [registrations, bonus] = await Promise.all([
       prisma.registration.findMany({
         where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } },
-        select: { userId: true, entryNumber: true, addOnCount: true }
+        select: { userId: true, entryNumber: true, addOnCount: true, checkedInAt: true }
       }),
       prisma.tournamentGameEvent.aggregate({
         where: { tournamentId: tournament.id, type: "STACK_BONUS", registration: { status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } } },
@@ -113,10 +124,14 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
 
     const { entries, addOnTotal } = clockChipTotals(registrations, tournament.addOnChips);
 
+    const earlyBird = earlyCheckInBonus(registrations.map((registration) => registration.checkedInAt), tournament.startsAt);
+
     res.json({
       count,
       entries,
-      bonusChips: (bonus._sum.chips ?? 0) + addOnTotal,
+      bonusChips: (bonus._sum.chips ?? 0) + addOnTotal + earlyBird.chips,
+      earlyBirdCount: earlyBird.count,
+      earlyBirdChips: earlyBird.chips,
       capacity: tournament.maxParticipants,
       tournamentId: tournament.id,
       tournamentTitle: tournament.title
