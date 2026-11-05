@@ -276,7 +276,8 @@ async function mergeDuplicateScheduledTournaments(
   const duplicateTournaments = await tx.tournament.findMany({
     where: {
       id: { startsWith: `${dateKeyValue}-`, not: expectedTournamentId },
-      startsAt: { gte: range.start, lt: range.end }
+      startsAt: { gte: range.start, lt: range.end },
+      scheduleLocked: false
     },
     select: { id: true }
   });
@@ -304,7 +305,8 @@ async function deleteEmptyScheduledTournamentsForDate(
   const tournaments = await tx.tournament.findMany({
     where: {
       id: { startsWith: `${dateKeyValue}-` },
-      startsAt: { gte: range.start, lt: range.end }
+      startsAt: { gte: range.start, lt: range.end },
+      scheduleLocked: false
     },
     select: {
       id: true,
@@ -449,6 +451,8 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
 
       const existingExpected = await tx.tournament.findUnique({ where: { id: String(id) } });
       if (existingExpected) {
+        // Турнир, сохранённый админом, расписание больше не перезаписывает.
+        if (existingExpected.scheduleLocked) continue;
         if (existingExpected.mechanics) {
           await tx.tournament.update({ where: { id: String(id) }, data: {
             buyIn: data.buyIn,
@@ -475,6 +479,8 @@ export async function ensureScheduledTournaments(from: Date, to: Date) {
         },
         orderBy: { createdAt: "asc" }
       });
+
+      if (existingForDate?.scheduleLocked) continue;
 
       if (existingForDate) {
         await tx.tournament.update({

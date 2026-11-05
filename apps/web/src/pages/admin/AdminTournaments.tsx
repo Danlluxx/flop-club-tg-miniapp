@@ -73,7 +73,7 @@ export function AdminTournaments() {
             <div className="mt-4 flex gap-2">
               <Link to={`/admin/tournaments/${item.id}/edit`} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Edit3 className="h-4 w-4" /></Link>
               <Link to={`/admin/tournaments/${item.id}/participants`} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Users className="h-4 w-4" /></Link>
-              <button onClick={() => remove.mutate(item.id)} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-rose-400/15 text-rose-200"><Trash2 className="h-4 w-4" /></button>
+              <button onClick={() => remove.mutate(item.id)} className="tap ml-auto grid h-10 w-10 place-items-center rounded-[0.55rem] bg-rose-400/15 text-rose-200"><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>
         ))}

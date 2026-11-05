@@ -4,7 +4,7 @@ import { Prisma, RegistrationStatus, TournamentProfile, TournamentStatus } from 
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { TOURNAMENT_MAX_PARTICIPANTS, cancelRegistration, getTournament, registerForTournament, tournamentInclude } from "../services/tournaments.js";
-import { dateKey, ensureScheduledTournaments } from "../services/tournamentSchedule.js";
+import { ensureScheduledTournaments } from "../services/tournamentSchedule.js";
 import { AppError, notFound } from "../utils/errors.js";
 
 import { mechanicsSchema } from "../services/tournamentMechanics.js";
@@ -116,7 +116,10 @@ tournamentsRouter.patch("/:id", requireAuth, requireAdmin, async (req, res, next
         const mechanics = data.mechanics ?? old.mechanics;
         if (mechanics) { const rules = mechanicsSchema.parse(mechanics); if (new Date(rules.registrationClosesAt) <= (data.startsAt ?? old.startsAt)) throw new AppError(400, "Некорректное время закрытия", "INVALID_CUTOFF"); data.lateRegistrationEndsAt = new Date(rules.registrationClosesAt); data.prizePool = 0; }
       }
-      return tx.tournament.update({ where: { id }, data, include: tournamentInclude });
+      const startsAt = data.startsAt ?? old.startsAt;
+      const lateEndsAt = data.lateRegistrationEndsAt === undefined ? old.lateRegistrationEndsAt : data.lateRegistrationEndsAt;
+      if (lateEndsAt && lateEndsAt < startsAt) throw new AppError(400, "Поздняя регистрация не может закончиться раньше старта", "INVALID_LATE_REGISTRATION");
+      return tx.tournament.update({ where: { id }, data: { ...data, scheduleLocked: true }, include: tournamentInclude });
     });
     console.log(`[tournament:update] admin=${req.user!.id} tournament=${tournament.id}`);
     res.json(tournament);
@@ -133,8 +136,10 @@ tournamentsRouter.delete("/:id", requireAuth, requireAdmin, async (req, res, nex
       await lockTournament(tx, id);
       if (await tx.tournamentGameEvent.count({ where: { tournamentId: id } })) throw new AppError(409, "Турнир с игровым журналом можно отменить, но нельзя удалить", "EVENT_HISTORY_PROTECTED");
       if (/^\d{4}-\d{2}-\d{2}-/.test(id)) {
+        // Дата расписания зашита в id: турнир могли перенести на другой день.
+        const scheduledDateKey = id.slice(0, 10);
         await tx.deletedScheduledTournament.upsert({
-          where: { dateKey: dateKey(tournament.startsAt) },
+          where: { dateKey: scheduledDateKey },
           update: {
             tournamentId: id,
             title: tournament.title,
@@ -142,7 +147,7 @@ tournamentsRouter.delete("/:id", requireAuth, requireAdmin, async (req, res, nex
             deletedAt: new Date()
           },
           create: {
-            dateKey: dateKey(tournament.startsAt),
+            dateKey: scheduledDateKey,
             tournamentId: id,
             title: tournament.title,
             deletedByUserId: req.user!.id

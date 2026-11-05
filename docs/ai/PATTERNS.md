@@ -17,6 +17,7 @@
 - Admin operations must be idempotent where retries are possible and must preserve the event/history trail.
 - Time rules use explicit timestamps/time zones; production tournament dates are interpreted for `Asia/Barnaul`.
 - When changing defaults, also decide whether already-created tournament rows need a safe synchronization path.
+- Schedule sync overwrites scheduled rows on every run unless `Tournament.scheduleLocked` is set. The admin PATCH sets it, so a saved tournament no longer receives schedule defaults; change such a row through the form.
 
 ## API and database pattern
 

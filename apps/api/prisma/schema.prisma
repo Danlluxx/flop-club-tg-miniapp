@@ -93,6 +93,7 @@ model Tournament {
   knockouts              Knockout[]
   mechanics              Json?
   blindLevelIndex        Int                        @default(0)
+  scheduleLocked         Boolean                    @default(false)
   gameEvents             TournamentGameEvent[]
   reminders              TournamentReminder[]
   createdAt              DateTime                   @default(now())

@@ -175,9 +175,16 @@ export function TournamentPage() {
       </button>
 
       <div className="tournament-rule-stack">
+        {data.description ? (
+          <section className="tournament-rule-section">
+            <h2>О турнире</h2>
+            <p>{data.description}</p>
+          </section>
+        ) : null}
+
         <section className="tournament-rule-section">
           <h2>Где проходит турнир?</h2>
-          <p className="rule-location"><MapPin className="h-5 w-5 shrink-0" />Flop Club, Барнаул, ул. Геблера 33Б</p>
+          <p className="rule-location"><MapPin className="h-5 w-5 shrink-0" />{data.location === "Flop Club, Барнаул" ? "Flop Club, Барнаул, ул. Геблера 33Б" : data.location}</p>
         </section>
 
         <section className="tournament-rule-section">

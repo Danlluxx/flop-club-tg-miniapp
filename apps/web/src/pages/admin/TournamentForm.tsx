@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
@@ -10,6 +10,7 @@ type FormState = {
   title: string;
   description: string;
   startsAt: string;
+  lateRegistrationEndsAt: string;
   location: string;
   buyIn: string;
   reEntry: string;
@@ -27,6 +28,7 @@ const initial: FormState = {
   title: "",
   description: "",
   startsAt: "",
+  lateRegistrationEndsAt: "",
   location: "Flop Club, Барнаул",
   buyIn: "500",
   reEntry: "500",
@@ -40,24 +42,45 @@ const initial: FormState = {
   allowCancellation: true
 };
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-1.5 text-xs font-semibold text-slate-400">
+      {label}
+      {children}
+      {hint ? <span className="font-medium text-slate-500">{hint}</span> : null}
+    </label>
+  );
+}
+
+// Сдвигает конец поздней регистрации вместе со стартом, чтобы перенос не закрыл регистрацию.
+function shiftedLateRegistration(form: FormState, startsAt: string) {
+  if (!form.lateRegistrationEndsAt || !form.startsAt || !startsAt) return form.lateRegistrationEndsAt;
+  const delta = Date.parse(barnaulDateTimeInputToIso(startsAt)) - Date.parse(barnaulDateTimeInputToIso(form.startsAt));
+  return toBarnaulDateTimeInput(new Date(Date.parse(barnaulDateTimeInputToIso(form.lateRegistrationEndsAt)) + delta));
+}
+
 export function TournamentForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const [form, setForm] = useState(initial);
+  const [hydrated, setHydrated] = useState(!isEdit);
   const [mechanicsText, setMechanicsText] = useState("");
   const template = useQuery({ queryKey: ["mechanics-template"], queryFn: api.mechanicsTemplate });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { data } = useQuery({ queryKey: ["tournament", id], queryFn: () => api.tournament(id!), enabled: isEdit });
+  const { data, isFetching, isError } = useQuery({ queryKey: ["tournament", id], queryFn: () => api.tournament(id!), enabled: isEdit });
 
+  // Заполняем форму один раз свежими данными, иначе фоновое обновление сотрёт ввод.
   useEffect(() => {
-    if (!data) return;
+    if (!data || isFetching || hydrated) return;
+    setHydrated(true);
     setMechanicsText(data.mechanics ? JSON.stringify(data.mechanics, null, 2) : "");
     setForm({
       title: data.title,
       description: data.description,
       startsAt: toBarnaulDateTimeInput(data.startsAt),
+      lateRegistrationEndsAt: data.lateRegistrationEndsAt ? toBarnaulDateTimeInput(data.lateRegistrationEndsAt) : "",
       location: data.location,
       buyIn: String(data.buyIn),
       reEntry: String(data.reEntry),
@@ -70,15 +93,18 @@ export function TournamentForm() {
       status: data.status,
       allowCancellation: data.allowCancellation
     });
-  }, [data]);
+  }, [data, isFetching, hydrated]);
 
   const save = useMutation({
     mutationFn: () => {
       const mechanics = mechanicsText.trim() ? JSON.parse(mechanicsText) : undefined;
       if (data?.mechanics && !mechanics) throw new Error("Механики активного формата нельзя удалить");
       const changed = JSON.stringify(mechanics) !== JSON.stringify(data?.mechanics);
+      const { lateRegistrationEndsAt, ...fields } = form;
+      if (!mechanics && lateRegistrationEndsAt && lateRegistrationEndsAt < form.startsAt) throw new Error("Поздняя регистрация не может закончиться раньше старта");
       const payload = {
-        ...form,
+        ...fields,
+        ...(mechanics ? {} : { lateRegistrationEndsAt: lateRegistrationEndsAt ? barnaulDateTimeInputToIso(lateRegistrationEndsAt) : null }),
         ...((!isEdit || changed) && mechanics ? { mechanics } : {}),
         startsAt: barnaulDateTimeInputToIso(form.startsAt),
         buyIn: Number(form.buyIn),
@@ -93,7 +119,12 @@ export function TournamentForm() {
     },
     onSuccess: async () => {
       showToast(isEdit ? "Турнир обновлён" : "Турнир создан");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "tournaments"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "tournaments"] }),
+        queryClient.invalidateQueries({ queryKey: ["tournaments"] }),
+        queryClient.invalidateQueries({ queryKey: ["home", "nextTournament"] }),
+        queryClient.invalidateQueries({ queryKey: ["tournament", id] })
+      ]);
       navigate("/admin/tournaments");
     },
     onError: (error) => showToast(error.message, "error")
@@ -105,6 +136,10 @@ export function TournamentForm() {
   }
 
   const fieldClass = "w-full rounded-[0.75rem] border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-electric";
+
+  if (isEdit && !hydrated) {
+    return <div className="app-panel p-5 text-sm font-semibold text-slate-400">{isError ? "Турнир не найден." : "Загрузка…"}</div>;
+  }
 
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -126,24 +161,47 @@ export function TournamentForm() {
         <textarea className={fieldClass} aria-label="Правила специальных механик" rows={12} value={mechanicsText} onChange={e => setMechanicsText(e.target.value)}/>
         <span className="text-xs text-slate-400">Для другого события измените дату старта и registrationClosesAt. После регистрации участников правила и время фиксируются. Сервер проверяет конфигурацию.</span>
       </label>}
-      <input className={fieldClass} placeholder="Название" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-      <textarea className={fieldClass} placeholder="Описание" rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-      <input className={fieldClass} type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
-      <input className={fieldClass} placeholder="Место" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+      <Field label="Название" hint="Правила, стек и картинка привязаны к точному названию. С другим названием турнир получит стандартные правила.">
+        <input className={fieldClass} required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      </Field>
+      <Field label="Описание">
+        <textarea className={fieldClass} required minLength={2} rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      </Field>
+      <Field label="Старт (время Барнаула)">
+        <input className={fieldClass} type="datetime-local" required value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value, lateRegistrationEndsAt: shiftedLateRegistration(form, e.target.value) })} />
+      </Field>
+      {!mechanicsText && <Field label="Конец поздней регистрации" hint="Если оставить пустым, регистрация закроется через 3 часа после старта.">
+        <input className={fieldClass} type="datetime-local" value={form.lateRegistrationEndsAt} onChange={(e) => setForm({ ...form, lateRegistrationEndsAt: e.target.value })} />
+      </Field>}
+      <Field label="Место">
+        <input className={fieldClass} required minLength={2} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
-        <input className={fieldClass} type="number" placeholder="Вход" value={form.buyIn} onChange={(e) => setForm({ ...form, buyIn: e.target.value })} />
-        <input className={fieldClass} type="number" placeholder="Re-entry" value={form.reEntry} onChange={(e) => setForm({ ...form, reEntry: e.target.value })} />
-        <input className={fieldClass} type="number" placeholder="Гарантия" value={form.prizePool} onChange={(e) => setForm({ ...form, prizePool: e.target.value })} />
-        <input className={fieldClass} type="number" placeholder="Рейтинг-пул" value={form.ratingPool} onChange={(e) => setForm({ ...form, ratingPool: e.target.value })} />
+        <Field label="Вход, ₽">
+          <input className={fieldClass} type="number" required min={0} value={form.buyIn} onChange={(e) => setForm({ ...form, buyIn: e.target.value })} />
+        </Field>
+        <Field label="Re-entry, ₽">
+          <input className={fieldClass} type="number" required min={0} value={form.reEntry} onChange={(e) => setForm({ ...form, reEntry: e.target.value })} />
+        </Field>
+        <Field label="Гарантия, ₽">
+          <input className={fieldClass} type="number" required min={0} value={form.prizePool} onChange={(e) => setForm({ ...form, prizePool: e.target.value })} />
+        </Field>
+        <Field label="Рейтинг-пул">
+          <input className={fieldClass} type="number" required min={0} value={form.ratingPool} onChange={(e) => setForm({ ...form, ratingPool: e.target.value })} />
+        </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <input className={fieldClass} type="number" min={1} max={50} placeholder="Лимит до 50" value={form.maxParticipants} onChange={(e) => setForm({ ...form, maxParticipants: e.target.value })} />
-        <select className={fieldClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TournamentStatus })}>
-          <option value="OPEN">Открыт</option>
-          <option value="CLOSED">Закрыт</option>
-          <option value="CANCELLED">Отменён</option>
-          <option value="FINISHED">Завершён</option>
-        </select>
+        <Field label="Лимит мест, до 50">
+          <input className={fieldClass} type="number" required min={1} max={50} value={form.maxParticipants} onChange={(e) => setForm({ ...form, maxParticipants: e.target.value })} />
+        </Field>
+        <Field label="Статус">
+          <select className={fieldClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TournamentStatus })}>
+            <option value="OPEN">Открыт</option>
+            <option value="CLOSED">Закрыт</option>
+            <option value="CANCELLED">Отменён</option>
+            <option value="FINISHED">Завершён</option>
+          </select>
+        </Field>
       </div>
       <label className="app-panel flex items-center justify-between p-4 text-sm">
         Add-on после поздней регистрации
@@ -159,8 +217,12 @@ export function TournamentForm() {
       </label>
       {form.addOnEnabled ? (
         <div className="grid grid-cols-2 gap-3">
-          <input className={fieldClass} type="number" min={0} placeholder="Цена Add-on" value={form.addOnPrice} onChange={(e) => setForm({ ...form, addOnPrice: e.target.value })} />
-          <input className={fieldClass} type="number" min={0} placeholder="Фишки Add-on" value={form.addOnChips} onChange={(e) => setForm({ ...form, addOnChips: e.target.value })} />
+          <Field label="Цена Add-on, ₽">
+            <input className={fieldClass} type="number" required min={0} value={form.addOnPrice} onChange={(e) => setForm({ ...form, addOnPrice: e.target.value })} />
+          </Field>
+          <Field label="Фишки Add-on">
+            <input className={fieldClass} type="number" required min={0} value={form.addOnChips} onChange={(e) => setForm({ ...form, addOnChips: e.target.value })} />
+          </Field>
         </div>
       ) : null}
       <label className="app-panel flex items-center justify-between p-4 text-sm">
