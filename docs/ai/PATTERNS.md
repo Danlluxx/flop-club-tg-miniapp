@@ -42,6 +42,12 @@
 
 A marked re-entry on an eliminated player returns them to the game (`addMarkedReEntry`, `apps/api/src/services/liveTournament.ts`): new entry and life, first free seat, and players eliminated after them move up a place. Blocked for finished tournaments. Removing that entry later leaves the player in the game.
 
+## Revenue analytics
+
+`apps/api/src/services/adminAnalytics.ts` estimates revenue from marks, not payments: checked-in players × `buyIn`, re-entries × `reEntry`, add-ons × `addOnPrice`, at each tournament's own prices, with no prize deduction. Entries come from `entriesByUser` (shared with the clock). A tournament falls in a period by its Barnaul date; weeks start on Monday.
+
+Revenue is owner-only: `requireAnalyticsOwner` (`apps/api/src/middleware/auth.ts`) allows just `danlluxx`, other admins get 403. The client asks `/api/admin/analytics/access` and hides the block and page; the server check is the real boundary.
+
 ## Registration QR message
 
 Every tournament gets the same bot text, built only in `buildRegistrationCaption` (`apps/api/src/services/telegramRegistrationQr.ts`). Only the title, date and entry number vary; do not add per-tournament rules, prices or chips here.

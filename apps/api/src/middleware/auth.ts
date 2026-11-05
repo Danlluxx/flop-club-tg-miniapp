@@ -39,3 +39,18 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   }
   next();
 }
+
+// Revenue is for the club owner only: other admins run tournaments but must not see the money.
+const ANALYTICS_OWNER_USERNAME = "danlluxx";
+
+export function isAnalyticsOwner(username?: string | null) {
+  return username?.trim().replace(/^@/, "").toLowerCase() === ANALYTICS_OWNER_USERNAME;
+}
+
+export function requireAnalyticsOwner(req: Request, _res: Response, next: NextFunction) {
+  if (!isAnalyticsOwner(req.user?.username)) {
+    next(new AppError(403, "Analytics access required", "ANALYTICS_ACCESS_REQUIRED"));
+    return;
+  }
+  next();
+}

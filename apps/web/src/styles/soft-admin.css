@@ -496,3 +496,98 @@ html.soft .admin-area .text-emerald {
 html.soft .admin-area .bg-emerald\/15 {
   background-color: rgba(134, 227, 181, 0.14);
 }
+
+/* ---------- Analytics ---------- */
+html.soft .analytics-hero,
+html.soft .analytics-value {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+html.soft .analytics-hero { font-size: clamp(1.7rem, 8.5vw, 2.2rem); }
+html.soft .analytics-value { font-size: clamp(1.05rem, 4.6vw, 1.25rem); }
+
+/* Money is never cut off: on the narrowest phones the two periods stack. */
+html.soft .analytics-revenue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+html.soft .analytics-part-buy-in { background: #ef4a60; }
+html.soft .analytics-part-re-entry { background: #c4851a; }
+html.soft .analytics-part-add-on { background: #7d72f2; }
+
+html.soft .analytics-stack {
+  display: flex;
+  height: 0.6rem;
+  gap: 2px;
+}
+
+html.soft .analytics-stack span {
+  min-width: 4px;
+  flex-basis: 0;
+  border-radius: 2px;
+}
+
+html.soft .analytics-stack span:first-child { border-radius: 4px 2px 2px 4px; }
+html.soft .analytics-stack span:last-child { border-radius: 2px 4px 4px 2px; }
+html.soft .analytics-stack span:only-child { border-radius: 4px; }
+
+html.soft .analytics-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+html.soft .analytics-bars {
+  display: grid;
+  height: 7.5rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 2px;
+  border-bottom: 1px solid var(--hair);
+}
+
+/* The whole column is the tap target, the mark inside stays thin. */
+html.soft .analytics-bar {
+  display: flex;
+  height: 100%;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 4px 4px 0 0;
+}
+
+html.soft .analytics-bar:hover,
+html.soft .analytics-bar:focus-visible {
+  background: var(--surface);
+  outline: none;
+}
+
+html.soft .analytics-bar span {
+  display: block;
+  width: min(100%, 1.1rem);
+  border-radius: 4px 4px 0 0;
+  background: rgba(239, 74, 96, 0.38);
+}
+
+html.soft .analytics-bar-active span {
+  background: #ef4a60;
+}
+
+html.soft .analytics-meter {
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+html.soft .analytics-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #ef4a60;
+}

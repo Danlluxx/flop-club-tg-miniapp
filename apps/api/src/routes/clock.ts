@@ -2,6 +2,7 @@ import express from "express";
 import { RegistrationStatus, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
+import { entriesByUser } from "../services/tournamentEntries.js";
 import { AppError } from "../utils/errors.js";
 
 export const clockRouter = express.Router();
@@ -39,20 +40,12 @@ export function currentTournamentWindow(now = Date.now()) {
   return { from: new Date(from), to: new Date(from + DAY_MS) };
 }
 
-// A marked re-entry bumps entryNumber on the same row, a self-service one adds a row that carries
-// the next number, so a player's entries are their highest entryNumber rather than a row count.
 export function clockChipTotals(
   registrations: { userId: string; entryNumber: number; addOnCount: number }[],
   addOnChips: number
 ) {
-  const entriesByUser = new Map<string, number>();
-  let addOns = 0;
-  for (const registration of registrations) {
-    entriesByUser.set(registration.userId, Math.max(entriesByUser.get(registration.userId) ?? 0, registration.entryNumber));
-    addOns += registration.addOnCount;
-  }
-  let entries = 0;
-  for (const count of entriesByUser.values()) entries += count;
+  const addOns = registrations.reduce((sum, registration) => sum + registration.addOnCount, 0);
+  const entries = [...entriesByUser(registrations).values()].reduce((sum, count) => sum + count, 0);
   return { entries, addOnTotal: addOns * addOnChips };
 }
 

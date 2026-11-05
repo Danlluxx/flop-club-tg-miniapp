@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { RegistrationStatus, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
-import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { isAnalyticsOwner, requireAdmin, requireAnalyticsOwner, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { registerForTournament } from "../services/tournaments.js";
 import { applyTournamentRatingResults, getRatingAwards } from "../services/rating.js";
@@ -15,6 +15,7 @@ import {
   moveLiveSeat,
   recordElimination
 } from "../services/liveTournament.js";
+import { buildAdminAnalytics } from "../services/adminAnalytics.js";
 import { buildGameDayRatingWorkbook } from "../services/dayReport.js";
 import { dateKey } from "../services/tournamentSchedule.js";
 import { getTournamentRatingText, publishTournamentRatingResults } from "../services/telegramRatingResults.js";
@@ -22,6 +23,48 @@ import { issueDevilAddOn, removeDevilAddOn } from "../services/devilDeal.js";
 
 export const adminRouter = express.Router();
 adminRouter.use(requireAuth, requireAdmin);
+
+const analyticsQuerySchema = z.object({
+  period: z.enum(["week", "month"]).default("month"),
+  anchor: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => !Number.isNaN(Date.parse(value))).optional()
+});
+
+adminRouter.get("/analytics/access", (req, res) => {
+  res.json({ allowed: isAnalyticsOwner(req.user?.username) });
+});
+
+adminRouter.get("/analytics", requireAnalyticsOwner, async (req, res, next) => {
+  try {
+    const query = analyticsQuerySchema.parse(req.query);
+    const today = dateKey(new Date());
+    const tournaments = await prisma.tournament.findMany({
+      where: { registrations: { some: { checkedInAt: { not: null } } } },
+      select: {
+        id: true,
+        title: true,
+        startsAt: true,
+        status: true,
+        buyIn: true,
+        reEntry: true,
+        addOnPrice: true,
+        maxParticipants: true,
+        registrations: {
+          where: { status: RegistrationStatus.ACTIVE },
+          select: {
+            userId: true,
+            entryNumber: true,
+            addOnCount: true,
+            checkedInAt: true,
+            user: { select: { displayName: true, firstName: true, lastName: true, username: true, telegramId: true } }
+          }
+        }
+      }
+    });
+    res.json(buildAdminAnalytics(tournaments, query.period, query.anchor ?? today, today));
+  } catch (error) {
+    next(error);
+  }
+});
 
 adminRouter.get("/stats", async (_req, res, next) => {
   try {

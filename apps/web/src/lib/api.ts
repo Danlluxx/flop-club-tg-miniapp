@@ -56,6 +56,61 @@ export type AdminStats = {
   }>;
 };
 
+export type AnalyticsPeriod = "week" | "month";
+
+type AnalyticsSummary = {
+  revenue: number;
+  buyInRevenue: number;
+  reEntryRevenue: number;
+  addOnRevenue: number;
+  tournaments: number;
+  uniquePlayers: number;
+  newPlayers: number;
+  returningPlayers: number;
+  visits: number;
+  entries: number;
+  reEntries: number;
+  addOns: number;
+  registered: number;
+  noShows: number;
+  fillRate: number;
+  averagePlayers: number;
+  averageRevenue: number;
+};
+
+export type AdminAnalytics = {
+  period: AnalyticsPeriod;
+  from: string;
+  to: string;
+  isComplete: boolean;
+  hasNext: boolean;
+  previousFrom: string;
+  nextAnchor: string;
+  summary: AnalyticsSummary;
+  previous: AnalyticsSummary;
+  trend: Array<{ from: string; to: string; revenue: number; tournaments: number; visits: number }>;
+  formats: Array<{ title: string; tournaments: number; players: number; revenue: number; averagePlayers: number; averageRevenue: number }>;
+  weekdays: Array<{ weekday: number; tournaments: number; averagePlayers: number; averageRevenue: number }>;
+  topPlayers: Array<{ name: string; visits: number; spent: number }>;
+  tournaments: Array<{
+    id: string;
+    title: string;
+    startsAt: string;
+    buyIn: number;
+    reEntry: number;
+    addOnPrice: number;
+    players: number;
+    reEntries: number;
+    addOns: number;
+    registered: number;
+    capacity: number;
+    buyInRevenue: number;
+    reEntryRevenue: number;
+    addOnRevenue: number;
+    revenue: number;
+  }>;
+};
+
 let token = localStorage.getItem("flop.token");
 
 export function setToken(nextToken: string) {
@@ -145,6 +200,9 @@ export const api = {
   myStats: () => request<PlayerStats>("/api/me/stats"),
   myAwards: () => request<ClubAward[]>("/api/me/awards"),
   stats: () => request<AdminStats>("/api/admin/stats"),
+  analyticsAccess: () => request<{ allowed: boolean }>("/api/admin/analytics/access"),
+  analytics: (period: AnalyticsPeriod, anchor?: string) =>
+    request<AdminAnalytics>(`/api/admin/analytics?period=${period}${anchor ? `&anchor=${anchor}` : ""}`),
   participants: (id: string) => request<Registration[]>(`/api/tournaments/${id}/participants`),
   addParticipant: (id: string, data: unknown) =>
     request<Registration>(`/api/admin/tournaments/${id}/participants`, { method: "POST", body: JSON.stringify(data) }),
