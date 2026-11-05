@@ -39,6 +39,23 @@ export function currentTournamentWindow(now = Date.now()) {
   return { from: new Date(from), to: new Date(from + DAY_MS) };
 }
 
+// A marked re-entry bumps entryNumber on the same row, a self-service one adds a row that carries
+// the next number, so a player's entries are their highest entryNumber rather than a row count.
+export function clockChipTotals(
+  registrations: { userId: string; entryNumber: number; addOnCount: number }[],
+  addOnChips: number
+) {
+  const entriesByUser = new Map<string, number>();
+  let addOns = 0;
+  for (const registration of registrations) {
+    entriesByUser.set(registration.userId, Math.max(entriesByUser.get(registration.userId) ?? 0, registration.entryNumber));
+    addOns += registration.addOnCount;
+  }
+  let entries = 0;
+  for (const count of entriesByUser.values()) entries += count;
+  return { entries, addOnTotal: addOns * addOnChips };
+}
+
 clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
   try {
     const window = currentTournamentWindow();
@@ -52,7 +69,8 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
         id: true,
         title: true,
         startsAt: true,
-        maxParticipants: true
+        maxParticipants: true,
+        addOnChips: true
       }
     });
 
@@ -89,9 +107,10 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
     });
 
     // Chips stay in play after a bust-out, so the clock divides all entries by the players left.
-    const [entries, bonus] = await Promise.all([
-      prisma.registration.count({
-        where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } }
+    const [registrations, bonus] = await Promise.all([
+      prisma.registration.findMany({
+        where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } },
+        select: { userId: true, entryNumber: true, addOnCount: true }
       }),
       prisma.tournamentGameEvent.aggregate({
         where: { tournamentId: tournament.id, type: "STACK_BONUS", registration: { status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } } },
@@ -99,10 +118,12 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       })
     ]);
 
+    const { entries, addOnTotal } = clockChipTotals(registrations, tournament.addOnChips);
+
     res.json({
       count,
       entries,
-      bonusChips: bonus._sum.chips ?? 0,
+      bonusChips: (bonus._sum.chips ?? 0) + addOnTotal,
       capacity: tournament.maxParticipants,
       tournamentId: tournament.id,
       tournamentTitle: tournament.title
