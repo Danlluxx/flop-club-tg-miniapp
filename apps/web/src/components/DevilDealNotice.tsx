@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 
 export function DevilDealNotice() {
   const location = useLocation();
-  const registrations = useQuery({ queryKey: ["me", "devil-notice"], queryFn: api.myRegistrations, refetchInterval: 10000 });
+  const registrations = useQuery({ queryKey: ["me", "registrations"], queryFn: api.myRegistrations, refetchInterval: 10000 });
   const candidate = registrations.data?.find(r => r.status === "ACTIVE" && r.tournament?.mechanics && ["OPEN", "CLOSED"].includes(r.tournament.status));
   const id = candidate?.tournamentId ?? "";
   const state = useQuery({ queryKey: ["devil", id], queryFn: () => api.devilState(id), enabled: !!id, refetchInterval: 3000 });

@@ -27,12 +27,19 @@ export function TournamentPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [view, setView] = useState<"details" | "participants">("details");
-  const { data, isLoading, isError } = useQuery({ queryKey: ["tournament", id], queryFn: () => api.tournament(id), enabled: Boolean(id), refetchInterval: 3000 });
+  // A finished tournament no longer changes, so polling stops once it is over.
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["tournament", id],
+    queryFn: () => api.tournament(id),
+    enabled: Boolean(id),
+    refetchInterval: (query) => (query.state.data?.status === "FINISHED" ? false : 3000)
+  });
   const resultsQuery = useQuery({ queryKey: ["tournament", id, "results"], queryFn: () => api.publicResults(id), enabled: data?.status === "FINISHED" });
   const participantsQuery = useQuery({
     queryKey: ["tournament", id, "public-participants"],
     queryFn: () => api.publicParticipants(id),
-    enabled: Boolean(id), refetchInterval: 3000
+    enabled: Boolean(id),
+    refetchInterval: data?.status === "FINISHED" ? false : 3000
   });
 
   const register = useMutation({

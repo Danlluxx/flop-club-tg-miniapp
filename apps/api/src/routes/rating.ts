@@ -1,5 +1,5 @@
 import express from "express";
-import { RegistrationStatus, TournamentStatus, type Prisma, type User } from "@prisma/client";
+import { RegistrationStatus, TournamentStatus, type Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getRatingAwards, RATING_DISTRIBUTIONS, RATING_POOLS } from "../services/rating.js";
@@ -7,7 +7,20 @@ import { getRatingAwards, RATING_DISTRIBUTIONS, RATING_POOLS } from "../services
 export const ratingRouter = express.Router();
 
 type RatingScope = "global" | "season";
-type RatedUser = User & { rank: number; ratingPoints: number; knockouts: number };
+// The leaderboard reads only these columns, never the whole User row.
+const leaderUserSelect = {
+  id: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+  displayName: true,
+  photoUrl: true,
+  ratingPoints: true,
+  knockouts: true,
+  createdAt: true
+} satisfies Prisma.UserSelect;
+type LeaderUser = Prisma.UserGetPayload<{ select: typeof leaderUserSelect }>;
+type RatedUser = LeaderUser & { rank: number };
 
 function parseLimit(value: unknown) {
   const requestedLimit = Number(value ?? 50);
@@ -57,7 +70,7 @@ function toLeaderboardEntry(user: RatedUser) {
   };
 }
 
-function rankUsers(users: Array<User & { ratingPoints: number; knockouts: number }>): RatedUser[] {
+function rankUsers(users: LeaderUser[]): RatedUser[] {
   return users
     .sort((a, b) => b.ratingPoints - a.ratingPoints || b.knockouts - a.knockouts || a.createdAt.getTime() - b.createdAt.getTime())
     .map((user, index) => ({ ...user, rank: index + 1 }));
@@ -89,6 +102,7 @@ async function getGlobalLeaderboard(limit: number, search: string) {
 
   const allUsers = await prisma.user.findMany({
     where,
+    select: leaderUserSelect,
     orderBy: [{ ratingPoints: "desc" }, { knockouts: "desc" }, { createdAt: "asc" }]
   });
 
@@ -116,21 +130,21 @@ async function getSeasonLeaderboard(limit: number, month: unknown, search: strin
         tournament: tournamentWhere,
         ...(userFilter ? { user: userFilter } : {})
       },
-      include: { user: true }
+      include: { user: { select: leaderUserSelect } }
     }),
     prisma.tournamentChipLeaderAward.findMany({
       where: {
         tournament: tournamentWhere,
         ...(userFilter ? { user: userFilter } : {})
       },
-      include: { user: true }
+      include: { user: { select: leaderUserSelect } }
     })
     ,prisma.tournamentGameEvent.findMany({
       where: { tournament: tournamentWhere, ratingPoints: { not: 0 }, ...(userFilter ? { user: userFilter } : {}) },
-      include: { user: true }
+      include: { user: { select: leaderUserSelect } }
     })
   ]);
-  const userMap = new Map<string, User & { ratingPoints: number; knockouts: number }>();
+  const userMap = new Map<string, LeaderUser>();
 
   for (const result of results) {
     const totalRatingPoints = result.points + result.knockouts + result.chipLeaderBonus;
