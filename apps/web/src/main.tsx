@@ -16,8 +16,9 @@ import "@fontsource/unbounded/cyrillic-600.css";
 import "@fontsource/unbounded/cyrillic-700.css";
 import "./styles/soft-icons.css";
 import "./styles/soft.css";
+import "./styles/soft-admin.css";
 
-// The soft design is a layer scoped to html.soft; Layout drops it on admin routes.
+// The soft design is a layer scoped to html.soft.
 document.documentElement.classList.add("soft");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

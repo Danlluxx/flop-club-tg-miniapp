@@ -1,12 +1,13 @@
 import express from "express";
 import { z } from "zod";
-import { RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
+import { RegistrationStatus, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { registerForTournament } from "../services/tournaments.js";
 import { applyTournamentRatingResults, getRatingAwards } from "../services/rating.js";
 import {
+  addMarkedReEntry,
   autoReseatTournament,
   checkInTournamentRegistration,
   formFinalTable,
@@ -335,26 +336,8 @@ adminRouter.delete("/registrations/:registrationId/add-on", async (req, res, nex
 
 adminRouter.post("/registrations/:registrationId/re-entry", async (req, res, next) => {
   try {
-    const registration = await prisma.registration.findUnique({
-      where: { id: req.params.registrationId },
-      include: { tournament: true }
-    });
-    if (!registration) throw notFound("Registration");
-    if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
-    if (registration.status !== RegistrationStatus.ACTIVE) {
-      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
-    }
-    if (registration.tournament.profile === TournamentProfile.FREEZE || registration.tournament.reEntry <= 0) {
-      throw new AppError(409, "Re-entry is disabled for this tournament", "RE_ENTRY_DISABLED");
-    }
-    if (registration.tournament.profile === TournamentProfile.PHOENIX && registration.entryNumber >= 2) {
-      throw new AppError(409, "Re-entry limit reached", "RE_ENTRY_LIMIT_REACHED");
-    }
-    const updated = await prisma.registration.update({
-      where: { id: registration.id },
-      data: { entryNumber: { increment: 1 } }
-    });
-    console.log(`[admin:re-entry] registration=${registration.id} tournament=${registration.tournamentId}`);
+    const updated = await addMarkedReEntry(req.params.registrationId);
+    console.log(`[admin:re-entry] registration=${updated.id} tournament=${updated.tournamentId} status=${updated.liveStatus}`);
     res.json(updated);
   } catch (error) {
     next(error);

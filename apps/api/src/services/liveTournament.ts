@@ -1,4 +1,4 @@
-import { Prisma, RegistrationStatus, TournamentProfile } from "@prisma/client";
+import { Prisma, RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { assignNextAvailableSeat, SEATS_PER_TABLE, TABLES_COUNT } from "./tournaments.js";
@@ -171,6 +171,81 @@ export async function formFinalTable(tournamentId: string) {
   return getTournamentLiveState(tournamentId);
 }
 
+// Returns an eliminated player to the game on the same registration. The freed place is taken by those
+// who left after this player, so the places left to assign stay exactly the ones still in play.
+export async function restoreEliminatedRegistration(
+  tx: Prisma.TransactionClient,
+  registration: { id: string; tournamentId: string; finishPlace: number | null; checkedInAt: Date | null },
+  maxParticipants: number
+) {
+  await tx.registration.updateMany({
+    where: {
+      tournamentId: registration.tournamentId,
+      status: RegistrationStatus.ACTIVE,
+      liveStatus: "ELIMINATED",
+      id: { not: registration.id },
+      finishPlace: registration.finishPlace ? { lt: registration.finishPlace } : { not: null }
+    },
+    data: { finishPlace: { increment: 1 } }
+  });
+
+  // The last player standing already holds 1st place, and the game is on again.
+  await tx.registration.updateMany({
+    where: {
+      tournamentId: registration.tournamentId,
+      status: RegistrationStatus.ACTIVE,
+      liveStatus: "IN_GAME",
+      finishPlace: { not: null }
+    },
+    data: { finishPlace: null }
+  });
+
+  const seat = await assignNextAvailableSeat(tx, registration.tournamentId, maxParticipants, registration.id);
+  return tx.registration.update({
+    where: { id: registration.id },
+    data: {
+      entryNumber: { increment: 1 },
+      // A knockout is unique per life, so the next elimination must not collide with the previous one.
+      lifeNumber: { increment: 1 },
+      liveStatus: "IN_GAME",
+      checkedInAt: registration.checkedInAt ?? new Date(),
+      eliminatedAt: null,
+      finishPlace: null,
+      ...seat
+    }
+  });
+}
+
+export async function addMarkedReEntry(registrationId: string) {
+  return prisma.$transaction(async (tx) => {
+    const reference = await tx.registration.findUnique({ where: { id: registrationId }, select: { tournamentId: true } });
+    if (!reference) throw notFound("Registration");
+    await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${reference.tournamentId} FOR UPDATE`;
+
+    const registration = await tx.registration.findUnique({ where: { id: registrationId }, include: { tournament: true } });
+    if (!registration) throw notFound("Registration");
+    if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
+    if (registration.status !== RegistrationStatus.ACTIVE) {
+      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
+    }
+    if (registration.tournament.profile === TournamentProfile.FREEZE || registration.tournament.reEntry <= 0) {
+      throw new AppError(409, "Re-entry is disabled for this tournament", "RE_ENTRY_DISABLED");
+    }
+    if (registration.tournament.profile === TournamentProfile.PHOENIX && registration.entryNumber >= 2) {
+      throw new AppError(409, "Re-entry limit reached", "RE_ENTRY_LIMIT_REACHED");
+    }
+
+    if (registration.liveStatus !== "ELIMINATED") {
+      return tx.registration.update({ where: { id: registration.id }, data: { entryNumber: { increment: 1 } } });
+    }
+
+    if (registration.tournament.status === TournamentStatus.FINISHED || registration.tournament.status === TournamentStatus.CANCELLED) {
+      throw new AppError(409, "Турнир завершён, вернуть игрока в игру нельзя", "TOURNAMENT_FINISHED");
+    }
+    return restoreEliminatedRegistration(tx, registration, registration.tournament.maxParticipants);
+  });
+}
+
 export async function recordElimination(
   tournamentId: string,
   eliminatedRegistrationId: string,
@@ -215,6 +290,7 @@ export async function recordElimination(
         data: {
           tournamentId,
           eliminatedRegistrationId,
+          lifeNumber: eliminated.lifeNumber,
           killerRegistrationId: killerId
         }
       });

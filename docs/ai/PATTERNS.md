@@ -33,7 +33,14 @@
 - Keep tournament-specific styling isolated when mechanics are unique.
 - Mobile Telegram viewport is the primary target; also check desktop admin pages.
 - Respect `prefers-reduced-motion` for nonessential animation.
+- The soft design is on for every screen. Admin screens add `apps/web/src/styles/soft-admin.css`, scoped to `.admin-area` (set in `Layout`) so it never reaches player screens. Local check with mock data: dev server `flop-soft-test`, open `/admin?admin=1`.
 - User-facing tournament copy is Russian unless a branded mechanic name is intentionally English.
+
+## Admin participants screen
+
+`ParticipantsPage` has three tabs in `?tab=` (players, tables, results). Saving the rating can post to the channel, so it goes through the confirm dialog, as do elimination, restoring, removal and the final table.
+
+A marked re-entry on an eliminated player returns them to the game (`addMarkedReEntry`, `apps/api/src/services/liveTournament.ts`): new entry and life, first free seat, and players eliminated after them move up a place. Blocked for finished tournaments. Removing that entry later leaves the player in the game.
 
 ## Registration QR message
 

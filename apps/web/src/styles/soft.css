@@ -1,6 +1,6 @@
 /*
   FLOP CLUB soft design: a visual layer over index.css. Nothing here changes markup or data;
-  every rule is scoped to html.soft (set in main.tsx, removed on admin routes).
+  every rule is scoped to html.soft (set in main.tsx).
 */
 
 html.soft {

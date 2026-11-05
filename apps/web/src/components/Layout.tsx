@@ -1,5 +1,4 @@
 import { DevilDealNotice } from "./DevilDealNotice";
-import { useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { CalendarDays, Home, Shield, UserRound } from "lucide-react";
 import { isHalloweenSeason } from "../lib/seasonalTheme";
@@ -17,13 +16,8 @@ export function Layout({ user }: { user: User }) {
   const { pathname } = useLocation();
   const adminArea = pathname.startsWith("/admin") || pathname.startsWith("/check-in");
 
-  // Admin screens keep the original dense styling; the soft layer is for players.
-  useEffect(() => {
-    document.documentElement.classList.toggle("soft", !adminArea);
-  }, [adminArea]);
-
   return (
-    <div className={`page-shell mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-6${halloween ? " halloween-season" : ""}`}>
+    <div className={`page-shell mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-6${halloween ? " halloween-season" : ""}${adminArea ? " admin-area" : ""}`}>
       <main className="flex-1">
         <DevilDealNotice />
         <Outlet />
