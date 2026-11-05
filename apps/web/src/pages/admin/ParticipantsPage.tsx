@@ -340,11 +340,6 @@ export function ParticipantsPage() {
     }
   }
 
-  const downloadParticipants = useMutation({
-    mutationFn: () => api.downloadParticipants(id),
-    onError: (error) => showToast(error.message, "error")
-  });
-
   const saveRating = useMutation({
     mutationFn: () => {
       const maxRatingPlace = ratingInfo?.awards.length ?? 0;
@@ -524,25 +519,13 @@ export function ParticipantsPage() {
         <ArrowRight className="h-5 w-5 rotate-180" />
       </Link>
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="page-title text-[3rem]">Участники</h2>
-          {liveState && (
-            <p className="mt-2 text-sm font-semibold text-slate-400">
-              {liveState.tournament.title.toUpperCase()} · {formatBarnaulDateTime(liveState.tournament.startsAt)}
-            </p>
-          )}
-        </div>
-        <button
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-[0.55rem] bg-rose-400/15 text-rose-200 disabled:opacity-50"
-          disabled={downloadParticipants.isPending}
-          type="button"
-          onClick={() => downloadParticipants.mutate()}
-          aria-label="Скачать участников CSV"
-          title="Скачать список участников (CSV)"
-        >
-          <Download className="h-5 w-5" />
-        </button>
+      <div className="min-w-0">
+        <h2 className="page-title text-[3rem]">Участники</h2>
+        {liveState && (
+          <p className="mt-2 text-sm font-semibold text-slate-400">
+            {liveState.tournament.title.toUpperCase()} · {formatBarnaulDateTime(liveState.tournament.startsAt)}
+          </p>
+        )}
       </div>
 
       {hasMechanics && <Link className="app-button-primary flex items-center justify-center" to={`/admin/tournaments/${id}/devil`}>DEVIL CONTROL · Halloween-механики</Link>}

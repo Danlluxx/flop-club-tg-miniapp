@@ -242,13 +242,11 @@ export const api = {
     }),
   downloadDayReport: (date: string) =>
     download(`/api/admin/reports/day.xlsx?date=${encodeURIComponent(date)}`, `flop-club-rating-${date}.xlsx`),
-  downloadParticipants: (id: string) => download(`/api/admin/tournaments/${id}/export.csv`, "flop-club-participants.csv"),
   ratingResults: (id: string, entriesCount?: number) =>
     request<TournamentRatingPayload>(
       `/api/admin/tournaments/${id}/rating-results${entriesCount ? `?entriesCount=${entriesCount}` : ""}`
     ),
   saveRatingResults: (id: string, data: unknown) =>
     request<TournamentRatingResult[]>(`/api/admin/tournaments/${id}/rating-results`, { method: "POST", body: JSON.stringify(data) }),
-  ratingPublication: (id: string) => request<{ text: string }>(`/api/admin/tournaments/${id}/rating-publication`),
-  exportUrl: (id: string) => `${API_URL}/api/admin/tournaments/${id}/export.csv`
+  ratingPublication: (id: string) => request<{ text: string }>(`/api/admin/tournaments/${id}/rating-publication`)
 };
