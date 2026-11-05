@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Edit3, Trash2, Users } from "lucide-react";
+import { Edit3, Trash2 } from "lucide-react";
 import { api } from "../../lib/api";
 import { StatusBadge } from "../../components/StatusBadge";
 import { useToast } from "../../components/Toast";
@@ -21,6 +21,9 @@ export function AdminTournaments() {
     [data]
   );
   const visibleTournaments = tab === "active" ? activeTournaments : finishedTournaments;
+  const [pendingRemoval, setPendingRemoval] = useState<{ id: string; title: string } | null>(null);
+  const removeDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (pendingRemoval) removeDialog.current?.showModal(); }, [pendingRemoval]);
   const remove = useMutation({
     mutationFn: api.deleteTournament,
     onSuccess: async () => {
@@ -62,22 +65,45 @@ export function AdminTournaments() {
           </div>
         )}
         {visibleTournaments.map((item) => (
-          <div key={item.id} className="app-panel p-4">
-            <div className="flex items-start justify-between gap-3">
+          <div key={item.id} className="app-panel tap relative p-4">
+            <Link to={`/admin/tournaments/${item.id}/participants`} aria-label={`Участники: ${item.title}`} className="absolute inset-0 z-0 rounded-[inherit]" />
+            <div className="pointer-events-none relative flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-bold">{item.title.toUpperCase()}</h3>
                 <p className="mt-1 text-sm text-slate-400">{formatBarnaulDateTime(item.startsAt)}</p>
               </div>
               <StatusBadge status={item.status} />
             </div>
-            <div className="mt-4 flex gap-2">
-              <Link to={`/admin/tournaments/${item.id}/edit`} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Edit3 className="h-4 w-4" /></Link>
-              <Link to={`/admin/tournaments/${item.id}/participants`} className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Users className="h-4 w-4" /></Link>
-              <button onClick={() => remove.mutate(item.id)} className="tap ml-auto grid h-10 w-10 place-items-center rounded-[0.55rem] bg-rose-400/15 text-rose-200"><Trash2 className="h-4 w-4" /></button>
+            <div className="pointer-events-none relative z-10 mt-4 flex gap-2">
+              <Link to={`/admin/tournaments/${item.id}/edit`} className="tap pointer-events-auto grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8"><Edit3 className="h-4 w-4" /></Link>
+              <button type="button" aria-label="Удалить турнир" onClick={() => setPendingRemoval({ id: item.id, title: item.title })} className="tap pointer-events-auto ml-auto grid h-10 w-10 place-items-center rounded-[0.55rem] bg-rose-400/15 text-rose-200"><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>
         ))}
       </div>
+      <dialog ref={removeDialog} onClose={() => setPendingRemoval(null)}
+        aria-labelledby="remove-tournament-title"
+        className="!m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-white/15 bg-graphite p-4 text-white backdrop:bg-black/75">
+        {pendingRemoval && (
+          <div className="space-y-4">
+            <h3 id="remove-tournament-title" className="text-lg font-bold">Удалить {pendingRemoval.title.toUpperCase()}?</h3>
+            <p className="text-sm font-semibold text-slate-400">Турнир исчезнет из расписания вместе с записями игроков. Вернуть его будет нельзя.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => removeDialog.current?.close()} className="tap min-h-12 rounded-md bg-white/8 text-sm font-bold">Отмена</button>
+              <button
+                type="button"
+                onClick={() => {
+                  remove.mutate(pendingRemoval.id);
+                  removeDialog.current?.close();
+                }}
+                className="tap min-h-12 rounded-md bg-rose-500 text-sm font-bold text-white"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        )}
+      </dialog>
     </section>
   );
 }
