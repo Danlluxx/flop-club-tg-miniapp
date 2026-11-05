@@ -82,15 +82,19 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       where: {
         tournamentId: tournament.id,
         status: RegistrationStatus.ACTIVE,
-        liveStatus: "IN_GAME"
+        liveStatus: "IN_GAME",
+        // players still waiting (not checked in by the admin) are not shown on the clock
+        checkedInAt: { not: null }
       }
     });
 
     // Chips stay in play after a bust-out, so the clock divides all entries by the players left.
     const [entries, bonus] = await Promise.all([
-      prisma.registration.count({ where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE } }),
+      prisma.registration.count({
+        where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } }
+      }),
       prisma.tournamentGameEvent.aggregate({
-        where: { tournamentId: tournament.id, type: "STACK_BONUS", registration: { status: RegistrationStatus.ACTIVE } },
+        where: { tournamentId: tournament.id, type: "STACK_BONUS", registration: { status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } } },
         _sum: { chips: true }
       })
     ]);
