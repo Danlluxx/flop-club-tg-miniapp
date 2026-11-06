@@ -55,7 +55,7 @@ adminRouter.get("/analytics", requireAnalyticsOwner, async (req, res, next) => {
             entryNumber: true,
             addOnCount: true,
             checkedInAt: true,
-            user: { select: { displayName: true, firstName: true, lastName: true, username: true, telegramId: true } }
+            user: { select: { displayName: true, firstName: true, lastName: true, username: true, telegramId: true, isStaff: true } }
           }
         }
       }

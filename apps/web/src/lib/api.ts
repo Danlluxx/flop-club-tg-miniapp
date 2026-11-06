@@ -68,6 +68,7 @@ type AnalyticsSummary = {
   newPlayers: number;
   returningPlayers: number;
   visits: number;
+  staffVisits: number;
   entries: number;
   reEntries: number;
   addOns: number;
@@ -100,6 +101,7 @@ export type AdminAnalytics = {
     reEntry: number;
     addOnPrice: number;
     players: number;
+    staffPlayers: number;
     reEntries: number;
     addOns: number;
     registered: number;
@@ -108,7 +110,7 @@ export type AdminAnalytics = {
     reEntryRevenue: number;
     addOnRevenue: number;
     revenue: number;
-    roster: Array<{ name: string; entries: number; addOns: number; spent: number; isNew: boolean }>;
+    roster: Array<{ name: string; entries: number; addOns: number; spent: number; isNew: boolean; isStaff: boolean }>;
   }>;
 };
 

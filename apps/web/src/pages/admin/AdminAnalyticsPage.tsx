@@ -45,7 +45,7 @@ function RevenueHero({ data }: { data: AdminAnalytics }) {
   const { summary, previous, period, isComplete } = data;
   const change = isComplete ? percentChange(summary.revenue, previous.revenue) : null;
   const parts = [
-    { key: "buy-in", label: "Входы", count: summary.visits, value: summary.buyInRevenue },
+    { key: "buy-in", label: "Входы", count: summary.visits - summary.staffVisits, value: summary.buyInRevenue },
     { key: "add-on", label: "Add-on", count: summary.addOns, value: summary.addOnRevenue },
     { key: "re-entry", label: "Re-entry", count: summary.reEntries, value: summary.reEntryRevenue }
   ];
@@ -137,6 +137,7 @@ function RosterRow({ player }: { player: AdminAnalytics["tournaments"][number]["
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="min-w-0 truncate font-bold text-white">{player.name}</span>
+          {player.isStaff && <span className="shrink-0 rounded-[0.4rem] bg-white/10 px-1.5 py-0.5 text-[0.65rem] font-bold text-slate-300">сотрудник</span>}
           {player.isNew && <span className="shrink-0 rounded-[0.4rem] bg-emerald/15 px-1.5 py-0.5 text-[0.65rem] font-bold text-emerald">новый</span>}
         </span>
         {extras && <span className="mt-0.5 block text-xs font-semibold text-slate-500">{extras}</span>}
@@ -161,7 +162,8 @@ function TournamentRow({ item, defaultOpen = false }: { item: AdminAnalytics["to
       </button>
       {open && (
         <div className="space-y-1.5 border-t border-white/10 p-3 text-sm font-semibold text-slate-400">
-          <p className="flex justify-between gap-3"><span>Входы: {item.players} × {formatRubles(item.buyIn)}</span><b className="text-white">{formatRubles(item.buyInRevenue)}</b></p>
+          <p className="flex justify-between gap-3"><span>Входы: {item.players - item.staffPlayers} × {formatRubles(item.buyIn)}</span><b className="text-white">{formatRubles(item.buyInRevenue)}</b></p>
+          {item.staffPlayers > 0 && <p className="flex justify-between gap-3"><span>Сотрудники, первый вход: {item.staffPlayers}</span><b className="text-white">{formatRubles(0)}</b></p>}
           <p className="flex justify-between gap-3"><span>Re-entry: {item.reEntries} × {formatRubles(item.reEntry)}</span><b className="text-white">{formatRubles(item.reEntryRevenue)}</b></p>
           <p className="flex justify-between gap-3"><span>Add-on: {item.addOns} × {formatRubles(item.addOnPrice)}</span><b className="text-white">{formatRubles(item.addOnRevenue)}</b></p>
           <p className="flex justify-between gap-3"><span>Записались, но не пришли</span><b className="text-white">{item.registered - item.players}</b></p>

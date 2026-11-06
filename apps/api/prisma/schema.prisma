@@ -49,6 +49,7 @@ model User {
   email                      String?
   photoUrl                   String?
   role                       Role                        @default(USER)
+  isStaff                    Boolean                     @default(false)
   ratingPoints               Int                         @default(0)
   knockouts                  Int                         @default(0)
   rulesAcceptedAt            DateTime?

@@ -10,6 +10,7 @@ type AnalyticsUser = {
   lastName: string | null;
   username: string | null;
   telegramId: string;
+  isStaff: boolean;
 };
 
 export type AnalyticsTournament = {
@@ -56,24 +57,28 @@ function previousRange(period: AnalyticsPeriod, range: { from: string }) {
 }
 
 // Money is an estimate from what admins marked: only checked-in players count, at this tournament's own prices.
+// Club staff play their first entry for free; their re-entries and add-ons are paid as usual.
 export function tournamentFigures(tournament: AnalyticsTournament) {
   const checkedIn = tournament.registrations.filter((registration) => registration.checkedInAt);
   const entries = entriesByUser(checkedIn);
   const addOnsByUser = new Map<string, number>();
+  const staff = new Set<string>();
   for (const registration of checkedIn) {
     addOnsByUser.set(registration.userId, (addOnsByUser.get(registration.userId) ?? 0) + registration.addOnCount);
+    if (registration.user.isStaff) staff.add(registration.userId);
   }
 
   const players = entries.size;
   const totalEntries = [...entries.values()].reduce((sum, count) => sum + count, 0);
   const reEntries = totalEntries - players;
   const addOns = [...addOnsByUser.values()].reduce((sum, count) => sum + count, 0);
-  const buyInRevenue = players * tournament.buyIn;
+  const buyInRevenue = (players - staff.size) * tournament.buyIn;
   const reEntryRevenue = reEntries * tournament.reEntry;
   const addOnRevenue = addOns * tournament.addOnPrice;
 
   return {
     players,
+    staffPlayers: staff.size,
     entries: totalEntries,
     reEntries,
     addOns,
@@ -84,9 +89,10 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
     revenue: buyInRevenue + reEntryRevenue + addOnRevenue,
     entriesByUser: entries,
     addOnsByUser,
+    staff,
     spentByUser: new Map([...entries].map(([userId, count]) => [
       userId,
-      tournament.buyIn + (count - 1) * tournament.reEntry + (addOnsByUser.get(userId) ?? 0) * tournament.addOnPrice
+      (staff.has(userId) ? 0 : tournament.buyIn) + (count - 1) * tournament.reEntry + (addOnsByUser.get(userId) ?? 0) * tournament.addOnPrice
     ]))
   };
 }
@@ -113,6 +119,7 @@ function summarize(held: HeldTournament[], firstVisit: Map<string, string>, rang
     newPlayers,
     returningPlayers: uniquePlayers.size - newPlayers,
     visits,
+    staffVisits: total((figures) => figures.staffPlayers),
     entries: total((figures) => figures.entries),
     reEntries: total((figures) => figures.reEntries),
     addOns: total((figures) => figures.addOns),
@@ -135,7 +142,8 @@ function rosterOf(item: HeldTournament, firstVisit: Map<string, string>) {
       entries: item.figures.entriesByUser.get(userId) ?? 1,
       addOns: item.figures.addOnsByUser.get(userId) ?? 0,
       spent,
-      isNew: firstVisit.get(userId) === item.key
+      isNew: firstVisit.get(userId) === item.key,
+      isStaff: item.figures.staff.has(userId)
     }))
     .sort((left, right) => right.spent - left.spent || left.name.localeCompare(right.name, "ru-RU"));
 }
@@ -228,6 +236,7 @@ export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: 
       reEntry: item.reEntry,
       addOnPrice: item.addOnPrice,
       players: item.figures.players,
+      staffPlayers: item.figures.staffPlayers,
       reEntries: item.figures.reEntries,
       addOns: item.figures.addOns,
       registered: item.figures.registered,

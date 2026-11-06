@@ -52,6 +52,8 @@ A marked re-entry on an eliminated player returns them to the game (`addMarkedRe
 
 The day period is the per-tournament view: it opens on the latest held day, arrows skip days without tournaments, it compares with the same weekday a week earlier, and only it returns a per-player `roster` for each tournament.
 
+Club staff (`User.isStaff`, set in the database, no admin UI) play their first entry free: it adds 0 ₽ to buy-in revenue and to their roster spend, while their re-entries and add-ons are paid. The flag applies to all history, past tournaments included.
+
 Revenue is owner-only: `requireAnalyticsOwner` (`apps/api/src/middleware/auth.ts`) allows just `danlluxx`, other admins get 403. The client asks `/api/admin/analytics/access` and hides the block and page; the server check is the real boundary.
 
 ## Registration QR message

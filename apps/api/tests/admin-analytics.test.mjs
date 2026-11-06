@@ -25,14 +25,15 @@ test("only the owner's account passes the analytics guard", () => {
   }
 });
 
-const user = (id) => ({ displayName: id, firstName: null, lastName: null, username: null, telegramId: id });
-const entry = (userId, entryNumber = 1, addOnCount = 0, checkedIn = true) => ({
+const user = (id, isStaff = false) => ({ displayName: id, firstName: null, lastName: null, username: null, telegramId: id, isStaff });
+const entry = (userId, entryNumber = 1, addOnCount = 0, checkedIn = true, isStaff = false) => ({
   userId,
   entryNumber,
   addOnCount,
   checkedInAt: checkedIn ? new Date(0) : null,
-  user: user(userId)
+  user: user(userId, isStaff)
 });
+const staffEntry = (userId, entryNumber = 1, addOnCount = 0) => entry(userId, entryNumber, addOnCount, true, true);
 const tournament = (id, day, registrations, extra = {}) => ({
   id,
   title: id,
@@ -118,8 +119,8 @@ test("a day covers one Barnaul date and lists who brought how much", () => {
   assert.equal(data.summary.revenue, 2300);
   assert.equal(data.summary.noShows, 1);
   assert.deepEqual(data.tournaments[0].roster, [
-    { name: "a", entries: 2, addOns: 1, spent: 1800, isNew: false },
-    { name: "b", entries: 1, addOns: 0, spent: 500, isNew: true }
+    { name: "a", entries: 2, addOns: 1, spent: 1800, isNew: false, isStaff: false },
+    { name: "b", entries: 1, addOns: 0, spent: 500, isNew: true, isStaff: false }
   ]);
 });
 
@@ -152,4 +153,25 @@ test("without a date the day view opens on the latest held day, others on today"
   assert.equal(buildAdminAnalytics(held, "day", undefined, "2026-11-05").from, "2026-11-04");
   assert.equal(buildAdminAnalytics([], "day", undefined, "2026-11-05").from, "2026-11-05");
   assert.equal(buildAdminAnalytics(held, "week", undefined, "2026-11-05").from, "2026-11-02");
+});
+
+test("a staff member's first entry is free, their re-entries and add-ons are paid", () => {
+  const figures = tournamentFigures(tournament("t", "2026-11-02", [staffEntry("s", 1), staffEntry("s", 2, 1), staffEntry("free"), entry("a")]));
+  assert.equal(figures.players, 3);
+  assert.equal(figures.staffPlayers, 2);
+  assert.equal(figures.buyInRevenue, 500);
+  assert.equal(figures.reEntryRevenue, 300);
+  assert.equal(figures.addOnRevenue, 1000);
+  assert.equal(figures.revenue, 1800);
+  assert.equal(figures.spentByUser.get("s"), 1300);
+  assert.equal(figures.spentByUser.get("free"), 0);
+});
+
+test("staff show up in the day roster and period totals", () => {
+  const data = buildAdminAnalytics([tournament("day", "2026-11-03", [staffEntry("s"), entry("a")])], "day", "2026-11-03", "2026-11-05");
+  assert.equal(data.summary.revenue, 500);
+  assert.equal(data.summary.visits, 2);
+  assert.equal(data.summary.staffVisits, 1);
+  assert.equal(data.tournaments[0].staffPlayers, 1);
+  assert.deepEqual(data.tournaments[0].roster.map((player) => [player.name, player.spent, player.isStaff]), [["a", 500, false], ["s", 0, true]]);
 });
