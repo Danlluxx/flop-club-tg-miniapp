@@ -4,7 +4,8 @@ Last updated: 2026-11-06.
 
 ## Production state
 
-- `main` / `origin/main` and server `.deploy-commit`: `555013c` (participants CSV export removed, button and `export.csv` route), together with `7c4b34e` (clsx removed), `0f78396` (69 unused public images deleted; backup `/root/flop-deploy-backups/release-20261105-172014.tar.gz`), on top of `fd14c95`, `42cf32f` (leaderboard privacy, less polling).
+- Server `.deploy-commit`: `f183b91` (staff first entry free in revenue analytics, migration `20261106120000_user_staff_flag`; DB backup `/root/flop-deploy-backups/before-staff-flag-20261106-053858.sql.gz`). Released through a server copy of `run-soft-design-timeweb.sh` that allowed only that migration and `schema.prisma`. The 9 staff accounts are marked by `User.isStaff` directly in the database; there is no admin UI for it.
+- Before that `555013c` (participants CSV export removed, button and `export.csv` route), together with `7c4b34e` (clsx removed), `0f78396` (69 unused public images deleted; backup `/root/flop-deploy-backups/release-20261105-172014.tar.gz`), on top of `fd14c95`, `42cf32f` (leaderboard privacy, less polling).
 - Before that `06c757e` (analytics day view), released through the serial console together with `505c6ed` (+10k chips before 19:10) and `250971e` (WebP, lazy pages), on top of `12549f2` (whole admin tournament card opens participants, delete confirmation), on top of `6f61b85` (working tournament edit form, on top of tournament titles uppercased at display, owner-only revenue analytics, soft admin design, participants tabs and restore via re-entry).
 - Restoring through re-entry is covered by unit tests with a fake transaction only; not yet run against real PostgreSQL. The first real restore needs a look, including a second elimination with a killer.
 - The "Фото итогов" link on the participants results tab is local only: its route and API belong to the undeployed autoposting work below.
