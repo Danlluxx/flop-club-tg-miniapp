@@ -10,6 +10,7 @@ import { ToastProvider } from "./components/Toast";
 import { HomePage } from "./pages/HomePage";
 import { currentRulesVersion, RulesGate } from "./components/RulesGate";
 import { NameGate } from "./components/NameGate";
+import { EmailGate } from "./components/EmailGate";
 import { IntroCarousel } from "./components/IntroCarousel";
 import {
   currentPersonalDataConsentVersion,
@@ -37,6 +38,8 @@ const AdminFillRatesPage = lazy(() => import("./pages/admin/AdminFillRatesPage")
 const AdminAnalyticsPage = lazy(() => import("./pages/admin/AdminAnalyticsPage").then((m) => ({ default: m.AdminAnalyticsPage })));
 
 const queryClient = new QueryClient();
+// "Later" hides the email prompt until the app is opened again.
+const emailSkipKey = "flop.email-prompt-skipped";
 
 function AdminOnly({ user, children }: { user: User; children: React.ReactNode }) {
   if (user.role !== "ADMIN") return <Navigate to="/" replace />;
@@ -85,6 +88,13 @@ function AppRoutes({ user, onUserUpdated }: { user: User; onUserUpdated: (user: 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [emailSkipped, setEmailSkipped] = useState(() => {
+    try {
+      return sessionStorage.getItem(emailSkipKey) === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     initTelegram();
@@ -136,6 +146,22 @@ export function App() {
 
   if (!user.displayName) {
     return <NameGate user={user} onSaved={setUser} />;
+  }
+
+  if (!user.email && !emailSkipped) {
+    return (
+      <EmailGate
+        onSaved={setUser}
+        onSkip={() => {
+          try {
+            sessionStorage.setItem(emailSkipKey, "1");
+          } catch {
+            // Private mode: skipping still works until reload.
+          }
+          setEmailSkipped(true);
+        }}
+      />
+    );
   }
 
   if (!user.introCompletedAt) {

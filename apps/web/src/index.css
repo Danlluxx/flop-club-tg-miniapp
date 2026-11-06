@@ -2383,6 +2383,28 @@ h3,
   color: rgba(226, 232, 240, 0.34);
 }
 
+.name-input.email-input {
+  min-height: 4.75rem;
+  padding: 0 1rem;
+  font-size: clamp(1.05rem, 4.6vw, 1.45rem);
+  font-weight: 700;
+}
+
+.email-hint {
+  margin-top: 0.85rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.email-skip {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  color: rgba(226, 232, 240, 0.6);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .name-accept {
   width: 100%;
   min-height: 6.25rem;
