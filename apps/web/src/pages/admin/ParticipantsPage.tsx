@@ -189,7 +189,7 @@ export function ParticipantsPage() {
   const reportDate = liveState?.tournament.startsAt ? new Date(liveState.tournament.startsAt).toISOString().slice(0, 10) : "";
   const moveSource = inGameParticipants.find((item) => item.id === moveSourceId) ?? null;
   const canFormFinal = inGameParticipants.length >= 2 && inGameParticipants.length <= 9;
-  const actualEntries = participants.filter((item) => item.checkedInAt).reduce((sum, item) => sum + item.entryNumber, 0);
+  const actualEntries = participants.filter((item) => item.checkedInAt).length;
   const awards = ratingInfo?.awards ?? [];
   const pointsByPlace = new Map(awards.map((award) => [award.place, award.points]));
   const recordedBountyByRegistration = new Map<string, number>();
