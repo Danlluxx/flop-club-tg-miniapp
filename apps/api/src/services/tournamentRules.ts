@@ -23,9 +23,9 @@ const addOnChipsByTitle: Record<string, number> = {
   "FLOP 3 MINUS 1": 100000,
   "FLOP BOOSTER RE-ENTRY": 100000,
   "FLOP BOMB POT": 100000,
-  "Flop Rampage": 60000,
-  "Flop Bounty": 60000,
-  "Flop Mystery Knockout": 60000
+  "Flop Rampage": 100000,
+  "Flop Bounty": 100000,
+  "Flop Mystery Knockout": 100000
 };
 
 const rules: Record<string, { features: string[] }> = {
