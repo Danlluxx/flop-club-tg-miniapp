@@ -97,6 +97,12 @@ export async function buildGameDayRatingWorkbook(dateInput: unknown) {
       if (userId) knockoutsByUser.set(userId, (knockoutsByUser.get(userId) ?? 0) + 1);
     }
 
+    for (const registration of tournament.registrations) {
+      if (registration.bountyAdjustment) {
+        knockoutsByUser.set(registration.userId, Math.max(0, (knockoutsByUser.get(registration.userId) ?? 0) + registration.bountyAdjustment));
+      }
+    }
+
     const reportRegistrations = tournament.mechanics ? tournament.registrations.filter((r, _, all) => r.entryNumber === Math.max(...all.filter(x => x.userId === r.userId).map(x => x.entryNumber))) : tournament.registrations;
     for (const registration of reportRegistrations) {
       const user = registration.user;

@@ -192,6 +192,14 @@ export function ParticipantsPage() {
   const actualEntries = participants.filter((item) => item.checkedInAt).reduce((sum, item) => sum + item.entryNumber, 0);
   const awards = ratingInfo?.awards ?? [];
   const pointsByPlace = new Map(awards.map((award) => [award.place, award.points]));
+  const recordedBountyByRegistration = new Map<string, number>();
+  for (const knockout of liveState?.knockouts ?? []) {
+    const killerId = knockout.killerRegistrationId;
+    if (killerId) recordedBountyByRegistration.set(killerId, (recordedBountyByRegistration.get(killerId) ?? 0) + 1);
+  }
+  function bountyOf(item: Registration) {
+    return Math.max(0, (recordedBountyByRegistration.get(item.id) ?? 0) + (item.bountyAdjustment ?? 0));
+  }
   const placedParticipants = participants
     .filter((item) => item.finishPlace || item.liveStatus === "ELIMINATED")
     .sort((left, right) => (left.finishPlace ?? Number.MAX_SAFE_INTEGER) - (right.finishPlace ?? Number.MAX_SAFE_INTEGER));
@@ -306,6 +314,15 @@ export function ParticipantsPage() {
     onError: (error) => showToast(error.message, "error")
   });
 
+  const updateBounty = useMutation({
+    mutationFn: ({ registrationId, bountyAdjustment }: { registrationId: string; bountyAdjustment: number }) =>
+      api.updateBountyAdjustment(registrationId, bountyAdjustment),
+    onSuccess: async () => {
+      await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
   const checkInParticipant = useMutation({
     mutationFn: api.adminCheckIn,
     onSuccess: async (registration) => {
@@ -343,20 +360,12 @@ export function ParticipantsPage() {
   const saveRating = useMutation({
     mutationFn: () => {
       const maxRatingPlace = ratingInfo?.awards.length ?? 0;
-      const knockoutsByRegistration = new Map<string, number>();
-      for (const knockout of liveState?.knockouts ?? []) {
-        const killerId = knockout.killerRegistrationId;
-        if (killerId) {
-          knockoutsByRegistration.set(killerId, (knockoutsByRegistration.get(killerId) ?? 0) + 1);
-        }
-      }
-
       const results = participants
         .filter((item) => item.finishPlace && item.finishPlace <= maxRatingPlace)
         .map((item) => ({
           registrationId: item.id,
           place: item.finishPlace!,
-          knockouts: liveState?.tournament.mechanics ? 0 : knockoutsByRegistration.get(item.id) ?? 0
+          knockouts: liveState?.tournament.mechanics ? 0 : bountyOf(item)
         }))
         .sort((a, b) => a.place - b.place);
 
@@ -994,6 +1003,19 @@ export function ParticipantsPage() {
                       {item.liveStatus === "IN_GAME" ? " · ещё в игре" : ""}
                     </p>
                   </div>
+                  {isKnockoutTournament && !hasMechanics ? (
+                    <div className="flex shrink-0 items-center gap-1" aria-label={`Баунти: ${participantName(item)}`}>
+                      <button type="button" className="tap grid h-9 w-9 place-items-center rounded-[0.75rem] bg-white/8 text-base font-black text-white disabled:opacity-40"
+                        disabled={updateBounty.isPending || bountyOf(item) <= 0}
+                        onClick={() => updateBounty.mutate({ registrationId: item.id, bountyAdjustment: (item.bountyAdjustment ?? 0) - 1 })}
+                        aria-label="Убрать баунти">−</button>
+                      <span className="w-8 text-center text-sm font-black text-white">{bountyOf(item)}</span>
+                      <button type="button" className="tap grid h-9 w-9 place-items-center rounded-[0.75rem] bg-white/8 text-base font-black text-white disabled:opacity-40"
+                        disabled={updateBounty.isPending}
+                        onClick={() => updateBounty.mutate({ registrationId: item.id, bountyAdjustment: (item.bountyAdjustment ?? 0) + 1 })}
+                        aria-label="Добавить баунти">+</button>
+                    </div>
+                  ) : null}
                   {draft !== undefined && draft !== saved ? (
                     <button
                       className="tap grid h-10 w-10 shrink-0 place-items-center rounded-[0.75rem] bg-white/8 text-white disabled:opacity-50"

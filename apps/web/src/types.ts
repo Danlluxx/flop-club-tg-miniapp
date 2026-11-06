@@ -72,6 +72,7 @@ export type Registration = {
   eliminatedAt?: string | null;
   noShowPenaltyAppliedAt?: string | null;
   noShowPenaltyPoints: number;
+  bountyAdjustment?: number;
   createdAt: string;
   updatedAt: string;
   tournament?: Tournament;

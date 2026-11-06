@@ -242,6 +242,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ finishPlace })
     }),
+  updateBountyAdjustment: (registrationId: string, bountyAdjustment: number) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/bounty-adjustment`, {
+      method: "PATCH",
+      body: JSON.stringify({ bountyAdjustment })
+    }),
   downloadDayReport: (date: string) =>
     download(`/api/admin/reports/day.xlsx?date=${encodeURIComponent(date)}`, `flop-club-rating-${date}.xlsx`),
   ratingResults: (id: string, entriesCount?: number) =>

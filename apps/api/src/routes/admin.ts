@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import { RegistrationStatus, TournamentStatus } from "@prisma/client";
+import { RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { isAnalyticsOwner, requireAdmin, requireAnalyticsOwner, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
@@ -220,6 +220,10 @@ const moveSeatSchema = z.object({
 const knockoutSchema = z.object({
   eliminatedRegistrationId: z.string().min(1),
   killerRegistrationId: z.string().min(1).optional().nullable()
+});
+
+const bountyAdjustmentSchema = z.object({
+  bountyAdjustment: z.coerce.number().int().min(-100).max(100)
 });
 
 const checkInSchema = z.object({
@@ -443,6 +447,35 @@ adminRouter.patch("/registrations/:registrationId/finish-place", async (req, res
     });
     console.log(
       `[admin:finish-place:update] registration=${registration.id} tournament=${registration.tournamentId} place=${payload.finishPlace ?? "none"}`
+    );
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.patch("/registrations/:registrationId/bounty-adjustment", async (req, res, next) => {
+  try {
+    const payload = bountyAdjustmentSchema.parse(req.body);
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.registrationId },
+      include: { tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
+    if (registration.tournament.profile !== TournamentProfile.KNOCKOUT) {
+      throw new AppError(400, "Bounty adjustment is only for bounty/knockout tournaments", "KNOCKOUT_NOT_ALLOWED_FOR_PROFILE");
+    }
+    if (registration.status !== RegistrationStatus.ACTIVE) {
+      throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
+    }
+
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { bountyAdjustment: payload.bountyAdjustment }
+    });
+    console.log(
+      `[admin:bounty-adjustment:update] admin=${req.user!.id} registration=${registration.id} adjustment=${payload.bountyAdjustment}`
     );
     res.json(updated);
   } catch (error) {
