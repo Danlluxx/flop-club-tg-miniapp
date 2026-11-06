@@ -40,13 +40,17 @@ export function currentTournamentWindow(now = Date.now()) {
   return { from: new Date(from), to: new Date(from + DAY_MS) };
 }
 
+// Outside Devil Deal, issuedChips holds only chips added on top of the entries (the early
+// registration bonus); Devil Deal's issuedChips is the whole stack, so it is not added there.
 export function clockChipTotals(
-  registrations: { userId: string; entryNumber: number; addOnCount: number }[],
-  addOnChips: number
+  registrations: { userId: string; entryNumber: number; addOnCount: number; issuedChips: number }[],
+  addOnChips: number,
+  hasMechanics: boolean
 ) {
   const addOns = registrations.reduce((sum, registration) => sum + registration.addOnCount, 0);
   const entries = [...entriesByUser(registrations).values()].reduce((sum, count) => sum + count, 0);
-  return { entries, addOnTotal: addOns * addOnChips };
+  const stackBonus = hasMechanics ? 0 : registrations.reduce((sum, registration) => sum + registration.issuedChips, 0);
+  return { entries, addOnTotal: addOns * addOnChips, stackBonus };
 }
 
 // Everyone checked in before 19:10 Barnaul time (on the tournament's day) gets this many extra chips.
@@ -74,7 +78,8 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
         title: true,
         startsAt: true,
         maxParticipants: true,
-        addOnChips: true
+        addOnChips: true,
+        mechanics: true
       }
     });
 
@@ -111,25 +116,19 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
     });
 
     // Chips stay in play after a bust-out, so the clock divides all entries by the players left.
-    const [registrations, bonus] = await Promise.all([
-      prisma.registration.findMany({
-        where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } },
-        select: { userId: true, entryNumber: true, addOnCount: true, checkedInAt: true }
-      }),
-      prisma.tournamentGameEvent.aggregate({
-        where: { tournamentId: tournament.id, type: "STACK_BONUS", registration: { status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } } },
-        _sum: { chips: true }
-      })
-    ]);
+    const registrations = await prisma.registration.findMany({
+      where: { tournamentId: tournament.id, status: RegistrationStatus.ACTIVE, checkedInAt: { not: null } },
+      select: { userId: true, entryNumber: true, addOnCount: true, issuedChips: true, checkedInAt: true }
+    });
 
-    const { entries, addOnTotal } = clockChipTotals(registrations, tournament.addOnChips);
+    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics));
 
     const earlyBird = earlyCheckInBonus(registrations.map((registration) => registration.checkedInAt), tournament.startsAt);
 
     res.json({
       count,
       entries,
-      bonusChips: (bonus._sum.chips ?? 0) + addOnTotal + earlyBird.chips,
+      bonusChips: stackBonus + addOnTotal + earlyBird.chips,
       earlyBirdCount: earlyBird.count,
       earlyBirdChips: earlyBird.chips,
       capacity: tournament.maxParticipants,

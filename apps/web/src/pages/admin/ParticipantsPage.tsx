@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
-import { formatBarnaulDateTime } from "../../lib/barnaulDate";
+import { formatBarnaulDateTime, formatBarnaulShortDateTime } from "../../lib/barnaulDate";
 import { useToast } from "../../components/Toast";
 import type { Registration } from "../../types";
 
@@ -629,6 +629,12 @@ export function ParticipantsPage() {
                         <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs font-semibold text-slate-400">
                           <span className={`shrink-0 rounded-[0.55rem] px-1.5 py-0.5 text-[0.68rem] font-bold ${state.className}`}>{state.label}</span>
                           {summary && <span className="truncate">{summary}</span>}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">
+                          Запись {formatBarnaulShortDateTime(item.createdAt)}
+                          {!hasMechanics && item.issuedChips > 0 ? (
+                            <span className="text-emerald"> · +{item.issuedChips.toLocaleString("ru-RU")} к стеку</span>
+                          ) : null}
                         </span>
                       </span>
                       <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isExpanded ? "rotate-180" : ""}`} />

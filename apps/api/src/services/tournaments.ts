@@ -5,6 +5,7 @@ import { AppError, notFound } from "../utils/errors.js";
 
 import { assertMechanicsOpen, mechanicsFor } from "./tournamentMechanics.js";
 import { databaseNow, issueEntry, lockTournament } from "./devilDeal.js";
+import { earlyRegistrationBonusFor } from "./earlyRegistrationBonus.js";
 import { notifyRegistrationCreated } from "./telegramRegistrationQr.js";
 
 export const TABLES_COUNT = 5;
@@ -63,11 +64,14 @@ export async function registerForTournament(userId: string, tournamentId: string
       assertReEntryAllowed(tournament.profile, previousActiveEntries);
     }
 
+    const registeredAt = new Date();
     const registration = await tx.registration.create({
       data: {
         userId,
         tournamentId,
-        entryNumber: previousActiveEntries + 1
+        entryNumber: previousActiveEntries + 1,
+        createdAt: registeredAt,
+        issuedChips: earlyRegistrationBonusFor(tournament, registeredAt, previousActiveEntries + 1)
       }
     });
     if (mechanics) await tx.registration.updateMany({ where: { tournamentId, userId, id: { not: registration.id }, liveStatus: "ELIMINATED" }, data: { finishPlace: null } });

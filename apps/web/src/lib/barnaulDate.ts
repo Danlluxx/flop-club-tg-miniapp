@@ -38,6 +38,16 @@ export function endOfBarnaulDayIso(value: string | Date = new Date()) {
   return new Date(`${barnaulDateKey(value)}T23:59:59.999+07:00`).toISOString();
 }
 
+export function formatBarnaulShortDateTime(value: string | Date) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(value instanceof Date ? value : new Date(value));
+}
+
 export function formatBarnaulDateTime(value: string | Date) {
   return new Intl.DateTimeFormat("ru-RU", {
     timeZone,

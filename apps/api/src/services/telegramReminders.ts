@@ -2,6 +2,7 @@ import { Prisma, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { ensureScheduledTournaments } from "./tournamentSchedule.js";
+import { EARLY_REGISTRATION_BONUS_CHIPS } from "./earlyRegistrationBonus.js";
 import { tournamentEntryChipsFor, tournamentRuleFeaturesFor } from "./tournamentRules.js";
 
 const reminderKind = "3h";
@@ -63,6 +64,7 @@ function reminderLines(tournament: ReminderTournament) {
   }
 
   lines.push(`• Бонус за пунктуальность: ${formatNumber(punctualityBonusChips)} фишек`);
+  lines.push(`• Запись до 18:00 в день турнира: +${formatNumber(EARLY_REGISTRATION_BONUS_CHIPS)} фишек`);
 
   if (tournament.addOnEnabled && tournament.addOnChips > 0) {
     lines.push(

@@ -20,6 +20,7 @@ const entryChipsByTitle: Record<string, number> = {
 };
 
 const punctualityBonusChips = 10000;
+const earlyRegistrationBonusChips = 5000;
 
 const rules: Record<string, TournamentRule> = {
   "FLOP DEVIL DEAL": {
@@ -355,6 +356,7 @@ export function tournamentPriceFeatures(tournament: Tournament) {
   }
 
   features.push(`Бонус за пунктуальность: ${formatNumber.format(punctualityBonusChips)} фишек`);
+  features.push(`Запись до 18:00 в день турнира: +${formatNumber.format(earlyRegistrationBonusChips)} фишек`);
 
   if (tournament.addOnEnabled && tournament.addOnChips > 0) {
     features.push(
