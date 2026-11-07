@@ -61,6 +61,58 @@ function isChipLeaderTournament(title: string) {
   return title.trim().toLowerCase() === "flop chip leader";
 }
 
+// Flop Bounty pays 100 rating points per bounty, also to players outside the rated places, so the
+// bounty goes through game events (as in DEVIL DEAL) instead of the 1-point `knockouts` column.
+const BOUNTY_POINTS_PER_KNOCKOUT = 100;
+const BOUNTY_EVENT_PREFIX = "bounty-fix:";
+
+function paysBountyPoints(tournament: { title: string; profile: string; mechanics: unknown }) {
+  return tournament.profile === "KNOCKOUT" && !tournament.mechanics && tournament.title.trim().toLowerCase() === "flop bounty";
+}
+
+async function syncBountyPointEvents(tx: Prisma.TransactionClient, tournamentId: string) {
+  const previous = await tx.tournamentGameEvent.findMany({
+    where: { tournamentId, eventKey: { startsWith: BOUNTY_EVENT_PREFIX } },
+    select: { userId: true, ratingPoints: true }
+  });
+  const previousByUser = new Map<string, { count: number; points: number }>();
+  for (const event of previous) {
+    if (!event.userId) continue;
+    const entry = previousByUser.get(event.userId) ?? { count: 0, points: 0 };
+    entry.count += 1;
+    entry.points += event.ratingPoints;
+    previousByUser.set(event.userId, entry);
+  }
+  for (const [userId, entry] of previousByUser) {
+    await tx.user.update({ where: { id: userId }, data: { ratingPoints: { decrement: entry.points }, knockouts: { decrement: entry.count } } });
+  }
+  await tx.tournamentGameEvent.deleteMany({ where: { tournamentId, eventKey: { startsWith: BOUNTY_EVENT_PREFIX } } });
+
+  const registrations = await tx.registration.findMany({
+    where: { tournamentId, status: "ACTIVE" },
+    select: { id: true, userId: true, bountyAdjustment: true, knockoutsMade: { select: { id: true } } }
+  });
+  for (const registration of registrations) {
+    const bounty = Math.max(0, registration.knockoutsMade.length + registration.bountyAdjustment);
+    if (!bounty) continue;
+    await tx.tournamentGameEvent.createMany({
+      data: Array.from({ length: bounty }, (_, index) => ({
+        tournamentId,
+        userId: registration.userId,
+        registrationId: registration.id,
+        eventKey: `${BOUNTY_EVENT_PREFIX}${registration.id}:${index + 1}`,
+        type: "BOUNTY_ELIMINATION",
+        ratingPoints: BOUNTY_POINTS_PER_KNOCKOUT,
+        reason: "Bounty: 100 очков"
+      }))
+    });
+    await tx.user.update({
+      where: { id: registration.userId },
+      data: { ratingPoints: { increment: bounty * BOUNTY_POINTS_PER_KNOCKOUT }, knockouts: { increment: bounty } }
+    });
+  }
+}
+
 export function getRatingPoolForTitle(title: string) {
   return RATING_POOLS[title] ?? 10000;
 }
@@ -107,6 +159,7 @@ export async function applyTournamentRatingResults(
     await assertDevilCanFinish(tx, tournament);
     if (tournament.mechanics && inputs.some(input => (input.knockouts ?? 0) !== 0)) throw new AppError(400, "Bounty начисляются автоматически через DEVIL CONTROL", "BOUNTY_ALREADY_ACCOUNTED");
 
+    const bountyPoints = paysBountyPoints(tournament);
     const supportsChipLeaderAward = isChipLeaderTournament(tournament.title);
     if (!supportsChipLeaderAward && chipLeaderAward) {
       throw new AppError(400, "Chip-leader bonus is available only for Flop Chip Leader", "CHIP_LEADER_NOT_ALLOWED");
@@ -151,7 +204,7 @@ export async function applyTournamentRatingResults(
         place: input.place,
         percent: award.percent,
         points: award.points,
-        knockouts: input.knockouts ?? 0,
+        knockouts: bountyPoints ? 0 : input.knockouts ?? 0,
         chipLeaderBonus: 0
       };
     });
@@ -192,6 +245,8 @@ export async function applyTournamentRatingResults(
         }
       });
     }
+
+    if (bountyPoints) await syncBountyPointEvents(tx, tournamentId);
 
     if (chipLeaderAward && chipLeaderUserId) {
       await tx.tournamentChipLeaderAward.create({
