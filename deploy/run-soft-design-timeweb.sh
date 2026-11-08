@@ -9,11 +9,13 @@
 # BASE_COMMIT defaults to the sha stored in .deploy-commit; set it explicitly when that file is stale.
 # ALLOW_OVERWRITE="path1 path2" accepts specific server-side differences after they were reviewed
 # (the files are still backed up first).
+# DB_BACKUP_FILE=<path to a fresh pg_dump> is required when the release contains apps/api/prisma changes.
 set -Eeuo pipefail
 
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-ВСТАВИТЬ_SHA}"
 APPLY="${APPLY:-0}"
 ALLOW_OVERWRITE="${ALLOW_OVERWRITE:-}"
+DB_BACKUP_FILE="${DB_BACKUP_FILE:-}"
 APP_DIR="${APP_DIR:-/root/flop-club-tg-miniapp}"
 BACKUP_DIR="${BACKUP_DIR:-/root/flop-deploy-backups}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -91,7 +93,12 @@ fi
 for file in "${FILES[@]}"; do
   case "$file" in
     apps/api/prisma/*)
-      echo "Релиз затрагивает базу данных ($file). Для таких релизов нужен отдельный план и резервная копия БД."
+      # A release with migrations needs a fresh, non-empty pg_dump taken in the last 30 minutes.
+      if [[ -n "$DB_BACKUP_FILE" && -s "$DB_BACKUP_FILE" && -n "$(find "$DB_BACKUP_FILE" -mmin -30 2>/dev/null)" ]]; then
+        echo "Релиз содержит миграции ($file); резервная копия БД: $DB_BACKUP_FILE"
+        break
+      fi
+      echo "Релиз затрагивает базу данных ($file). Сделайте pg_dump и передайте его путь в DB_BACKUP_FILE (файл не пустой, не старше 30 минут)."
       exit 1
       ;;
   esac
