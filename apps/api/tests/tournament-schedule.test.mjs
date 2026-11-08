@@ -36,3 +36,11 @@ test("2026-11-05 is a FLOP Phoenix tournament with standard pricing", () => {
   assert.equal(tournament.ratingPool, 10000);
   assert.equal(tournament.profile, "PHOENIX");
 });
+
+test("2026-11-08 Deep Stack gives a 200 000 chip add-on, other Deep Stack days keep 100 000", () => {
+  const today = scheduledTournamentForDate("2026-11-08");
+  assert.equal(today.title, "Flop Deep Stack");
+  assert.equal(today.addOnChips, 200000);
+  assert.equal(today.addOnPrice, 1000);
+  assert.equal(scheduledTournamentForDate("2026-09-06").addOnChips, 100000);
+});

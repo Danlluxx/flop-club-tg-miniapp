@@ -127,6 +127,11 @@ const specialTimes: Record<string, string> = {
   "2026-09-05": "17:00",
   "2026-10-31": "18:00"
 };
+// One-off add-on stack for a regular tournament on a given date; everything else keeps its defaults.
+const addOnChipsByDate: Record<string, number> = {
+  "2026-11-08": 200000
+};
+
 const specialEvents: Record<string, {
   title: string;
   buyIn: number;
@@ -389,7 +394,7 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
     lateRegistrationEndsAt: title === "FLOP DEVIL DEAL" ? new Date(devilDealDefaults.registrationClosesAt) : lateRegistrationEndsAt,
     addOnEnabled: eventOverride?.addOnEnabled ?? addOn.enabled,
     addOnPrice: eventOverride?.addOnPrice ?? addOn.price,
-    addOnChips: eventOverride?.addOnChips ?? addOn.chips,
+    addOnChips: eventOverride?.addOnChips ?? addOnChipsByDate[dateKeyValue] ?? addOn.chips,
     maxParticipants,
     status: "OPEN"
   };
