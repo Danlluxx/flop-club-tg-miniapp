@@ -7,11 +7,11 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("ru-RU").format(value);
 }
 
-// Bounty tournaments list placement points and bounty points apart. The ids are the Telegram custom
+// Every tournament uses this template; bounty tournaments also list placement points and bounty points apart. The ids are the Telegram custom
 // (Premium) emoji used in the @FlopClub22 results posts; a list is used one id per occurrence in the text
 // (five stars, crowns for places 1-3). An emoji without an id is sent as the plain character.
 // The full catalogue of the channel's emoji is in docs/ai/PREMIUM_EMOJI.md.
-const BOUNTY_TEMPLATE_TITLES = new Set(["flop bounty", "flop mystery knockout"]);
+const BOUNTY_TITLES = new Set(["flop bounty", "flop mystery knockout"]);
 const EMOJI = { star: "\u{1F31F}", coconut: "\u{1F965}", crown: "\u{1F451}", energy: "\u26A1\uFE0F", glove: "\u{1F94A}" } as const;
 type EmojiIds = Partial<Record<keyof typeof EMOJI, string | string[]>>;
 export const PREMIUM_EMOJI_IDS: EmojiIds = {
@@ -22,8 +22,8 @@ export const PREMIUM_EMOJI_IDS: EmojiIds = {
   glove: "5231406626228948265"
 };
 
-function usesBountyTemplate(title: string) {
-  return BOUNTY_TEMPLATE_TITLES.has(title.trim().toLowerCase());
+function listsBountyApart(title: string) {
+  return BOUNTY_TITLES.has(title.trim().toLowerCase());
 }
 
 export function premiumEmojiEntities(text: string, ids: EmojiIds = PREMIUM_EMOJI_IDS) {
@@ -197,26 +197,21 @@ export async function getTournamentRatingText(tournamentId: string) {
   const rating = await getTournamentRatingRows(tournamentId);
   if (!rating) return null;
 
-  if (usesBountyTemplate(rating.title)) {
-    const lines = rating.rows.map((row) => {
-      const prefix = row.place <= 3 ? `${EMOJI.crown} -` : `${row.place} -`;
-      const placement = row.basePoints > 0 ? ` (${formatNumber(row.basePoints)}${EMOJI.energy})` : "";
-      const bounty = row.bonusPoints > 0 ? ` (+${formatNumber(row.bonusPoints)}${EMOJI.glove})` : "";
-      return `${prefix} ${playerName(row.user).replace(/[\r\n]+/g, " ")}${placement}${bounty}`;
-    });
-    return [
-      EMOJI.star.repeat(5), "", `${EMOJI.coconut} ${rating.title.toUpperCase()} ${EMOJI.coconut}`, "", ...lines,
-      "━━━━━━━━━━━━━", "", `${EMOJI.energy} — рейтинговые очки за место`, `${EMOJI.glove} — бонусные очки за выбивания`
-    ].join("\n");
-  }
-
-  const resultLines = rating.rows.map((row) => {
-    const prefix = row.place <= 3 ? "👑 -" : `${row.place} -`;
-    const points = row.points ? ` (${formatNumber(row.points)}⚡️)` : "";
-    return `${prefix} ${playerName(row.user).replace(/[\r\n]+/g, " ")}${points}`;
+  const apart = listsBountyApart(rating.title);
+  const lines = rating.rows.map((row) => {
+    const prefix = row.place <= 3 ? `${EMOJI.crown} -` : `${row.place} -`;
+    const shown = apart ? row.basePoints : row.points ?? 0;
+    const placement = shown > 0 ? ` (${formatNumber(shown)}${EMOJI.energy})` : "";
+    const bounty = apart && row.bonusPoints > 0 ? ` (+${formatNumber(row.bonusPoints)}${EMOJI.glove})` : "";
+    return `${prefix} ${playerName(row.user).replace(/[\r\n]+/g, " ")}${placement}${bounty}`;
   });
-  const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Barnaul", day: "2-digit", month: "2-digit", year: "numeric" }).format(rating.startsAt);
-  return [`♠️ ${rating.title.toUpperCase()} · ${date} ♠️`, "", ...resultLines].join("\n");
+  const legend = apart
+    ? [`${EMOJI.energy} — рейтинговые очки за место`, `${EMOJI.glove} — бонусные очки за выбивания`]
+    : [`${EMOJI.energy} — рейтинговые очки`];
+  return [
+    EMOJI.star.repeat(5), "", `${EMOJI.coconut} ${rating.title.toUpperCase()} ${EMOJI.coconut}`, "", ...lines,
+    "━━━━━━━━━━━━━", "", ...legend
+  ].join("\n");
 }
 
 export function splitRatingMessage(text: string, limit = 3900) {

@@ -33,7 +33,9 @@ globalThis.fetch = async (_url,options) => { if(fail) throw Error('offline'); se
 
 test('date, literal names, bounty and independent chip leader award', async () => {
   const text = await getTournamentRatingText('test');
-  assert.match(text, /24\.10\.2026/);
+  assert.match(text, /^\u{1F31F}{5}\n\n\u{1F965} FLOP CLASSIC \u{1F965}\n\n/u);
+  assert.match(text, /\u26A1\uFE0F — рейтинговые очки$/u);
+  assert.doesNotMatch(text, /\u{1F94A}/u);
   assert.match(text, /Игрок <&> \(4.200⚡️\)/);
   assert.match(text, /8 - Второй \(2.000⚡️\)/);
 });
