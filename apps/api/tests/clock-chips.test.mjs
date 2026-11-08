@@ -31,3 +31,11 @@ test("early registration chips are added outside Devil Deal only", () => {
   assert.equal(clockChipTotals(rows, 0, false).stackBonus, 10000);
   assert.equal(clockChipTotals(rows, 0, true).stackBonus, 0);
 });
+
+test("Flop Booster re-entries add their bigger stacks on top of the flat starting stack", () => {
+  // entry 2 = +15k, entry 3 = +15k +30k, entry 6 = 15+30+45+60+60
+  assert.equal(clockChipTotals([row("a", 2)], 0, false, true).stackBonus, 15000);
+  assert.equal(clockChipTotals([row("a", 3)], 0, false, true).stackBonus, 45000);
+  assert.equal(clockChipTotals([row("a", 6), row("b")], 0, false, true).stackBonus, 210000);
+  assert.equal(clockChipTotals([row("a", 3)], 0, false, false).stackBonus, 0);
+});

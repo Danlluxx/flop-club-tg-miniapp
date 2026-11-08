@@ -262,6 +262,25 @@ export function tournamentEntryChipsFor(title: string) {
   return entryChipsByTitle[title] ?? 30000;
 }
 
+const BOOSTER_TITLE = "FLOP BOOSTER RE-ENTRY";
+const BOOSTER_STACKS = [30000, 45000, 60000, 75000, 90000];
+
+// Flop Booster hands out a bigger stack with every entry: 30k, then 45k / 60k / 75k, 90k from the 5th on.
+export function boosterStackForEntry(entryNumber: number) {
+  return BOOSTER_STACKS[Math.min(Math.max(entryNumber, 1), BOOSTER_STACKS.length) - 1];
+}
+
+export function isBoosterTournament(title: string) {
+  return title === BOOSTER_TITLE;
+}
+
+// Chips on top of the flat starting stack per entry, which is all the clock multiplies by.
+export function boosterExtraChips(entryNumber: number) {
+  let extra = 0;
+  for (let entry = 2; entry <= entryNumber; entry += 1) extra += boosterStackForEntry(entry) - BOOSTER_STACKS[0];
+  return extra;
+}
+
 export function tournamentAddOnConfigFor(title: string) {
   const chips = addOnChipsByTitle[title];
   return chips ? { enabled: true, price: 1000, chips } : { enabled: false, price: 0, chips: 0 };

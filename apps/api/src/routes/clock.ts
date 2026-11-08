@@ -3,6 +3,7 @@ import { RegistrationStatus, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { entriesByUser } from "../services/tournamentEntries.js";
+import { boosterExtraChips, isBoosterTournament } from "../services/tournamentRules.js";
 import { AppError } from "../utils/errors.js";
 
 export const clockRouter = express.Router();
@@ -45,12 +46,17 @@ export function currentTournamentWindow(now = Date.now()) {
 export function clockChipTotals(
   registrations: { userId: string; entryNumber: number; addOnCount: number; issuedChips: number }[],
   addOnChips: number,
-  hasMechanics: boolean
+  hasMechanics: boolean,
+  booster = false
 ) {
   const addOns = registrations.reduce((sum, registration) => sum + registration.addOnCount, 0);
   const entries = [...entriesByUser(registrations).values()].reduce((sum, count) => sum + count, 0);
   const stackBonus = hasMechanics ? 0 : registrations.reduce((sum, registration) => sum + registration.issuedChips, 0);
-  return { entries, addOnTotal: addOns * addOnChips, stackBonus };
+  // Booster re-entries carry bigger stacks than the flat starting stack the clock multiplies by.
+  const boosterBonus = booster
+    ? [...entriesByUser(registrations).values()].reduce((sum, count) => sum + boosterExtraChips(count), 0)
+    : 0;
+  return { entries, addOnTotal: addOns * addOnChips, stackBonus: stackBonus + boosterBonus };
 }
 
 // Everyone checked in before 19:10 Barnaul time (on the tournament's day) gets this many extra chips.
@@ -121,7 +127,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       select: { userId: true, entryNumber: true, addOnCount: true, issuedChips: true, checkedInAt: true }
     });
 
-    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics));
+    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics), isBoosterTournament(tournament.title));
 
     const earlyBird = earlyCheckInBonus(registrations.map((registration) => registration.checkedInAt), tournament.startsAt);
 

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownUp,
   ArrowRight,
+  Camera,
   ChevronDown,
   Download,
   Copy,
@@ -22,6 +23,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { formatBarnaulDateTime, formatBarnaulShortDateTime } from "../../lib/barnaulDate";
 import { useToast } from "../../components/Toast";
+import { boosterStackForEntry, isBoosterTournament } from "../../lib/tournamentRules";
 import type { Registration } from "../../types";
 
 type ParticipantFilter = "ALL" | "IN_GAME" | "AWAITING_CHECK_IN" | "ELIMINATED";
@@ -60,11 +62,12 @@ function participantState(item: Registration) {
   return { label: "записан", className: "bg-amber-300/15 text-amber-200" };
 }
 
-function participantSummary(item: Registration) {
+function participantSummary(item: Registration, booster = false) {
   const parts: string[] = [];
   if (item.finishPlace) parts.push(`${item.finishPlace} место`);
   if (item.checkedInAt && item.tableNumber && item.seatNumber) parts.push(`стол ${item.tableNumber}, бокс ${item.seatNumber}`);
   if (item.entryNumber > 1) parts.push(`re-entry ${item.entryNumber - 1}`);
+  if (booster) parts.push(`стек ${boosterStackForEntry(item.entryNumber).toLocaleString("ru-RU")}`);
   if (item.addOnCount > 0) parts.push("add-on");
   return parts.join(" · ");
 }
@@ -402,6 +405,8 @@ export function ParticipantsPage() {
     onError: (error) => showToast(error.message, "error")
   });
 
+  const boosterTournament = Boolean(liveState && isBoosterTournament(liveState.tournament.title));
+
   function canUseReEntry(item: Registration) {
     if (!liveState || liveState.tournament.mechanics || item.status !== "ACTIVE") return false;
     if (liveState.tournament.profile === "FREEZE" || liveState.tournament.reEntry <= 0) return false;
@@ -422,6 +427,7 @@ export function ParticipantsPage() {
         >
           <PlusCircle className="h-4 w-4" />
           Re-entry{item.entryNumber > 1 ? ` ${item.entryNumber - 1}` : ""}
+          {boosterTournament ? ` · ${boosterStackForEntry(item.entryNumber + 1).toLocaleString("ru-RU")}` : ""}
         </button>
         {item.entryNumber > 1 ? (
           <button
@@ -623,7 +629,7 @@ export function ParticipantsPage() {
               const state = participantState(item);
               const isExpanded = expandedParticipantId === item.id;
               const isSeated = item.liveStatus === "IN_GAME" && Boolean(item.checkedInAt);
-              const summary = participantSummary(item);
+              const summary = participantSummary(item, boosterTournament);
               return (
                 <article key={item.id} className="app-panel admin-player">
                   <div className="flex items-center gap-2 p-2">
@@ -682,6 +688,11 @@ export function ParticipantsPage() {
                       <div className="flex flex-wrap gap-1.5 text-xs font-bold">
                         <span className="rounded-[0.55rem] bg-white/8 px-2.5 py-1 text-slate-400">Входов: {item.entryNumber}</span>
                         <span className="rounded-[0.55rem] bg-rose-500/10 px-2.5 py-1 text-rose-100">Re-entry: {Math.max(0, item.entryNumber - 1)}</span>
+                        {boosterTournament ? (
+                          <span className="rounded-[0.55rem] bg-amber-300/15 px-2.5 py-1 text-amber-200">
+                            Стек {item.entryNumber}-го входа: {boosterStackForEntry(item.entryNumber).toLocaleString("ru-RU")}
+                          </span>
+                        ) : null}
                         {liveState?.tournament.addOnEnabled || item.addOnCount > 0 ? (
                           <span className="rounded-[0.55rem] bg-violet/15 px-2.5 py-1 text-violet">Add-on: {item.addOnCount}</span>
                         ) : null}
@@ -971,6 +982,9 @@ export function ParticipantsPage() {
               className="app-panel tap flex min-h-12 items-center gap-3 px-4 text-sm font-bold disabled:opacity-50">
               <Download className="h-4 w-4 text-electric" />Отчёт за день (Excel)
             </button>
+            <Link to={`/admin/tournaments/${id}/photos`} className="app-panel tap flex min-h-12 items-center gap-3 px-4 text-sm font-bold">
+              <Camera className="h-4 w-4 text-electric" />Фото итогов
+            </Link>
           </div>
 
           <div className="space-y-2">

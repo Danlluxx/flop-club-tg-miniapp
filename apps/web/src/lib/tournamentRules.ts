@@ -332,6 +332,17 @@ export function tournamentEntryChipsFor(title: string) {
   return entryChipsByTitle[title] ?? 30000;
 }
 
+const BOOSTER_STACKS = [30000, 45000, 60000, 75000, 90000];
+
+export function isBoosterTournament(title: string) {
+  return title === "FLOP BOOSTER RE-ENTRY";
+}
+
+// Stack handed out for the given entry number (1 = first entry, 2 = first re-entry, ...).
+export function boosterStackForEntry(entryNumber: number) {
+  return BOOSTER_STACKS[Math.min(Math.max(entryNumber, 1), BOOSTER_STACKS.length) - 1];
+}
+
 export function tournamentPriceFeatures(tournament: Tournament) {
   const formatNumber = new Intl.NumberFormat("ru-RU");
   if (tournament.mechanics) {
