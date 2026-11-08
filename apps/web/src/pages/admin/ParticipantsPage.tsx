@@ -93,7 +93,6 @@ export function ParticipantsPage() {
   const [tableOpen, setTableOpen] = useState<Record<number, boolean>>({});
   const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
   const [finishPlaceDraft, setFinishPlaceDraft] = useState<Record<string, string>>({});
-  const [killerRegistrationId, setKillerRegistrationId] = useState("");
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const parsedEntriesCount = Number(entriesCount);
@@ -195,13 +194,8 @@ export function ParticipantsPage() {
   const actualEntries = participants.filter((item) => item.checkedInAt).length;
   const awards = ratingInfo?.awards ?? [];
   const pointsByPlace = new Map(awards.map((award) => [award.place, award.points]));
-  const recordedBountyByRegistration = new Map<string, number>();
-  for (const knockout of liveState?.knockouts ?? []) {
-    const killerId = knockout.killerRegistrationId;
-    if (killerId) recordedBountyByRegistration.set(killerId, (recordedBountyByRegistration.get(killerId) ?? 0) + 1);
-  }
   function bountyOf(item: Registration) {
-    return Math.max(0, (recordedBountyByRegistration.get(item.id) ?? 0) + (item.bountyAdjustment ?? 0));
+    return item.bounty ?? 0;
   }
   const placedParticipants = participants
     .filter((item) => item.finishPlace || item.liveStatus === "ELIMINATED")
@@ -247,10 +241,7 @@ export function ParticipantsPage() {
   });
 
   const elimination = useMutation({
-    mutationFn: ({ registrationId, killerId }: { registrationId: string; killerId: string }) => api.recordElimination(id, {
-      eliminatedRegistrationId: registrationId,
-      killerRegistrationId: isKnockoutTournament ? killerId || null : null
-    }),
+    mutationFn: (registrationId: string) => api.recordElimination(id, { eliminatedRegistrationId: registrationId }),
     onSuccess: async () => {
       showToast("Вылет зафиксирован");
       await invalidateTournamentLive();
@@ -318,8 +309,7 @@ export function ParticipantsPage() {
   });
 
   const updateBounty = useMutation({
-    mutationFn: ({ registrationId, bountyAdjustment }: { registrationId: string; bountyAdjustment: number }) =>
-      api.updateBountyAdjustment(registrationId, bountyAdjustment),
+    mutationFn: ({ registrationId, delta }: { registrationId: string; delta: 1 | -1 }) => api.changeBounty(registrationId, delta),
     onSuccess: async () => {
       await invalidateTournamentLive();
     },
@@ -414,6 +404,30 @@ export function ParticipantsPage() {
     return true;
   }
 
+  function renderBountyControl(item: Registration) {
+    if (!isKnockoutTournament || hasMechanics) return null;
+    const bounty = bountyOf(item);
+    return (
+      <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-[0.55rem] bg-amber-300/12 text-xs font-black text-amber-200" aria-label={`Bounty: ${participantName(item)}`}>
+        <button
+          type="button"
+          className="tap grid h-full w-9 place-items-center text-base disabled:opacity-30"
+          disabled={updateBounty.isPending || bounty <= 0}
+          onClick={() => updateBounty.mutate({ registrationId: item.id, delta: -1 })}
+          aria-label="Убрать bounty"
+        >−</button>
+        <span className="min-w-[4.5rem] text-center">Bounty {bounty}</span>
+        <button
+          type="button"
+          className="tap grid h-full w-9 place-items-center text-base disabled:opacity-30"
+          disabled={updateBounty.isPending}
+          onClick={() => updateBounty.mutate({ registrationId: item.id, delta: 1 })}
+          aria-label="Добавить bounty"
+        >+</button>
+      </div>
+    );
+  }
+
   function renderReEntryControl(item: Registration) {
     if (hasMechanics || (!canUseReEntry(item) && item.entryNumber <= 1)) return null;
     return (
@@ -479,7 +493,6 @@ export function ParticipantsPage() {
   }
 
   function askElimination(item: Registration) {
-    setKillerRegistrationId("");
     setPendingConfirm({ kind: "eliminate", item });
   }
 
@@ -488,7 +501,7 @@ export function ParticipantsPage() {
     if (pendingConfirm.kind === "eliminate") {
       setMoveSourceId(null);
       setExpandedParticipantId(null);
-      elimination.mutate({ registrationId: pendingConfirm.item.id, killerId: killerRegistrationId });
+      elimination.mutate(pendingConfirm.item.id);
     }
     if (pendingConfirm.kind === "remove") {
       setExpandedParticipantId(null);
@@ -704,6 +717,7 @@ export function ParticipantsPage() {
                       <div className="flex flex-wrap gap-2">
                         {renderReEntryControl(item)}
                         {renderAddOnControl(item)}
+                        {renderBountyControl(item)}
                         {isSeated ? (
                           <button
                             type="button"
@@ -845,19 +859,6 @@ export function ParticipantsPage() {
               </div>
             </div>
           )}
-
-          {liveState?.knockouts.length ? (
-            <div className="space-y-2 pt-1">
-              <p className="px-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Последние нокауты</p>
-              {liveState.knockouts.slice(0, 5).map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-[0.75rem] bg-white/[0.04] px-3 py-2 text-sm">
-                  <span className="truncate text-slate-400">{participantName(item.eliminatedRegistration!)}</span>
-                  <span className="shrink-0 text-rose-200">выбит</span>
-                  <span className="truncate text-right font-bold">{item.killerRegistration ? participantName(item.killerRegistration) : "без нокаута"}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
       )}
 
@@ -1017,19 +1018,7 @@ export function ParticipantsPage() {
                       {item.liveStatus === "IN_GAME" ? " · ещё в игре" : ""}
                     </p>
                   </div>
-                  {isKnockoutTournament && !hasMechanics ? (
-                    <div className="flex shrink-0 items-center gap-1" aria-label={`Баунти: ${participantName(item)}`}>
-                      <button type="button" className="tap grid h-9 w-9 place-items-center rounded-[0.75rem] bg-white/8 text-base font-black text-white disabled:opacity-40"
-                        disabled={updateBounty.isPending || bountyOf(item) <= 0}
-                        onClick={() => updateBounty.mutate({ registrationId: item.id, bountyAdjustment: (item.bountyAdjustment ?? 0) - 1 })}
-                        aria-label="Убрать баунти">−</button>
-                      <span className="w-8 text-center text-sm font-black text-white">{bountyOf(item)}</span>
-                      <button type="button" className="tap grid h-9 w-9 place-items-center rounded-[0.75rem] bg-white/8 text-base font-black text-white disabled:opacity-40"
-                        disabled={updateBounty.isPending}
-                        onClick={() => updateBounty.mutate({ registrationId: item.id, bountyAdjustment: (item.bountyAdjustment ?? 0) + 1 })}
-                        aria-label="Добавить баунти">+</button>
-                    </div>
-                  ) : null}
+                  {renderBountyControl(item)}
                   {draft !== undefined && draft !== saved ? (
                     <button
                       className="tap grid h-10 w-10 shrink-0 place-items-center rounded-[0.75rem] bg-white/8 text-white disabled:opacity-50"
@@ -1060,19 +1049,6 @@ export function ParticipantsPage() {
           <div className="space-y-4">
             <h3 id="confirm-title" className="text-lg font-bold">{confirmCopy.title}</h3>
             <p className="text-sm font-semibold text-slate-400">{confirmCopy.body}</p>
-            {pendingConfirm?.kind === "eliminate" && isKnockoutTournament ? (
-              <select
-                className="w-full rounded-[0.75rem] border border-white/10 bg-graphite px-3 py-3 text-sm font-semibold text-white outline-none focus:border-rose-400"
-                value={killerRegistrationId}
-                onChange={(event) => setKillerRegistrationId(event.target.value)}
-                aria-label="Кто выбил"
-              >
-                <option value="">Кто выбил, если есть</option>
-                {inGameParticipants.filter((item) => item.id !== pendingConfirm.item.id).map((item) => (
-                  <option key={item.id} value={item.id}>{participantName(item)}</option>
-                ))}
-              </select>
-            ) : null}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => confirmDialog.current?.close()} className="tap min-h-12 rounded-md bg-white/8 text-sm font-bold">Отмена</button>
               <button type="button" onClick={confirmPending} className="tap min-h-12 rounded-md bg-rose-500 text-sm font-bold text-white">{confirmCopy.action}</button>

@@ -217,10 +217,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data)
     }),
-  recordElimination: (
-    tournamentId: string,
-    data: { eliminatedRegistrationId: string; killerRegistrationId?: string | null }
-  ) =>
+  recordElimination: (tournamentId: string, data: { eliminatedRegistrationId: string }) =>
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/eliminations`, {
       method: "POST",
       body: JSON.stringify(data)
@@ -242,10 +239,10 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ finishPlace })
     }),
-  updateBountyAdjustment: (registrationId: string, bountyAdjustment: number) =>
-    request<Registration>(`/api/admin/registrations/${registrationId}/bounty-adjustment`, {
+  changeBounty: (registrationId: string, delta: 1 | -1) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/bounty`, {
       method: "PATCH",
-      body: JSON.stringify({ bountyAdjustment })
+      body: JSON.stringify({ delta })
     }),
   downloadDayReport: (date: string) =>
     download(`/api/admin/reports/day.xlsx?date=${encodeURIComponent(date)}`, `flop-club-rating-${date}.xlsx`),

@@ -72,7 +72,7 @@ export type Registration = {
   eliminatedAt?: string | null;
   noShowPenaltyAppliedAt?: string | null;
   noShowPenaltyPoints: number;
-  bountyAdjustment?: number;
+  bounty: number;
   createdAt: string;
   updatedAt: string;
   tournament?: Tournament;
@@ -86,17 +86,6 @@ export type TournamentPublicParticipant = {
   finishPlace?: number | null;
   createdAt: string;
   user: Pick<User, "id" | "username" | "firstName" | "lastName" | "displayName" | "photoUrl" | "ratingPoints">;
-};
-
-export type Knockout = {
-  id: string;
-  tournamentId: string;
-  eliminatedRegistrationId: string;
-  killerRegistrationId?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  eliminatedRegistration?: Registration;
-  killerRegistration?: Registration | null;
 };
 
 export type LiveSeat = {
@@ -116,7 +105,6 @@ export type TournamentLiveState = {
   inGame: Registration[];
   eliminated: Registration[];
   tables: LiveTable[];
-  knockouts: Knockout[];
 };
 
 // The leaderboard is visible to every player, so it carries only what a row shows.

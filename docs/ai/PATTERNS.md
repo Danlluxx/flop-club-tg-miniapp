@@ -46,6 +46,8 @@
 
 A marked re-entry on an eliminated player returns them to the game (`addMarkedReEntry`, `apps/api/src/services/liveTournament.ts`): new entry and life, first free seat, and players eliminated after them move up a place. Blocked for finished tournaments. Removing that entry later leaves the player in the game.
 
+Flop Bounty (profile KNOCKOUT, no mechanics) counts bounty as `Registration.bounty`, changed ±1 by `PATCH /api/admin/registrations/:id/bounty` from the player card; eliminations no longer record who knocked out whom. Rating publication turns the counter into 100-point `bounty-fix:` events (`syncBountyPointEvents`). The `Knockout` table and `bountyAdjustment` stay as unread history; migration `20261108120000` copied the old tallies into `bounty`.
+
 ## Revenue analytics
 
 `apps/api/src/services/adminAnalytics.ts` estimates revenue from marks, not payments: checked-in players × `buyIn`, re-entries × `reEntry`, add-ons × `addOnPrice`, at each tournament's own prices, with no prize deduction. Entries come from `entriesByUser` (shared with the clock). A tournament falls in a period by its Barnaul date; weeks start on Monday.

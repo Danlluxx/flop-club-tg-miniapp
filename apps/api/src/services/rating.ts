@@ -90,10 +90,10 @@ async function syncBountyPointEvents(tx: Prisma.TransactionClient, tournamentId:
 
   const registrations = await tx.registration.findMany({
     where: { tournamentId, status: "ACTIVE" },
-    select: { id: true, userId: true, bountyAdjustment: true, knockoutsMade: { select: { id: true } } }
+    select: { id: true, userId: true, bounty: true }
   });
   for (const registration of registrations) {
-    const bounty = Math.max(0, registration.knockoutsMade.length + registration.bountyAdjustment);
+    const { bounty } = registration;
     if (!bounty) continue;
     await tx.tournamentGameEvent.createMany({
       data: Array.from({ length: bounty }, (_, index) => ({

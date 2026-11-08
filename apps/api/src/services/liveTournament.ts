@@ -248,8 +248,7 @@ export async function addMarkedReEntry(registrationId: string) {
 
 export async function recordElimination(
   tournamentId: string,
-  eliminatedRegistrationId: string,
-  killerRegistrationId: string | null | undefined
+  eliminatedRegistrationId: string
 ) {
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
@@ -262,39 +261,10 @@ export async function recordElimination(
       throw new AppError(409, "Participant is already eliminated or cancelled", "PARTICIPANT_NOT_IN_GAME");
     }
 
-    let killerId: string | null = null;
-    if (killerRegistrationId) {
-      if (killerRegistrationId === eliminatedRegistrationId) {
-        throw new AppError(400, "Participant cannot knock out themselves", "KNOCKOUT_SELF");
-      }
-
-      const killer = await tx.registration.findUnique({ where: { id: killerRegistrationId } });
-      if (!killer || killer.tournamentId !== tournamentId) throw notFound("Killer registration");
-      if (killer.status !== RegistrationStatus.ACTIVE || killer.liveStatus !== "IN_GAME" || !killer.checkedInAt) {
-        throw new AppError(409, "Killer must be active in game", "KILLER_NOT_IN_GAME");
-      }
-      killerId = killer.id;
-    }
-
     const inGameCountBefore = await tx.registration.count({
       where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } }
     });
     const finishPlace = Math.max(1, inGameCountBefore);
-
-    if (killerId && tournament.profile !== TournamentProfile.KNOCKOUT) {
-      throw new AppError(400, "Killer can be set only for bounty/knockout tournaments", "KNOCKOUT_NOT_ALLOWED_FOR_PROFILE");
-    }
-
-    if (killerId) {
-      await tx.knockout.create({
-        data: {
-          tournamentId,
-          eliminatedRegistrationId,
-          lifeNumber: eliminated.lifeNumber,
-          killerRegistrationId: killerId
-        }
-      });
-    }
 
     await tx.registration.update({
       where: { id: eliminatedRegistrationId },
@@ -319,7 +289,7 @@ export async function recordElimination(
     }
 
     console.log(
-      `[live:elimination:create] tournament=${tournamentId} eliminated=${eliminatedRegistrationId} finishPlace=${finishPlace} killer=${killerId ?? "none"}`
+      `[live:elimination:create] tournament=${tournamentId} eliminated=${eliminatedRegistrationId} finishPlace=${finishPlace}`
     );
   });
 
@@ -534,21 +504,11 @@ async function buildLiveState(tx: Prisma.TransactionClient, tournamentId: string
   const tournament = await tx.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) throw notFound("Tournament");
 
-  const [registrations, knockouts] = await Promise.all([
-    tx.registration.findMany({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE },
-      include: liveRegistrationInclude,
-      orderBy: [{ liveStatus: "asc" }, { tableNumber: "asc" }, { seatNumber: "asc" }, { createdAt: "asc" }]
-    }),
-    tx.knockout.findMany({
-      where: { tournamentId },
-      include: {
-        eliminatedRegistration: { include: { user: true } },
-        killerRegistration: { include: { user: true } }
-      },
-      orderBy: { createdAt: "desc" }
-    })
-  ]);
+  const registrations = await tx.registration.findMany({
+    where: { tournamentId, status: RegistrationStatus.ACTIVE },
+    include: liveRegistrationInclude,
+    orderBy: [{ liveStatus: "asc" }, { tableNumber: "asc" }, { seatNumber: "asc" }, { createdAt: "asc" }]
+  });
 
   const inGame = registrations.filter((registration) => registration.liveStatus === "IN_GAME" && registration.checkedInAt);
   const eliminated = registrations.filter((registration) => registration.liveStatus === "ELIMINATED");
@@ -571,7 +531,7 @@ async function buildLiveState(tx: Prisma.TransactionClient, tournamentId: string
     };
   });
 
-  return { tournament, registrations, inGame, eliminated, tables, knockouts };
+  return { tournament, registrations, inGame, eliminated, tables };
 }
 
 function assertSeat(tableNumber: number, seatNumber: number) {

@@ -165,6 +165,7 @@ model Registration {
   noShowPenaltyAppliedAt DateTime?
   noShowPenaltyPoints    Int                   @default(0)
   bountyAdjustment       Int                   @default(0)
+  bounty                 Int                   @default(0)
   user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tournament             Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   knockoutsMade          Knockout[]            @relation("KnockoutKiller")

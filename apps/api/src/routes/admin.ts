@@ -217,13 +217,12 @@ const moveSeatSchema = z.object({
   seatNumber: z.coerce.number().int().min(1).max(10)
 });
 
-const knockoutSchema = z.object({
-  eliminatedRegistrationId: z.string().min(1),
-  killerRegistrationId: z.string().min(1).optional().nullable()
+const eliminationSchema = z.object({
+  eliminatedRegistrationId: z.string().min(1)
 });
 
-const bountyAdjustmentSchema = z.object({
-  bountyAdjustment: z.coerce.number().int().min(-100).max(100)
+const bountySchema = z.object({
+  delta: z.union([z.literal(1), z.literal(-1)])
 });
 
 const checkInSchema = z.object({
@@ -287,8 +286,8 @@ adminRouter.patch("/tournaments/:id/live/registrations/:registrationId/seat", as
 
 adminRouter.post("/tournaments/:id/live/knockouts", async (req, res, next) => {
   try {
-    const payload = knockoutSchema.parse(req.body);
-    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId, payload.killerRegistrationId);
+    const payload = eliminationSchema.parse(req.body);
+    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId);
     res.status(201).json(state);
   } catch (error) {
     next(error);
@@ -297,8 +296,8 @@ adminRouter.post("/tournaments/:id/live/knockouts", async (req, res, next) => {
 
 adminRouter.post("/tournaments/:id/live/eliminations", async (req, res, next) => {
   try {
-    const payload = knockoutSchema.parse(req.body);
-    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId, payload.killerRegistrationId);
+    const payload = eliminationSchema.parse(req.body);
+    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId);
     res.status(201).json(state);
   } catch (error) {
     next(error);
@@ -454,9 +453,9 @@ adminRouter.patch("/registrations/:registrationId/finish-place", async (req, res
   }
 });
 
-adminRouter.patch("/registrations/:registrationId/bounty-adjustment", async (req, res, next) => {
+adminRouter.patch("/registrations/:registrationId/bounty", async (req, res, next) => {
   try {
-    const payload = bountyAdjustmentSchema.parse(req.body);
+    const payload = bountySchema.parse(req.body);
     const registration = await prisma.registration.findUnique({
       where: { id: req.params.registrationId },
       include: { tournament: true }
@@ -464,19 +463,20 @@ adminRouter.patch("/registrations/:registrationId/bounty-adjustment", async (req
     if (!registration) throw notFound("Registration");
     if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
     if (registration.tournament.profile !== TournamentProfile.KNOCKOUT) {
-      throw new AppError(400, "Bounty adjustment is only for bounty/knockout tournaments", "KNOCKOUT_NOT_ALLOWED_FOR_PROFILE");
+      throw new AppError(400, "Bounty is only for bounty/knockout tournaments", "KNOCKOUT_NOT_ALLOWED_FOR_PROFILE");
     }
     if (registration.status !== RegistrationStatus.ACTIVE) {
       throw new AppError(409, "Registration is not active", "REGISTRATION_NOT_ACTIVE");
     }
 
-    const updated = await prisma.registration.update({
-      where: { id: registration.id },
-      data: { bountyAdjustment: payload.bountyAdjustment }
+    // One atomic step, so two admins tapping at once never overwrite each other and the tally stays >= 0.
+    const changed = await prisma.registration.updateMany({
+      where: { id: registration.id, ...(payload.delta < 0 ? { bounty: { gte: 1 } } : {}) },
+      data: { bounty: payload.delta > 0 ? { increment: 1 } : { decrement: 1 } }
     });
-    console.log(
-      `[admin:bounty-adjustment:update] admin=${req.user!.id} registration=${registration.id} adjustment=${payload.bountyAdjustment}`
-    );
+    if (!changed.count) throw new AppError(409, "Bounty is already 0", "BOUNTY_ALREADY_ZERO");
+    const updated = await prisma.registration.findUniqueOrThrow({ where: { id: registration.id } });
+    console.log(`[admin:bounty:update] admin=${req.user!.id} registration=${registration.id} delta=${payload.delta} bounty=${updated.bounty}`);
     res.json(updated);
   } catch (error) {
     next(error);
