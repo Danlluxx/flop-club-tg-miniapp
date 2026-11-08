@@ -8,9 +8,9 @@ process.env.FRONTEND_URL = 'http://localhost:5173';
 process.env.TELEGRAM_RATING_CHAT_ID = '@flopclub';
 const { prisma } = await import('../dist/prisma.js');
 const { Prisma } = await import('@prisma/client');
-const { getTournamentRatingText, publishTournamentRatingResults, splitRatingMessage } = await import('../dist/services/telegramRatingResults.js');
+const { getTournamentRatingText, publishTournamentRatingResults, splitRatingMessage, premiumEmojiEntities } = await import('../dist/services/telegramRatingResults.js');
 const user = { displayName: 'Игрок <&>', username: 'player', firstName: null, lastName: null, telegramId: '1' };
-let tournament = { title: 'Flop Bounty', startsAt: new Date('2026-10-23T18:00:00Z'), registrations: [
+let tournament = { title: 'Flop Classic', startsAt: new Date('2026-10-23T18:00:00Z'), registrations: [
   { userId: '1', user, finishPlace: 1, createdAt: new Date() },
   { userId: '2', user: { ...user, displayName: 'Второй' }, finishPlace: 8, createdAt: new Date() }
 ], ratingResults: [{ userId: '1', user, place: 1, points: 3300, knockouts: 900, chipLeaderBonus: 0 }], chipLeaderAward: { userId: '2', points: 2000 } };
@@ -36,6 +36,26 @@ test('date, literal names, bounty and independent chip leader award', async () =
   assert.match(text, /24\.10\.2026/);
   assert.match(text, /Игрок <&> \(4.200⚡️\)/);
   assert.match(text, /8 - Второй \(2.000⚡️\)/);
+});
+test('bounty template lists placement and bounty points apart', async () => {
+  const original = tournament;
+  tournament = { ...original, title: 'Flop Bounty', ratingResults: [{ userId: '1', user, place: 1, points: 3300, knockouts: 0, chipLeaderBonus: 0 }],
+    registrations: original.registrations, chipLeaderAward: null,
+    gameEvents: [{ userId: '1', ratingPoints: 900 }, { userId: '2', ratingPoints: 100 }] };
+  const text = await getTournamentRatingText('test');
+  assert.match(text, /^\u{1F31F}{5}\n\n\u{1F965} FLOP BOUNTY \u{1F965}\n\n/u);
+  assert.match(text, /\u{1F451} - Игрок <&> \(3.300\u26A1\uFE0F\) \(\+900\u{1F94A}\)/u);
+  assert.match(text, /8 - Второй \(\+100\u{1F94A}\)/u);
+  assert.doesNotMatch(text, /Второй \(.*\u26A1/u);
+  assert.match(text, /━━━━━━━━━━━━━\n\n\u26A1\uFE0F — рейтинговые очки за место\n\u{1F94A} — бонусные очки за выбивания$/u);
+  const entities = premiumEmojiEntities(text);
+  const ids = entities.map((entity) => entity.custom_emoji_id);
+  assert.equal(entities.filter((entity) => text.slice(entity.offset, entity.offset + entity.length) === '\u{1F31F}').length, 5);
+  assert.deepEqual(ids.filter((id) => id === '5395608259656709199').length, 2);
+  assert.ok(ids.includes('5260367375957516164') && ids.includes('5231406626228948265') && ids.includes('5429249222362810005'));
+  assert.deepEqual(entities.map((entity) => entity.offset), [...entities.map((entity) => entity.offset)].sort((x, y) => x - y));
+  for (const entity of entities) assert.equal(entity.length, 2);
+  tournament = original;
 });
 test('delivery deduplication, updates and retry after failure', async () => {
   assert.equal(await publishTournamentRatingResults('test'),true);
