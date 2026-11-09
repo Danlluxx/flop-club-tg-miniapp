@@ -73,6 +73,12 @@ test('every listed tournament gets its own premium emoji around the title', asyn
   }
   tournament = original;
 });
+test('title emoji stay premium in an update post with a heading', async () => {
+  const text = `Обновлённые результаты\n\n${await getTournamentRatingText('test')}`;
+  const title = text.split('\n')[4];
+  const found = premiumEmojiEntities(text).filter((entity) => title.startsWith(text.slice(entity.offset, entity.offset + entity.length)) && text.indexOf(title) <= entity.offset && entity.offset <= text.indexOf(title) + title.length);
+  assert.equal(found.length, 2);
+});
 test('delivery deduplication, updates and retry after failure', async () => {
   assert.equal(await publishTournamentRatingResults('test'),true);
   assert.equal(await publishTournamentRatingResults('test'),false);

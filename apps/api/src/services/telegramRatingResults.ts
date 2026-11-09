@@ -57,12 +57,14 @@ export function premiumEmojiEntities(text: string, ids: EmojiIds = PREMIUM_EMOJI
       occurrence += 1;
     }
   }
-  // The title line follows the five stars and a blank line; its first and last emoji are the tournament's.
+  // The title line follows the five stars and a blank line (an update post puts a heading before them);
+  // its first and last emoji are the tournament's.
   const lines = text.split("\n");
-  const titleLine = lines[2];
-  if (text.startsWith(EMOJI.star) && titleLine) {
+  const banner = lines.indexOf(EMOJI.star.repeat(5));
+  const titleLine = banner === -1 ? undefined : lines[banner + 2];
+  if (titleLine) {
     const known = [DEFAULT_TITLE_EMOJI, ...Object.values(TITLE_EMOJI)];
-    const lineOffset = lines.slice(0, 2).join("\n").length + 1;
+    const lineOffset = lines.slice(0, banner + 2).join("\n").length + 1;
     const found = known.find((item) => titleLine.startsWith(item.char));
     if (found && titleLine.endsWith(found.char) && titleLine.length > found.char.length * 2) {
       entities.push({ type: "custom_emoji", offset: lineOffset, length: found.char.length, custom_emoji_id: found.id });
