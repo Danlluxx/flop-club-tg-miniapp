@@ -3,7 +3,7 @@ import { RegistrationStatus, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { entriesByUser } from "../services/tournamentEntries.js";
-import { boosterExtraChips, isBoosterTournament } from "../services/tournamentRules.js";
+import { blindStructureFor, boosterExtraChips, isBoosterTournament, tournamentEntryChipsFor } from "../services/tournamentRules.js";
 import { AppError } from "../utils/errors.js";
 
 export const clockRouter = express.Router();
@@ -59,14 +59,25 @@ export function clockChipTotals(
   return { entries, addOnTotal: addOns * addOnChips, stackBonus: stackBonus + boosterBonus };
 }
 
-// Everyone checked in before 19:10 Barnaul time (on the tournament's day) gets this many extra chips.
-const EARLY_CHECK_IN_MINUTES = 19 * 60 + 10;
+// Everyone checked in within 10 minutes of the start (19:10 for a 19:00 start) gets this many extra chips.
+// Only a player's first check-in counts; re-entries and Devil Deal do not earn it.
+const EARLY_CHECK_IN_WINDOW_MS = 10 * 60_000;
 const EARLY_CHECK_IN_CHIPS = 10_000;
 
-export function earlyCheckInBonus(checkedInAt: (Date | null)[], startsAt: Date) {
-  const localDayStart = Math.floor((startsAt.getTime() + BARNAUL_UTC_OFFSET_MS) / DAY_MS) * DAY_MS;
-  const cutoff = localDayStart + EARLY_CHECK_IN_MINUTES * 60_000 - BARNAUL_UTC_OFFSET_MS;
-  const count = checkedInAt.filter((value) => value && value.getTime() < cutoff).length;
+export function earlyCheckInBonus(
+  registrations: { userId: string; entryNumber: number; checkedInAt: Date | null }[],
+  startsAt: Date,
+  hasMechanics = false
+) {
+  if (hasMechanics) return { count: 0, chips: 0 };
+  const cutoff = startsAt.getTime() + EARLY_CHECK_IN_WINDOW_MS;
+  const first = new Map<string, Date>();
+  for (const registration of registrations) {
+    if (!registration.checkedInAt) continue;
+    const known = first.get(registration.userId);
+    if (!known || registration.checkedInAt < known) first.set(registration.userId, registration.checkedInAt);
+  }
+  const count = [...first.values()].filter((checkedInAt) => checkedInAt.getTime() < cutoff).length;
   return { count, chips: count * EARLY_CHECK_IN_CHIPS };
 }
 
@@ -129,7 +140,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
 
     const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics), isBoosterTournament(tournament.title));
 
-    const earlyBird = earlyCheckInBonus(registrations.map((registration) => registration.checkedInAt), tournament.startsAt);
+    const earlyBird = earlyCheckInBonus(registrations, tournament.startsAt, Boolean(tournament.mechanics));
 
     res.json({
       count,
@@ -139,7 +150,9 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       earlyBirdChips: earlyBird.chips,
       capacity: tournament.maxParticipants,
       tournamentId: tournament.id,
-      tournamentTitle: tournament.title
+      tournamentTitle: tournament.title,
+      startingStack: tournament.mechanics ? null : tournamentEntryChipsFor(tournament.title),
+      blindStructure: blindStructureFor(tournament.title)
     });
   } catch (error) {
     next(error);

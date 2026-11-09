@@ -285,3 +285,18 @@ export function tournamentAddOnConfigFor(title: string) {
   const chips = addOnChipsByTitle[title];
   return chips ? { enabled: true, price: 1000, chips } : { enabled: false, price: 0, chips: 0 };
 }
+
+// Blind structure ids of the blind clock app (flop-club-blind, src/data/blindStructures.ts). A title that is not
+// listed keeps whatever structure the operator picked on the clock.
+const blindStructureByTitle: Record<string, string> = {
+  "Flop Last Call": "turbo",
+  "Flop Rampage": "turbo",
+  "Flop Deep Stack": "deep",
+  "Flop Prime Event": "deep",
+  "Flop Black Edition": "deep",
+  "Flop Butterfly": "flop-butterfly"
+};
+
+export function blindStructureFor(title: string) {
+  return blindStructureByTitle[title] ?? null;
+}
