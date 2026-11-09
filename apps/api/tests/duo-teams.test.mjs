@@ -14,16 +14,22 @@ const at = (minute) => new Date(Date.UTC(2026, 10, 12, 12, minute));
 const reg = (id, userId, liveStatus, minute) => ({ id, userId, liveStatus, checkedInAt: minute === null ? null : at(minute), issuedChips: 0 });
 const pair = (eventId, a, b) => ({ eventId, userIds: [a, b] });
 
-test("Thursday 2026-11-12 is FLOP DUO with the agreed terms", () => {
-  const duo = scheduledTournamentForDate("2026-11-12");
+test("Friday 2026-11-13 is FLOP DUO with the agreed terms", () => {
+  const duo = scheduledTournamentForDate("2026-11-13");
   assert.equal(duo.title, "FLOP DUO 2x2");
   assert.equal(duo.buyIn, 500);
   assert.equal(duo.reEntry, 750);
   assert.equal(duo.ratingPool, 15000);
   assert.equal(duo.addOnEnabled, false);
-  assert.equal(duo.startsAt.toISOString(), "2026-11-12T12:00:00.000Z");
-  assert.equal(duo.lateRegistrationEndsAt.toISOString(), "2026-11-12T15:30:00.000Z");
+  assert.equal(duo.startsAt.toISOString(), "2026-11-13T12:00:00.000Z");
+  assert.equal(duo.lateRegistrationEndsAt.toISOString(), "2026-11-13T15:30:00.000Z");
   assert.equal(tournamentEntryChipsFor("FLOP DUO 2x2"), 50000);
+});
+
+test("Thursday 2026-11-12 is Flop Mystery Knockout", () => {
+  const mystery = scheduledTournamentForDate("2026-11-12");
+  assert.equal(mystery.title, "Flop Mystery Knockout");
+  assert.equal(mystery.startsAt.toISOString(), "2026-11-12T12:00:00.000Z");
 });
 
 test("both partners alive: the earlier check-in leads, the other is parked", () => {

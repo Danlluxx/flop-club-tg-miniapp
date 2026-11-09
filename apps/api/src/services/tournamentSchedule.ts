@@ -134,6 +134,7 @@ const specialTimes: Record<string, string> = {
 const titleByDate: Record<string, string> = {
   "2026-11-10": "Flop Butterfly",
   "2026-11-11": "Flop Freeze Out",
+  "2026-11-12": "Flop Mystery Knockout",
   "2026-11-15": "Flop Deep Stack"
 };
 // Regular tournaments with a free buy-in on a given date.
@@ -238,7 +239,7 @@ const specialEvents: Record<string, {
     reEntry: 500,
     ratingPool: ratingPools["FLOP BOMB POT"]
   },
-  "2026-11-12": {
+  "2026-11-13": {
     title: "FLOP DUO 2x2",
     buyIn: 500,
     reEntry: 750,
