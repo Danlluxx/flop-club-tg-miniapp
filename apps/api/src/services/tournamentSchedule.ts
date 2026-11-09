@@ -127,6 +127,14 @@ const specialTimes: Record<string, string> = {
   "2026-09-05": "17:00",
   "2026-10-31": "18:00"
 };
+// One-off swaps of the regular two-week cycle; pricing and rating pool still come from the title.
+const titleByDate: Record<string, string> = {
+  "2026-11-10": "Flop Butterfly",
+  "2026-11-11": "Flop Freeze Out",
+  "2026-11-15": "Flop Deep Stack"
+};
+// Regular tournaments with a free buy-in on a given date.
+const freeBuyInDates = new Set(["2026-11-09", "2026-11-10"]);
 // One-off add-on stack for a regular tournament on a given date; everything else keeps its defaults.
 const addOnChipsByDate: Record<string, number> = {
   "2026-11-08": 200000
@@ -367,11 +375,11 @@ function ratingSeriesMonthForDate(dateKeyValue: string) {
 export function scheduledTournamentForDate(dateKeyValue: string): Prisma.TournamentCreateManyInput | null {
   const weekdayIndex = mondayIndexFromCycleOffset(daysBetween(baseCycleDate, dateKeyValue));
   const eventOverride = specialEvents[dateKeyValue];
-  const title = eventOverride?.title ?? regularTournamentTitleForDate(dateKeyValue);
+  const title = eventOverride?.title ?? titleByDate[dateKeyValue] ?? regularTournamentTitleForDate(dateKeyValue);
   if (!title) return null;
 
   const pricing = tournamentPricingFor(title);
-  const buyIn = eventOverride?.buyIn ?? pricing.buyIn;
+  const buyIn = eventOverride?.buyIn ?? (freeBuyInDates.has(dateKeyValue) ? 0 : pricing.buyIn);
   const eventReEntry = eventOverride?.reEntry ?? pricing.reEntry;
   const startsAt = new Date(`${dateKeyValue}T${specialTimes[dateKeyValue] ?? timesByWeekday[weekdayIndex]}:00+07:00`);
   const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
