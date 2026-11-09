@@ -2,6 +2,7 @@ import { Prisma, RegistrationStatus, TournamentProfile, TournamentStatus } from 
 import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { assignNextAvailableSeat, SEATS_PER_TABLE, TABLES_COUNT } from "./tournaments.js";
+import { teamUserIdsForElimination } from "./duoTeams.js";
 
 const liveRegistrationInclude = {
   user: true
@@ -265,6 +266,8 @@ export async function recordElimination(
       where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } }
     });
     const finishPlace = Math.max(1, inGameCountBefore);
+    // FLOP DUO after the merge: the whole team goes out on one place (parked partner included).
+    const teamUserIds = await teamUserIdsForElimination(tx, tournamentId, eliminated.userId);
 
     await tx.registration.update({
       where: { id: eliminatedRegistrationId },
@@ -276,6 +279,12 @@ export async function recordElimination(
         seatNumber: null
       }
     });
+    if (teamUserIds) {
+      await tx.registration.updateMany({
+        where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: teamUserIds }, id: { not: eliminatedRegistrationId } },
+        data: { finishPlace }
+      });
+    }
 
     const remaining = await tx.registration.findMany({
       where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } },
@@ -286,6 +295,13 @@ export async function recordElimination(
         where: { id: remaining[0].id },
         data: { finishPlace: 1 }
       });
+      const winnerTeam = await teamUserIdsForElimination(tx, tournamentId, remaining[0].userId);
+      if (winnerTeam) {
+        await tx.registration.updateMany({
+          where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: winnerTeam }, id: { not: remaining[0].id } },
+          data: { finishPlace: 1 }
+        });
+      }
     }
 
     console.log(

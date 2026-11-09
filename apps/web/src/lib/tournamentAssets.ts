@@ -20,6 +20,7 @@ const tournamentSlugs: Record<string, string> = {
   "FLOP 3 MINUS 1": "flop-3-minus-1",
   "FLOP BOOSTER RE-ENTRY": "flop-booster-re-entry",
   "FLOP BOMB POT": "flop-bomb-pot",
+  "FLOP DUO 2x2": "flop-duo",
   "FLOP DEVIL DEAL": "flop-devil-deal"
 };
 
@@ -27,10 +28,11 @@ const tournamentDisplayTitles: Record<string, string> = {
   "FLOP 3 MINUS 1": "Flop 3 Minus 1",
   "FLOP BOOSTER RE-ENTRY": "Flop Booster Re-Entry",
   "FLOP BOMB POT": "Flop Bomb Pot",
+  "FLOP DUO 2x2": "Flop Duo 2x2",
   "FLOP DEVIL DEAL": "Flop Devil Deal"
 };
 
-const awardAssetVersion = "20261105-webp";
+const awardAssetVersion = "20261109-duo";
 
 export function tournamentSlug(title: string) {
   return tournamentSlugs[title] ?? title.toLowerCase().replace(/\s+/g, "-");

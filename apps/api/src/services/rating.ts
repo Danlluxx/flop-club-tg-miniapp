@@ -24,6 +24,7 @@ export const RATING_POOLS: Record<string, number> = {
   "FLOP 3 MINUS 1": 15000,
   "FLOP BOOSTER RE-ENTRY": 15000,
   "FLOP BOMB POT": 15000,
+  "FLOP DUO 2x2": 15000,
   "FLOP DEVIL DEAL": 15000
 };
 

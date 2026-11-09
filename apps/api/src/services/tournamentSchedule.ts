@@ -35,7 +35,8 @@ export const descriptions: Record<string, string> = {
   "FLOP 3 MINUS 1": "Техасский холдем с третьей картой на префлопе и выбором лучших двух.",
   "FLOP BOOSTER RE-ENTRY": "Re-entry формат, где каждый следующий вход дает больше фишек.",
   "FLOP DEVIL DEAL": "HALLOWEEN SPECIAL · Сделка с дьяволом, бонусы за шестёрки и Bounty +50 рейтинговых очков.",
-  "FLOP BOMB POT": "Техасский холдем с обязательным bomb pot один раз на каждом уровне."
+  "FLOP BOMB POT": "Техасский холдем с обязательным bomb pot один раз на каждом уровне.",
+  "FLOP DUO 2x2": "Командный турнир 2×2: сначала каждый играет сам, после поздней регистрации партнёры объединяют стеки и играют за одним местом."
 };
 
 export const ratingPools: Record<string, number> = {
@@ -59,7 +60,8 @@ export const ratingPools: Record<string, number> = {
   "Flop Secret Final": 30000,
   "FLOP 3 MINUS 1": 15000,
   "FLOP BOOSTER RE-ENTRY": 15000,
-  "FLOP BOMB POT": 15000
+  "FLOP BOMB POT": 15000,
+  "FLOP DUO 2x2": 15000
 };
 
 export const tournamentProfiles: Record<string, TournamentProfile> = {
@@ -83,7 +85,8 @@ export const tournamentProfiles: Record<string, TournamentProfile> = {
   "Flop Secret Final": TournamentProfile.FINAL,
   "FLOP 3 MINUS 1": TournamentProfile.BASE,
   "FLOP BOOSTER RE-ENTRY": TournamentProfile.BASE,
-  "FLOP BOMB POT": TournamentProfile.BASE
+  "FLOP BOMB POT": TournamentProfile.BASE,
+  "FLOP DUO 2x2": TournamentProfile.BASE
 };
 
 const legacyCycle = [
@@ -235,6 +238,12 @@ const specialEvents: Record<string, {
     reEntry: 500,
     ratingPool: ratingPools["FLOP BOMB POT"]
   },
+  "2026-11-12": {
+    title: "FLOP DUO 2x2",
+    buyIn: 500,
+    reEntry: 750,
+    ratingPool: ratingPools["FLOP DUO 2x2"]
+  },
   "2026-11-05": {
     title: "Flop Phoenix",
     buyIn: 500,
@@ -382,7 +391,9 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
   const buyIn = eventOverride?.buyIn ?? (freeBuyInDates.has(dateKeyValue) ? 0 : pricing.buyIn);
   const eventReEntry = eventOverride?.reEntry ?? pricing.reEntry;
   const startsAt = new Date(`${dateKeyValue}T${specialTimes[dateKeyValue] ?? timesByWeekday[weekdayIndex]}:00+07:00`);
-  const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
+  // FLOP DUO merges the teams when late registration closes, 3.5 hours after the start (22:30 for 19:00).
+  const lateRegistrationHours = title === "FLOP DUO 2x2" ? 3.5 : 3;
+  const lateRegistrationEndsAt = new Date(startsAt.getTime() + lateRegistrationHours * 60 * 60 * 1000);
   const profile = tournamentProfiles[title] ?? TournamentProfile.BASE;
   const addOn = tournamentAddOnConfigFor(title);
 

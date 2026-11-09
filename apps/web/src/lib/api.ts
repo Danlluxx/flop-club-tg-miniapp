@@ -1,6 +1,7 @@
 import type {
   ClubAward,
   DevilState,
+  DuoState,
   GameEvent,
   TournamentMechanics,
   PlayerStats,
@@ -226,6 +227,15 @@ export const api = {
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/reseat`, { method: "POST" }),
   finalTable: (tournamentId: string) =>
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/final-table`, { method: "POST" }),
+  duoState: (tournamentId: string) => request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo`),
+  duoPair: (tournamentId: string, userIds: [string, string]) =>
+    request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo/pairs`, { method: "POST", body: JSON.stringify({ userIds }) }),
+  duoUnpair: (tournamentId: string, pairId: string) =>
+    request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo/pairs/${pairId}`, { method: "DELETE" }),
+  duoDraw: (tournamentId: string) =>
+    request<{ paired: number; left: string | null; state: DuoState }>(`/api/admin/tournaments/${tournamentId}/duo/draw`, { method: "POST" }),
+  duoMerge: (tournamentId: string) =>
+    request<{ teams: number; survivorBonuses: number; state: DuoState }>(`/api/admin/tournaments/${tournamentId}/duo/merge`, { method: "POST" }),
   addOn: (registrationId: string) =>
     request<Registration>(`/api/admin/registrations/${registrationId}/add-on`, { method: "POST" }),
   removeAddOn: (registrationId: string) =>

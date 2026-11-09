@@ -193,3 +193,12 @@ export type DevilState = {
   registrations?: Registration[];
   stats: { registered: number; active: number; eliminations: number; attempts: number; successful: number; failed: number; sixes: number; bounties: number; ratingPoints: number };
 };
+
+export type DuoPlayer = { userId: string; name: string; inGame: boolean };
+export type DuoState = {
+  merged: boolean;
+  lateRegistrationEndsAt: string | null;
+  survivorBonusChips: number;
+  teams: { id: string; players: DuoPlayer[] }[];
+  solo: DuoPlayer[];
+};

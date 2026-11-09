@@ -20,6 +20,7 @@ import { buildGameDayRatingWorkbook } from "../services/dayReport.js";
 import { dateKey } from "../services/tournamentSchedule.js";
 import { getTournamentRatingText, publishTournamentRatingResults } from "../services/telegramRatingResults.js";
 import { issueDevilAddOn, removeDevilAddOn } from "../services/devilDeal.js";
+import { createPair, drawPairs, duoState, mergeTeams, removePair } from "../services/duoTeams.js";
 
 export const adminRouter = express.Router();
 adminRouter.use(requireAuth, requireAdmin);
@@ -317,6 +318,53 @@ adminRouter.post("/tournaments/:id/live/final-table", async (req, res, next) => 
   try {
     const state = await formFinalTable(req.params.id);
     res.json(state);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const duoPairSchema = z.object({ userIds: z.tuple([z.string().min(1), z.string().min(1)]) });
+
+adminRouter.get("/tournaments/:id/duo", async (req, res, next) => {
+  try {
+    res.json(await duoState(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/tournaments/:id/duo/pairs", async (req, res, next) => {
+  try {
+    const payload = duoPairSchema.parse(req.body);
+    await createPair(req.params.id, payload.userIds[0], payload.userIds[1], req.user?.id);
+    res.status(201).json(await duoState(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.delete("/tournaments/:id/duo/pairs/:pairId", async (req, res, next) => {
+  try {
+    await removePair(req.params.id, req.params.pairId, req.user?.id);
+    res.json(await duoState(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/tournaments/:id/duo/draw", async (req, res, next) => {
+  try {
+    const result = await drawPairs(req.params.id, req.user?.id);
+    res.json({ ...result, state: await duoState(req.params.id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/tournaments/:id/duo/merge", async (req, res, next) => {
+  try {
+    const result = await mergeTeams(req.params.id, req.user?.id);
+    res.json({ ...result, state: await duoState(req.params.id) });
   } catch (error) {
     next(error);
   }
