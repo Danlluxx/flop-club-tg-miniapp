@@ -59,6 +59,20 @@ test('bounty template lists placement and bounty points apart', async () => {
   for (const entity of entities) assert.equal(entity.length, 2);
   tournament = original;
 });
+test('every listed tournament gets its own premium emoji around the title', async () => {
+  const original = tournament;
+  const cases = [['Flop Deep Stack', '\u2660\uFE0F', '5264808337781829580'], ['Flop Phoenix', '\u{1F54A}\uFE0F', '5323549454438010650'],
+    ['Flop Black Edition', '\u{1F193}', '5406756500108501710'], ['Flop Classic', '\u{1F965}', '5429249222362810005']];
+  for (const [title, char, id] of cases) {
+    tournament = { ...original, title };
+    const text = await getTournamentRatingText('test');
+    assert.ok(text.includes(`\n\n${char} ${title.toUpperCase()} ${char}\n\n`), title);
+    const found = premiumEmojiEntities(text).filter((entity) => entity.custom_emoji_id === id);
+    assert.equal(found.length, 2, title);
+    for (const entity of found) assert.equal(text.slice(entity.offset, entity.offset + entity.length), char);
+  }
+  tournament = original;
+});
 test('delivery deduplication, updates and retry after failure', async () => {
   assert.equal(await publishTournamentRatingResults('test'),true);
   assert.equal(await publishTournamentRatingResults('test'),false);

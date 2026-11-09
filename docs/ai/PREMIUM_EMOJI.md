@@ -28,6 +28,8 @@ Source: public preview `https://t.me/s/FlopClub22` (158 posts, #318-#609 read on
 | Flop Chip Leader | 🏆 | 5226431245918942763 |
 | Flop Freeze Out | ❄️ | 5431895003821513760 |
 
+In the results post the title emoji come from `TITLE_EMOJI` in `telegramRatingResults.ts`: Bounty 🥥, Deep Stack ♠️ 5264808337781829580, Booster 📈 5244837092042750681, Mystery 🎁, Butterfly 🦋, Black Edition 🆓 5406756500108501710, Phoenix 🕊️, Bomb Pot 💣 5226813248900187912; any other tournament keeps 🥥. Only the first and last emoji of the title line are premium, so a player named with ♠️ is not touched.
+
 ## Announcement posts
 
 📍 5391032818111363540 (address), 📌 5400111356772905255, 📣 5399907745258306570, 🎁 6032854597473668490 / 5391209710634433397, 🔥 5397751602956239123 / 5256047523620995497, 🗓️ 5472279086657199080, 💣 5226813248900187912, ⚠️ 5415588310078735452 / 5447644880824181073, ❗️ 5400262672765711578, 🔴 5398065874303220590, 🥳 5391211840938209909, 🏆 5188344996356448758, 🚗 5417922500250062658, 🔋 5454125707300978880, ⚔️ 5454014806950429357.

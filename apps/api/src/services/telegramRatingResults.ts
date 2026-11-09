@@ -12,15 +12,33 @@ function formatNumber(value: number) {
 // (five stars, crowns for places 1-3). An emoji without an id is sent as the plain character.
 // The full catalogue of the channel's emoji is in docs/ai/PREMIUM_EMOJI.md.
 const BOUNTY_TITLES = new Set(["flop bounty", "flop mystery knockout"]);
-const EMOJI = { star: "\u{1F31F}", coconut: "\u{1F965}", crown: "\u{1F451}", energy: "\u26A1\uFE0F", glove: "\u{1F94A}" } as const;
+const EMOJI = { star: "\u{1F31F}", crown: "\u{1F451}", energy: "\u26A1\uFE0F", glove: "\u{1F94A}" } as const;
 type EmojiIds = Partial<Record<keyof typeof EMOJI, string | string[]>>;
 export const PREMIUM_EMOJI_IDS: EmojiIds = {
   star: ["5395608259656709199", "5395543087822959661", "5395607374893448117", "5395790774291954136", "5395608259656709199"],
-  coconut: "5429249222362810005",
   crown: ["5260367375957516164", "5260409118744665341", "5260512090585588535"],
   energy: "5456140674028019486",
   glove: "5231406626228948265"
 };
+
+// Emoji on both sides of the title line, per tournament (ids taken from the channel, see docs/ai/PREMIUM_EMOJI.md).
+// A tournament that is not listed gets the coconut of Flop Bounty.
+type TitleEmoji = { char: string; id: string };
+const DEFAULT_TITLE_EMOJI: TitleEmoji = { char: "\u{1F965}", id: "5429249222362810005" };
+const TITLE_EMOJI: Record<string, TitleEmoji> = {
+  "flop bounty": DEFAULT_TITLE_EMOJI,
+  "flop deep stack": { char: "\u2660\uFE0F", id: "5264808337781829580" },
+  "flop booster re-entry": { char: "\u{1F4C8}", id: "5244837092042750681" },
+  "flop mystery knockout": { char: "\u{1F381}", id: "5391209710634433397" },
+  "flop butterfly": { char: "\u{1F98B}", id: "5296491512660534111" },
+  "flop black edition": { char: "\u{1F193}", id: "5406756500108501710" },
+  "flop phoenix": { char: "\u{1F54A}\uFE0F", id: "5323549454438010650" },
+  "flop bomb pot": { char: "\u{1F4A3}", id: "5226813248900187912" }
+};
+
+function titleEmojiFor(title: string) {
+  return TITLE_EMOJI[title.trim().toLowerCase()] ?? DEFAULT_TITLE_EMOJI;
+}
 
 function listsBountyApart(title: string) {
   return BOUNTY_TITLES.has(title.trim().toLowerCase());
@@ -36,6 +54,18 @@ export function premiumEmojiEntities(text: string, ids: EmojiIds = PREMIUM_EMOJI
     for (let at = text.indexOf(emoji); at !== -1; at = text.indexOf(emoji, at + emoji.length)) {
       entities.push({ type: "custom_emoji", offset: at, length: emoji.length, custom_emoji_id: list[occurrence % list.length] });
       occurrence += 1;
+    }
+  }
+  // The title line follows the five stars and a blank line; its first and last emoji are the tournament's.
+  const lines = text.split("\n");
+  const titleLine = lines[2];
+  if (text.startsWith(EMOJI.star) && titleLine) {
+    const known = [DEFAULT_TITLE_EMOJI, ...Object.values(TITLE_EMOJI)];
+    const lineOffset = lines.slice(0, 2).join("\n").length + 1;
+    const found = known.find((item) => titleLine.startsWith(item.char));
+    if (found && titleLine.endsWith(found.char) && titleLine.length > found.char.length * 2) {
+      entities.push({ type: "custom_emoji", offset: lineOffset, length: found.char.length, custom_emoji_id: found.id });
+      entities.push({ type: "custom_emoji", offset: lineOffset + titleLine.length - found.char.length, length: found.char.length, custom_emoji_id: found.id });
     }
   }
   return entities.sort((left, right) => left.offset - right.offset);
@@ -208,8 +238,9 @@ export async function getTournamentRatingText(tournamentId: string) {
   const legend = apart
     ? [`${EMOJI.energy} — рейтинговые очки за место`, `${EMOJI.glove} — бонусные очки за выбивания`]
     : [`${EMOJI.energy} — рейтинговые очки`];
+  const titleEmoji = titleEmojiFor(rating.title).char;
   return [
-    EMOJI.star.repeat(5), "", `${EMOJI.coconut} ${rating.title.toUpperCase()} ${EMOJI.coconut}`, "", ...lines,
+    EMOJI.star.repeat(5), "", `${titleEmoji} ${rating.title.toUpperCase()} ${titleEmoji}`, "", ...lines,
     "━━━━━━━━━━━━━", "", ...legend
   ].join("\n");
 }
