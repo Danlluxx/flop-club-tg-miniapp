@@ -24,6 +24,7 @@ type TelegramUpdate = {
   update_id: number;
   message?: {
     text?: string;
+    entities?: Array<{ type: string; offset: number; length: number; custom_emoji_id?: string }>;
     from?: TelegramUser;
     chat: TelegramChat;
   };
@@ -80,6 +81,28 @@ async function savePrivateSubscriber(update: TelegramUpdate) {
   });
 }
 
+// The club owner can send the bot a message with Premium emoji and gets their ids back, to put into the results template.
+const emojiOwnerUsername = "danlluxx";
+
+export function describeCustomEmoji(text: string, entities: NonNullable<NonNullable<TelegramUpdate["message"]>["entities"]>) {
+  return entities
+    .filter((entity) => entity.type === "custom_emoji" && entity.custom_emoji_id)
+    .map((entity) => `${text.slice(entity.offset, entity.offset + entity.length)} ${entity.custom_emoji_id}`);
+}
+
+async function replyWithEmojiIds(update: TelegramUpdate) {
+  const message = update.message;
+  if (!message?.text || !message.entities || message.chat.type !== "private") return;
+  if (message.from?.username?.toLowerCase() !== emojiOwnerUsername) return;
+  const lines = describeCustomEmoji(message.text, message.entities);
+  if (!lines.length) return;
+  await fetch(`${config.TELEGRAM_API_BASE_URL}/bot${config.BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: message.chat.id, text: lines.join("\n") })
+  });
+}
+
 async function pollTelegramUpdates() {
   let offset = await getSavedOffset();
 
@@ -100,6 +123,7 @@ async function pollTelegramUpdates() {
 
       for (const update of payload.result ?? []) {
         await savePrivateSubscriber(update);
+        await replyWithEmojiIds(update).catch((error) => console.error("[telegram:subscribers] emoji id reply failed", error));
         offset = Math.max(offset, update.update_id + 1);
       }
 
