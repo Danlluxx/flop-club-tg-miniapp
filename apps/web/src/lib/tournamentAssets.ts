@@ -32,7 +32,7 @@ const tournamentDisplayTitles: Record<string, string> = {
   "FLOP DEVIL DEAL": "Flop Devil Deal"
 };
 
-const awardAssetVersion = "20261109-awards-v2";
+const awardAssetVersion = "20261109-duo-2x2";
 
 export function tournamentSlug(title: string) {
   return tournamentSlugs[title] ?? title.toLowerCase().replace(/\s+/g, "-");
