@@ -33,6 +33,7 @@ const TITLE_EMOJI: Record<string, TitleEmoji> = {
   "flop butterfly": { char: "\u{1F98B}", id: "5296491512660534111" },
   "flop black edition": { char: "\u{1F193}", id: "5406756500108501710" },
   "flop phoenix": { char: "\u{1F54A}\uFE0F", id: "5323549454438010650" },
+  "flop 3 minus 1": { char: "\u{1F525}", id: "5397751602956239123" },
   "flop bomb pot": { char: "\u{1F4A3}", id: "5226813248900187912" }
 };
 

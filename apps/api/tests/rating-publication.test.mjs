@@ -62,7 +62,7 @@ test('bounty template lists placement and bounty points apart', async () => {
 test('every listed tournament gets its own premium emoji around the title', async () => {
   const original = tournament;
   const cases = [['Flop Deep Stack', '\u2660\uFE0F', '5264808337781829580'], ['Flop Phoenix', '\u{1F54A}\uFE0F', '5323549454438010650'],
-    ['Flop Black Edition', '\u{1F193}', '5406756500108501710'], ['Flop Classic', '\u{1F965}', '5429249222362810005']];
+    ['Flop Black Edition', '\u{1F193}', '5406756500108501710'], ['FLOP 3 MINUS 1', '\u{1F525}', '5397751602956239123'], ['Flop Classic', '\u{1F965}', '5429249222362810005']];
   for (const [title, char, id] of cases) {
     tournament = { ...original, title };
     const text = await getTournamentRatingText('test');
