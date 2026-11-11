@@ -10,7 +10,7 @@ const reminderLeadMs = 3 * 60 * 60 * 1000;
 const reminderWindowMs = 70 * 1000;
 const minimumUsefulLeadMs = 15 * 60 * 1000;
 const schedulerIntervalMs = 60 * 1000;
-const punctualityBonusChips = 10000;
+export const punctualityBonusChips = 10000;
 const telegramPreflightTimeoutMs = 5000;
 
 type ReminderTournament = Prisma.TournamentGetPayload<{
@@ -42,12 +42,12 @@ function formatTime(date: Date) {
 }
 
 function reminderLines(tournament: ReminderTournament) {
-  const lines = tournamentRuleFeaturesFor(tournament.title).map((feature) => `• ${feature}`);
+  const lines = tournamentRuleFeaturesFor(tournament.title, tournament.buyIn).map((feature) => `• ${feature}`);
   if (tournament.ratingPool > 0) {
     lines.push(`• Гарантия ${formatNumber(tournament.ratingPool)} очков для участия в финале месяца`);
   }
 
-  const entryChips = tournamentEntryChipsFor(tournament.title);
+  const entryChips = tournamentEntryChipsFor(tournament.title, tournament.buyIn);
   if (tournament.buyIn === 0) {
     lines.push(`• Вход бесплатный / ${formatNumber(entryChips)} фишек`);
   } else {

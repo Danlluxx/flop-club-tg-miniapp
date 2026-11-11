@@ -133,7 +133,6 @@ const specialTimes: Record<string, string> = {
 // One-off swaps of the regular two-week cycle; pricing and rating pool still come from the title.
 const titleByDate: Record<string, string> = {
   "2026-11-10": "Flop Butterfly",
-  "2026-11-11": "Flop Freeze Out",
   "2026-11-12": "Flop Mystery Knockout",
   "2026-11-15": "Flop Deep Stack"
 };
@@ -238,6 +237,15 @@ const specialEvents: Record<string, {
     buyIn: 0,
     reEntry: 500,
     ratingPool: ratingPools["FLOP BOMB POT"]
+  },
+  "2026-11-11": {
+    title: "FLOP BOMB POT",
+    buyIn: 0,
+    reEntry: 500,
+    ratingPool: ratingPools["FLOP BOMB POT"],
+    addOnEnabled: true,
+    addOnPrice: 1000,
+    addOnChips: 200000
   },
   "2026-11-13": {
     title: "FLOP DUO 2x2",

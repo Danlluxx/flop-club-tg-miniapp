@@ -96,6 +96,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
         startsAt: true,
         maxParticipants: true,
         addOnChips: true,
+        buyIn: true,
         mechanics: true
       }
     });
@@ -151,7 +152,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       capacity: tournament.maxParticipants,
       tournamentId: tournament.id,
       tournamentTitle: tournament.title,
-      startingStack: tournament.mechanics ? null : tournamentEntryChipsFor(tournament.title),
+      startingStack: tournament.mechanics ? null : tournamentEntryChipsFor(tournament.title, tournament.buyIn),
       blindStructure: blindStructureFor(tournament.title)
     });
   } catch (error) {

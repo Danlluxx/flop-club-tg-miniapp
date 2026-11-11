@@ -269,11 +269,21 @@ const rules: Record<string, { features: string[] }> = {
   }
 };
 
-export function tournamentRuleFeaturesFor(title: string) {
-  return rules[title]?.features ?? defaultFeatures;
+// Every tournament with a free buy-in starts from this stack; the punctuality and early registration bonuses come on top.
+export const FREE_ENTRY_STACK = 20000;
+
+const STANDARD_LEVELS_LINE = "Уровни по 15 минут, после закрытия поздней регистрации — по 12 минут";
+
+export function tournamentRuleFeaturesFor(title: string, buyIn?: number) {
+  const stack = tournamentEntryChipsFor(title, buyIn).toLocaleString("ru-RU");
+  return (rules[title]?.features ?? defaultFeatures).map((feature) => {
+    if (buyIn === 0 && /^Стартовый стек [\d\s\u00a0]+ фишек$/.test(feature)) return `Стартовый стек ${stack} фишек`;
+    return feature === "Уровни по 15 минут" ? STANDARD_LEVELS_LINE : feature;
+  });
 }
 
-export function tournamentEntryChipsFor(title: string) {
+export function tournamentEntryChipsFor(title: string, buyIn?: number) {
+  if (buyIn === 0) return FREE_ENTRY_STACK;
   return entryChipsByTitle[title] ?? 30000;
 }
 
@@ -301,17 +311,8 @@ export function tournamentAddOnConfigFor(title: string) {
   return chips ? { enabled: true, price: 1000, chips } : { enabled: false, price: 0, chips: 0 };
 }
 
-// Blind structure ids of the blind clock app (flop-club-blind, src/data/blindStructures.ts). A title that is not
-// listed keeps whatever structure the operator picked on the clock.
-const blindStructureByTitle: Record<string, string> = {
-  "Flop Last Call": "turbo",
-  "Flop Rampage": "turbo",
-  "Flop Deep Stack": "deep",
-  "Flop Prime Event": "deep",
-  "Flop Black Edition": "deep",
-  "Flop Butterfly": "flop-butterfly"
-};
-
+// Blind structure ids of the blind clock app (flop-club-blind, src/data/blindStructures.ts): Rampage plays the
+// fast 12-minute structure, every other tournament the standard one.
 export function blindStructureFor(title: string) {
-  return blindStructureByTitle[title] ?? null;
+  return title === "Flop Rampage" ? "turbo" : "standard";
 }

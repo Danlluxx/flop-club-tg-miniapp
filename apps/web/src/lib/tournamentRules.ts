@@ -337,7 +337,22 @@ const rules: Record<string, TournamentRule> = {
 export const tournamentLegalNote =
   "Турнир проходит в формате спортивно-развлекательного мероприятия. Турнирные фишки не имеют денежной стоимости и не подлежат обмену. Денежный призовой фонд не формируется.";
 
-export function tournamentRuleFor(title: string) {
+export const FREE_ENTRY_STACK = 20000;
+const STANDARD_LEVELS_LINE = "Уровни по 15 минут, после закрытия поздней регистрации — по 12 минут";
+
+export function tournamentRuleFor(title: string, buyIn?: number) {
+  const rule = baseRuleFor(title);
+  const stack = tournamentEntryChipsFor(title, buyIn).toLocaleString("ru-RU");
+  return {
+    ...rule,
+    features: rule.features.map((feature) => {
+      if (buyIn === 0 && /^Стартовый стек [\d\s\u00a0]+ фишек$/.test(feature)) return `Стартовый стек ${stack} фишек`;
+      return feature === "Уровни по 15 минут" ? STANDARD_LEVELS_LINE : feature;
+    })
+  };
+}
+
+function baseRuleFor(title: string) {
   return rules[title] ?? {
     title: title.toUpperCase(),
     short: "Турнир FLOP CLUB в спортивно-развлекательном формате.",
@@ -346,7 +361,8 @@ export function tournamentRuleFor(title: string) {
   };
 }
 
-export function tournamentEntryChipsFor(title: string) {
+export function tournamentEntryChipsFor(title: string, buyIn?: number) {
+  if (buyIn === 0) return FREE_ENTRY_STACK;
   return entryChipsByTitle[title] ?? 30000;
 }
 
@@ -372,7 +388,7 @@ export function tournamentPriceFeatures(tournament: Tournament) {
       "Бонус за пунктуальность не предусмотрен"
     ];
   }
-  const entryChips = tournamentEntryChipsFor(tournament.title);
+  const entryChips = tournamentEntryChipsFor(tournament.title, tournament.buyIn);
   const entryLabel = tournament.buyIn === 0 ? "Вход бесплатный" : `Вход ${formatNumber.format(tournament.buyIn)} ₽`;
   const features = [`${entryLabel} / ${formatNumber.format(entryChips)} фишек`];
 

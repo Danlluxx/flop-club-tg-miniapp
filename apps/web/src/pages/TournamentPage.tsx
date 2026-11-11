@@ -79,7 +79,7 @@ export function TournamentPage() {
   const activeSeats = data.activeSeatsCount ?? data._count.registrations;
   const isFull = activeSeats >= data.maxParticipants;
   const canRegister = (data.registrationOpen ?? data.status === "OPEN") && !isFull;
-  const baseRule = tournamentRuleFor(data.title);
+  const baseRule = tournamentRuleFor(data.title, data.buyIn);
   const m = data.mechanics;
   const rule = m ? { ...baseRule, features: [
     `Стартовый стек ${m.startingStack.toLocaleString("ru-RU")} фишек`, `Уровни по ${m.blindLevelMinutes} минут`,
