@@ -63,12 +63,12 @@ function participantState(item: Registration) {
   return { label: "записан", className: "bg-amber-300/15 text-amber-200" };
 }
 
-function participantSummary(item: Registration, booster = false) {
+function participantSummary(item: Registration, booster = false, buyIn?: number) {
   const parts: string[] = [];
   if (item.finishPlace) parts.push(`${item.finishPlace} место`);
   if (item.checkedInAt && item.tableNumber && item.seatNumber) parts.push(`стол ${item.tableNumber}, бокс ${item.seatNumber}`);
   if (item.entryNumber > 1) parts.push(`re-entry ${item.entryNumber - 1}`);
-  if (booster) parts.push(`стек ${boosterStackForEntry(item.entryNumber).toLocaleString("ru-RU")}`);
+  if (booster) parts.push(`стек ${boosterStackForEntry(item.entryNumber, buyIn).toLocaleString("ru-RU")}`);
   if (item.addOnCount > 0) parts.push("add-on");
   return parts.join(" · ");
 }
@@ -645,7 +645,7 @@ export function ParticipantsPage() {
               const state = participantState(item);
               const isExpanded = expandedParticipantId === item.id;
               const isSeated = item.liveStatus === "IN_GAME" && Boolean(item.checkedInAt);
-              const summary = participantSummary(item, boosterTournament);
+              const summary = participantSummary(item, boosterTournament, liveState?.tournament.buyIn);
               return (
                 <article key={item.id} className="app-panel admin-player">
                   <div className="flex items-center gap-2 p-2">
@@ -706,7 +706,7 @@ export function ParticipantsPage() {
                         <span className="rounded-[0.55rem] bg-rose-500/10 px-2.5 py-1 text-rose-100">Re-entry: {Math.max(0, item.entryNumber - 1)}</span>
                         {boosterTournament ? (
                           <span className="rounded-[0.55rem] bg-amber-300/15 px-2.5 py-1 text-amber-200">
-                            Стек {item.entryNumber}-го входа: {boosterStackForEntry(item.entryNumber).toLocaleString("ru-RU")}
+                            Стек {item.entryNumber}-го входа: {boosterStackForEntry(item.entryNumber, liveState?.tournament.buyIn).toLocaleString("ru-RU")}
                           </span>
                         ) : null}
                         {liveState?.tournament.addOnEnabled || item.addOnCount > 0 ? (

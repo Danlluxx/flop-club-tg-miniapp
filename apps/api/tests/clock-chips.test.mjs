@@ -38,6 +38,8 @@ test("Flop Booster re-entries add their bigger stacks on top of the flat startin
   assert.equal(clockChipTotals([row("a", 3)], 0, false, true).stackBonus, 45000);
   assert.equal(clockChipTotals([row("a", 6), row("b")], 0, false, true).stackBonus, 210000);
   assert.equal(clockChipTotals([row("a", 3)], 0, false, false).stackBonus, 0);
+  // free Booster: 20k first entry, re-entries still 45k / 60k, so the extras are measured from 20k
+  assert.equal(clockChipTotals([row("a", 3)], 0, false, true, 20000).stackBonus, 25000 + 40000);
 });
 
 const at = (iso) => new Date(iso);

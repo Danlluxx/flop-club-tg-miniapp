@@ -47,14 +47,15 @@ export function clockChipTotals(
   registrations: { userId: string; entryNumber: number; addOnCount: number; issuedChips: number }[],
   addOnChips: number,
   hasMechanics: boolean,
-  booster = false
+  booster = false,
+  baseStack = 30000
 ) {
   const addOns = registrations.reduce((sum, registration) => sum + registration.addOnCount, 0);
   const entries = [...entriesByUser(registrations).values()].reduce((sum, count) => sum + count, 0);
   const stackBonus = hasMechanics ? 0 : registrations.reduce((sum, registration) => sum + registration.issuedChips, 0);
   // Booster re-entries carry bigger stacks than the flat starting stack the clock multiplies by.
   const boosterBonus = booster
-    ? [...entriesByUser(registrations).values()].reduce((sum, count) => sum + boosterExtraChips(count), 0)
+    ? [...entriesByUser(registrations).values()].reduce((sum, count) => sum + boosterExtraChips(count, baseStack), 0)
     : 0;
   return { entries, addOnTotal: addOns * addOnChips, stackBonus: stackBonus + boosterBonus };
 }
@@ -139,7 +140,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       select: { userId: true, entryNumber: true, addOnCount: true, issuedChips: true, checkedInAt: true }
     });
 
-    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics), isBoosterTournament(tournament.title));
+    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics), isBoosterTournament(tournament.title), tournamentEntryChipsFor(tournament.title, tournament.buyIn));
 
     const earlyBird = earlyCheckInBonus(registrations, tournament.startsAt, Boolean(tournament.mechanics));
 

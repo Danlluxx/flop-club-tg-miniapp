@@ -300,9 +300,9 @@ export function isBoosterTournament(title: string) {
 }
 
 // Chips on top of the flat starting stack per entry, which is all the clock multiplies by.
-export function boosterExtraChips(entryNumber: number) {
+export function boosterExtraChips(entryNumber: number, baseStack = BOOSTER_STACKS[0]) {
   let extra = 0;
-  for (let entry = 2; entry <= entryNumber; entry += 1) extra += boosterStackForEntry(entry) - BOOSTER_STACKS[0];
+  for (let entry = 2; entry <= entryNumber; entry += 1) extra += boosterStackForEntry(entry) - baseStack;
   return extra;
 }
 

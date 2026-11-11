@@ -373,7 +373,9 @@ export function isBoosterTournament(title: string) {
 }
 
 // Stack handed out for the given entry number (1 = first entry, 2 = first re-entry, ...).
-export function boosterStackForEntry(entryNumber: number) {
+// The first entry of a free-buy-in tournament is the 20 000 free stack; re-entries keep the rule stacks.
+export function boosterStackForEntry(entryNumber: number, buyIn?: number) {
+  if (entryNumber <= 1 && buyIn === 0) return FREE_ENTRY_STACK;
   return BOOSTER_STACKS[Math.min(Math.max(entryNumber, 1), BOOSTER_STACKS.length) - 1];
 }
 
