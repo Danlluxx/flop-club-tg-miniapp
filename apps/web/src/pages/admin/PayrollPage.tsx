@@ -87,7 +87,6 @@ export function PayrollPage() {
       </Link>
       <div>
         <h2 className="page-title text-[2.4rem]">Смены</h2>
-        <p className="page-subtitle mt-2">Часы сотрудников за турнир. Бот раз в сутки дописывает новые смены в таблицу зарплат и присылает файл.</p>
       </div>
 
       {status.data && !status.data.hasWorkbook && (
