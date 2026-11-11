@@ -3,7 +3,7 @@ import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { ensureScheduledTournaments } from "./tournamentSchedule.js";
 import { EARLY_REGISTRATION_BONUS_CHIPS } from "./earlyRegistrationBonus.js";
-import { tournamentEntryChipsFor, tournamentRuleFeaturesFor } from "./tournamentRules.js";
+import { tournamentEntryChipsFor, tournamentReEntryChipsFor, tournamentRuleFeaturesFor } from "./tournamentRules.js";
 
 const reminderKind = "3h";
 const reminderLeadMs = 3 * 60 * 60 * 1000;
@@ -60,7 +60,7 @@ function reminderLines(tournament: ReminderTournament) {
       lines.push("• Без re-entry");
     }
   } else if (tournament.reEntry > 0) {
-    lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ / ${formatNumber(entryChips)} фишек до конца поздней регистрации`);
+    lines.push(`• Re-entry ${formatNumber(tournament.reEntry)} ₽ / ${formatNumber(tournamentReEntryChipsFor(tournament.title))} фишек до конца поздней регистрации`);
   }
 
   lines.push(`• Бонус за пунктуальность: ${formatNumber(punctualityBonusChips)} фишек`);

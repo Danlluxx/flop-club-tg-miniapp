@@ -67,3 +67,8 @@ test("punctuality bonus follows the tournament start and skips a late first chec
 test("punctuality bonus is not paid in Devil Deal", () => {
   assert.deepEqual(earlyCheckInBonus([check("a", "2026-11-08T12:01:00Z")], start, true), { count: 0, chips: 0 });
 });
+
+test("free-entry re-entries add the regular stack over the 20k base", () => {
+  assert.equal(clockChipTotals([row("a", 2), row("b")], 0, false, false, 20000, 30000).stackBonus, 10000);
+  assert.equal(clockChipTotals([row("a", 3)], 0, false, false, 20000, 30000).stackBonus, 20000);
+});

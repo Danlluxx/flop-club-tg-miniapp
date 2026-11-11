@@ -282,6 +282,11 @@ export function tournamentRuleFeaturesFor(title: string, buyIn?: number) {
   });
 }
 
+// A paid re-entry always gets the tournament's regular stack, even when the first entry was free (20 000).
+export function tournamentReEntryChipsFor(title: string) {
+  return entryChipsByTitle[title] ?? 30000;
+}
+
 export function tournamentEntryChipsFor(title: string, buyIn?: number) {
   if (buyIn === 0) return FREE_ENTRY_STACK;
   return entryChipsByTitle[title] ?? 30000;

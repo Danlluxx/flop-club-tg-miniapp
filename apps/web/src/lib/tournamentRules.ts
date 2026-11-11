@@ -361,6 +361,10 @@ function baseRuleFor(title: string) {
   };
 }
 
+export function tournamentReEntryChipsFor(title: string) {
+  return entryChipsByTitle[title] ?? 30000;
+}
+
 export function tournamentEntryChipsFor(title: string, buyIn?: number) {
   if (buyIn === 0) return FREE_ENTRY_STACK;
   return entryChipsByTitle[title] ?? 30000;
@@ -397,7 +401,7 @@ export function tournamentPriceFeatures(tournament: Tournament) {
   if (tournament.title === "FLOP BOOSTER RE-ENTRY") {
     features.push("Re-entry 500 ₽: 45 000 / 60 000 / 75 000 / 90 000 фишек до конца поздней регистрации");
   } else if (tournament.profile !== "FREEZE" && tournament.reEntry > 0) {
-    features.push(`Re-entry ${formatNumber.format(tournament.reEntry)} ₽ / ${formatNumber.format(entryChips)} фишек до конца поздней регистрации`);
+    features.push(`Re-entry ${formatNumber.format(tournament.reEntry)} ₽ / ${formatNumber.format(tournamentReEntryChipsFor(tournament.title))} фишек до конца поздней регистрации`);
   } else if (!rules[tournament.title]?.features.includes("Без re-entry")) {
     features.push("Без re-entry");
   }

@@ -3,7 +3,7 @@ import { RegistrationStatus, TournamentStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { entriesByUser } from "../services/tournamentEntries.js";
-import { blindStructureFor, boosterExtraChips, isBoosterTournament, tournamentEntryChipsFor } from "../services/tournamentRules.js";
+import { blindStructureFor, boosterExtraChips, isBoosterTournament, tournamentEntryChipsFor, tournamentReEntryChipsFor } from "../services/tournamentRules.js";
 import { AppError } from "../utils/errors.js";
 
 export const clockRouter = express.Router();
@@ -48,7 +48,8 @@ export function clockChipTotals(
   addOnChips: number,
   hasMechanics: boolean,
   booster = false,
-  baseStack = 30000
+  baseStack = 30000,
+  reEntryStack = baseStack
 ) {
   const addOns = registrations.reduce((sum, registration) => sum + registration.addOnCount, 0);
   const entries = [...entriesByUser(registrations).values()].reduce((sum, count) => sum + count, 0);
@@ -57,7 +58,10 @@ export function clockChipTotals(
   const boosterBonus = booster
     ? [...entriesByUser(registrations).values()].reduce((sum, count) => sum + boosterExtraChips(count, baseStack), 0)
     : 0;
-  return { entries, addOnTotal: addOns * addOnChips, stackBonus: stackBonus + boosterBonus };
+  // Re-entries of a free-entry tournament carry the regular stack, above the flat base the clock multiplies by.
+  const reEntries = entries - entriesByUser(registrations).size;
+  const reEntryBonus = booster || hasMechanics ? 0 : reEntries * Math.max(0, reEntryStack - baseStack);
+  return { entries, addOnTotal: addOns * addOnChips, stackBonus: stackBonus + boosterBonus + reEntryBonus };
 }
 
 // Everyone checked in within 10 minutes of the start (19:10 for a 19:00 start) gets this many extra chips.
@@ -140,7 +144,7 @@ clockRouter.get("/participants", requireClockToken, async (_req, res, next) => {
       select: { userId: true, entryNumber: true, addOnCount: true, issuedChips: true, checkedInAt: true }
     });
 
-    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics), isBoosterTournament(tournament.title), tournamentEntryChipsFor(tournament.title, tournament.buyIn));
+    const { entries, addOnTotal, stackBonus } = clockChipTotals(registrations, tournament.addOnChips, Boolean(tournament.mechanics), isBoosterTournament(tournament.title), tournamentEntryChipsFor(tournament.title, tournament.buyIn), tournamentReEntryChipsFor(tournament.title));
 
     const earlyBird = earlyCheckInBonus(registrations, tournament.startsAt, Boolean(tournament.mechanics));
 
