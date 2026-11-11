@@ -2,6 +2,11 @@
 
 Last updated: 2026-11-06.
 
+## Смены сотрудников (local, not committed, 2026-11-11)
+
+- Admin screen `/admin/payroll`, bot sends the updated salary xlsx daily. Details: `docs/ai/PAYROLL.md`. Migration `20261111120000_staff_shifts` (new tables only).
+- Before release: owner uploads the real `ЗП FLOP CLUB.xlsx` on that screen; `PAYROLL_*` env added to `docker-compose.prod.yml`. Checked locally on a throwaway Postgres with a copy of the real file (append, export, bot send/receive with a fake Telegram); not yet in production.
+
 ## Production state
 
 - Server `.deploy-commit`: `f183b91` (staff first entry free in revenue analytics, migration `20261106120000_user_staff_flag`; DB backup `/root/flop-deploy-backups/before-staff-flag-20261106-053858.sql.gz`). Released through a server copy of `run-soft-design-timeweb.sh` that allowed only that migration and `schema.prisma`. The 9 staff accounts are marked by `User.isStaff` directly in the database; there is no admin UI for it.

@@ -35,6 +35,8 @@ const schema = z.object({
   TOURNAMENT_REMINDERS_ENABLED: booleanFromEnv.default(true),
   ALLOW_CANCEL_AFTER_CLOSE: booleanFromEnv.default(false),
   CLOCK_API_TOKEN: z.string().optional(),
+  PAYROLL_TELEGRAM_USERNAMES: z.string().default("danlluxx"),
+  PAYROLL_REPORT_HOUR: z.coerce.number().int().min(0).max(23).default(6),
   DEV_TELEGRAM_ID: z.string().optional(),
   DEV_TELEGRAM_USERNAME: z.string().optional()
 });

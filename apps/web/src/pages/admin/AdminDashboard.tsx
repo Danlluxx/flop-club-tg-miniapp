@@ -56,6 +56,18 @@ export function AdminDashboard() {
         ))}
       </div>
 
+      <Link to="/admin/payroll" className="app-panel tap block p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Смены сотрудников</p>
+            <p className="mt-1 text-sm font-semibold text-slate-400">Часы за турнир для таблицы зарплат</p>
+          </div>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.65rem] bg-white/8 text-white" aria-hidden="true">
+            <ArrowRight className="h-5 w-5" />
+          </span>
+        </div>
+      </Link>
+
       <Link to="/admin/fill-rates" className="app-panel tap block p-5">
         <div className="flex items-start justify-between gap-4">
           <div>

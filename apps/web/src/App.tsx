@@ -33,6 +33,7 @@ const AdminTournaments = lazy(() => import("./pages/admin/AdminTournaments").the
 const TournamentForm = lazy(() => import("./pages/admin/TournamentForm").then((m) => ({ default: m.TournamentForm })));
 const DevilControlPage = lazy(() => import("./pages/admin/DevilControlPage").then((m) => ({ default: m.DevilControlPage })));
 const ParticipantsPage = lazy(() => import("./pages/admin/ParticipantsPage").then((m) => ({ default: m.ParticipantsPage })));
+const PayrollPage = lazy(() => import("./pages/admin/PayrollPage").then((m) => ({ default: m.PayrollPage })));
 const AdminCheckInPage = lazy(() => import("./pages/admin/AdminCheckInPage").then((m) => ({ default: m.AdminCheckInPage })));
 const AdminFillRatesPage = lazy(() => import("./pages/admin/AdminFillRatesPage").then((m) => ({ default: m.AdminFillRatesPage })));
 const AdminAnalyticsPage = lazy(() => import("./pages/admin/AdminAnalyticsPage").then((m) => ({ default: m.AdminAnalyticsPage })));
@@ -73,6 +74,7 @@ function AppRoutes({ user, onUserUpdated }: { user: User; onUserUpdated: (user: 
         <Route path="/profile" element={<ProfilePage user={user} onUserUpdated={onUserUpdated} />} />
         <Route path="/admin" element={<AdminOnly user={user}><AdminDashboard /></AdminOnly>} />
         <Route path="/admin/analytics" element={<AdminOnly user={user}><AdminAnalyticsPage /></AdminOnly>} />
+        <Route path="/admin/payroll" element={<AdminOnly user={user}><PayrollPage /></AdminOnly>} />
         <Route path="/admin/fill-rates" element={<AdminOnly user={user}><AdminFillRatesPage /></AdminOnly>} />
         <Route path="/admin/tournaments" element={<AdminOnly user={user}><AdminTournaments /></AdminOnly>} />
         <Route path="/admin/tournaments/new" element={<AdminOnly user={user}><TournamentForm /></AdminOnly>} />

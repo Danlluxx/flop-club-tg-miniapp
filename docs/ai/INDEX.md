@@ -23,6 +23,7 @@ docs/                     feature documentation
 | Any implementation | `docs/ai/PATTERNS.md` |
 | Continue recent work / deploy | `docs/ai/HANDOFF.md` |
 | FLOP DEVIL DEAL | `docs/ai/DEVIL_DEAL.md`, then detailed `docs/FLOP_DEVIL_DEAL.md` only if needed |
+| Смены сотрудников, таблица зарплат, ежедневный файл от бота | `docs/ai/PAYROLL.md` |
 | VPS deployment | `docs/ai/DEPLOY.md`, then `deploy/VPS_DEPLOY.md` only if needed |
 | General onboarding | `README.md` |
 

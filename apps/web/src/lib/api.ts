@@ -163,7 +163,41 @@ async function download(path: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export type PayrollShift = {
+  id: string;
+  employeeName: string;
+  workDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  breakHours: number | null;
+  manualHours: number | null;
+  status: "Отработана" | "Запланирована" | "Неявка";
+  comment: string | null;
+  hours: number;
+  exported: boolean;
+};
+
+export type PayrollShiftInput = Omit<PayrollShift, "id" | "workDate" | "hours" | "exported">;
+
+export type PayrollStatus = { hasWorkbook: boolean; fileName: string | null; updatedAt: string | null; pending: number };
+
 export const api = {
+  payrollStatus: () => request<PayrollStatus>("/api/admin/payroll/status"),
+  payrollStaff: () => request<Array<{ name: string; position: string }>>("/api/admin/payroll/staff"),
+  payrollTournaments: () => request<Array<{ id: string; title: string; startsAt: string; date: string; shifts: number }>>("/api/admin/payroll/tournaments"),
+  payrollShifts: (tournamentId: string) => request<PayrollShift[]>(`/api/admin/payroll/tournaments/${tournamentId}/shifts`),
+  addPayrollShift: (tournamentId: string, data: PayrollShiftInput) =>
+    request<PayrollShift>(`/api/admin/payroll/tournaments/${tournamentId}/shifts`, { method: "POST", body: JSON.stringify(data) }),
+  updatePayrollShift: (id: string, data: PayrollShiftInput) =>
+    request<PayrollShift>(`/api/admin/payroll/shifts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePayrollShift: (id: string) => request<void>(`/api/admin/payroll/shifts/${id}`, { method: "DELETE" }),
+  downloadPayrollWorkbook: (fileName: string) => download("/api/admin/payroll/workbook", fileName),
+  uploadPayrollWorkbook: (file: File) =>
+    request<{ fileName: string }>(`/api/admin/payroll/workbook?name=${encodeURIComponent(file.name)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: file
+    }),
   publicResults: (id: string) => request<Array<{ userId: string; name: string; place: number | null; points: number }>>(`/api/tournaments/${id}/results`),
   mechanicsTemplate: () => request<TournamentMechanics>("/api/admin/mechanics-template"),
   devilState: (id: string) => request<DevilState>(`/api/tournaments/${id}/devil`),

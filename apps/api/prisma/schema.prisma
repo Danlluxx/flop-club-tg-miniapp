@@ -97,6 +97,7 @@ model Tournament {
   scheduleLocked         Boolean                    @default(false)
   gameEvents             TournamentGameEvent[]
   reminders              TournamentReminder[]
+  shifts                 StaffShift[]
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
 
@@ -267,4 +268,31 @@ model TournamentGameEvent {
   @@index([actorId])
   @@index([userId])
   @@index([eliminationId])
+}
+
+model StaffShift {
+  id           String      @id @default(cuid())
+  tournamentId String
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  employeeName String
+  workDate     String
+  startTime    String?
+  endTime      String?
+  breakHours   Float?
+  manualHours  Float?
+  status       String      @default("Отработана")
+  comment      String?
+  exportedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([tournamentId])
+  @@index([exportedAt])
+}
+
+model PayrollWorkbook {
+  key       String   @id
+  fileName  String
+  data      Bytes
+  updatedAt DateTime @updatedAt
 }

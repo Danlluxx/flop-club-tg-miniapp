@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
+import { handlePayrollDocument } from "./payrollBot.js";
 
 const pollingStateKey = "getUpdatesOffset";
 const retryDelayMs = 60_000;
@@ -24,6 +25,7 @@ type TelegramUpdate = {
   update_id: number;
   message?: {
     text?: string;
+    document?: { file_id: string; file_name?: string; file_size?: number };
     entities?: Array<{ type: string; offset: number; length: number; custom_emoji_id?: string }>;
     from?: TelegramUser;
     chat: TelegramChat;
@@ -124,6 +126,7 @@ async function pollTelegramUpdates() {
       for (const update of payload.result ?? []) {
         await savePrivateSubscriber(update);
         await replyWithEmojiIds(update).catch((error) => console.error("[telegram:subscribers] emoji id reply failed", error));
+        await handlePayrollDocument(update.message).catch((error) => console.error("[telegram:subscribers] payroll document failed", error));
         offset = Math.max(offset, update.update_id + 1);
       }
 

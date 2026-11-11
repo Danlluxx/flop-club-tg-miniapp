@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { config } from "./config.js";
 import { authRouter } from "./routes/auth.js";
 import { clockRouter } from "./routes/clock.js";
+import { payrollRouter } from "./routes/payroll.js";
 import { tournamentsRouter } from "./routes/tournaments.js";
 import { meRouter } from "./routes/me.js";
 import { adminRouter } from "./routes/admin.js";
@@ -14,6 +15,7 @@ import { startTournamentReminderScheduler } from "./services/telegramReminders.j
 import { startTelegramSubscriberPolling } from "./services/telegramSubscribers.js";
 import { startNoShowPenaltyScheduler } from "./services/noShowPenalties.js";
 import { startRatingPublicationScheduler } from "./services/telegramRatingResults.js";
+import { startPayrollScheduler } from "./services/payrollBot.js";
 
 import { devilDealRouter, devilControlRouter, mechanicsTemplatesRouter } from "./routes/devilDeal.js";
 
@@ -48,6 +50,7 @@ app.use("/api/admin/mechanics-template", mechanicsTemplatesRouter);
 app.use("/api/tournaments", tournamentsRouter);
 app.use("/api/me", meRouter);
 app.use("/api/rating", ratingRouter);
+app.use("/api/admin/payroll", payrollRouter);
 app.use("/api/admin", adminRouter);
 app.use(errorHandler);
 
@@ -57,4 +60,5 @@ app.listen(config.PORT, () => {
   startTournamentReminderScheduler();
   startNoShowPenaltyScheduler();
   startRatingPublicationScheduler();
+  startPayrollScheduler();
 });
