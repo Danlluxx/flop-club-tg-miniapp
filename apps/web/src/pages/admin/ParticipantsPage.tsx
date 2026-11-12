@@ -460,7 +460,7 @@ export function ParticipantsPage() {
   }
 
   function renderAddOnControl(item: Registration) {
-    if (!liveState || item.liveStatus !== "IN_GAME") return null;
+    if (!liveState?.tournament.addOnEnabled || item.liveStatus !== "IN_GAME") return null;
     return (
       <div className="inline-flex h-10 items-center overflow-hidden rounded-[0.55rem] bg-violet/15 text-xs font-black text-violet">
         <button
