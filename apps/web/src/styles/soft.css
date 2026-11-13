@@ -130,7 +130,6 @@ html.soft .home-action,
 html.soft .home-address,
 html.soft .profile-info-card,
 html.soft .profile-status-card,
-html.soft .profile-stats-card,
 html.soft .profile-awards-shelf,
 html.soft .profile-wins-list,
 html.soft .status-card,
@@ -1148,10 +1147,13 @@ html.soft .avatar-source-option {
   font-weight: 700;
 }
 
+/* Two separate tiles: the grid wrapper has no surface of its own. */
 html.soft .profile-stat-button,
 html.soft .profile-stat-item {
-  border-radius: var(--r-md);
-  background: transparent;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--lift);
 }
 
 html.soft .profile-stat-button span,
@@ -1532,4 +1534,46 @@ html.soft .fixed.top-4 > .glass {
   html.soft .tap {
     transition: none;
   }
+}
+
+/* "All awards" link: a quiet counter and a small round arrow instead of a raised tile. */
+html.soft .profile-awards-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-left: 1px solid var(--hair);
+  border-radius: 0;
+  background: transparent;
+  padding-left: 0.25rem;
+  color: var(--ink);
+}
+
+html.soft .profile-awards-more span {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+html.soft .profile-awards-more span::before {
+  content: "+";
+}
+
+html.soft .profile-awards-more svg {
+  width: 2rem;
+  height: 2rem;
+  box-sizing: border-box;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--surface-2);
+  padding: 0.38rem;
+  color: var(--ink-2);
 }
