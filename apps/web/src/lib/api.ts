@@ -278,7 +278,7 @@ export const api = {
   duoPlayCard: (tournamentId: string, card: DuoCardType) =>
     request<DuoPlayerState>(`/api/tournaments/${tournamentId}/duo/cards/${card}`, { method: "POST", body: "{}" }),
   duoState: (tournamentId: string) => request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo`),
-  duoPair: (tournamentId: string, userIds: [string, string]) =>
+  duoPair: (tournamentId: string, userIds: string[]) =>
     request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo/pairs`, { method: "POST", body: JSON.stringify({ userIds }) }),
   duoUnpair: (tournamentId: string, pairId: string) =>
     request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo/pairs/${pairId}`, { method: "DELETE" }),

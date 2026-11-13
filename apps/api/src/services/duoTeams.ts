@@ -38,7 +38,8 @@ export function isDuoTournament(title: string) {
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-export type DuoPair = { eventId: string; userIds: [string, string] };
+// A pair has two players; a team of one is a player the club left without a partner (odd number of players).
+export type DuoPair = { eventId: string; userIds: string[] };
 
 export async function activePairs(db: Db, tournamentId: string): Promise<DuoPair[]> {
   const events = await db.tournamentGameEvent.findMany({
@@ -48,7 +49,7 @@ export async function activePairs(db: Db, tournamentId: string): Promise<DuoPair
   const removed = new Set(events.filter((event) => event.type === UNPAIR && event.reversesId).map((event) => event.reversesId as string));
   return events
     .filter((event) => event.type === PAIR && !removed.has(event.id))
-    .map((event) => ({ eventId: event.id, userIds: (event.details as { userIds: [string, string] }).userIds }));
+    .map((event) => ({ eventId: event.id, userIds: (event.details as { userIds: string[] }).userIds }));
 }
 
 export async function isMerged(db: Db, tournamentId: string) {
@@ -72,30 +73,31 @@ async function assertNotMerged(tx: Prisma.TransactionClient, tournamentId: strin
   if (await isMerged(tx, tournamentId)) throw new AppError(409, "Команды уже объединены", "DUO_ALREADY_MERGED");
 }
 
-export async function createPair(tournamentId: string, firstUserId: string, secondUserId: string, actorId?: string) {
-  if (firstUserId === secondUserId) throw new AppError(400, "Нужны два разных игрока", "DUO_SAME_PLAYER");
+export async function createPair(tournamentId: string, userIds: string[], actorId?: string) {
+  const members = [...new Set(userIds)];
+  if (members.length < 1 || members.length > 2 || members.length !== userIds.length) throw new AppError(400, "Нужны один или два разных игрока", "DUO_SAME_PLAYER");
   await prisma.$transaction(async (tx) => {
     await loadDuoTournament(tx, tournamentId);
     await assertNotMerged(tx, tournamentId);
     const registered = await tx.registration.findMany({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: [firstUserId, secondUserId] } },
+      where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: members } },
       select: { userId: true }
     });
-    if (new Set(registered.map((item) => item.userId)).size !== 2) {
-      throw new AppError(409, "Оба игрока должны быть записаны на турнир", "DUO_NOT_REGISTERED");
+    if (new Set(registered.map((item) => item.userId)).size !== members.length) {
+      throw new AppError(409, "Игроки должны быть записаны на турнир", "DUO_NOT_REGISTERED");
     }
     const pairs = await activePairs(tx, tournamentId);
-    if (pairs.some((pair) => pair.userIds.includes(firstUserId) || pair.userIds.includes(secondUserId))) {
+    if (pairs.some((pair) => pair.userIds.some((id) => members.includes(id)))) {
       throw new AppError(409, "Игрок уже состоит в команде", "DUO_ALREADY_PAIRED");
     }
     await tx.tournamentGameEvent.create({
       data: {
         tournamentId,
-        userId: firstUserId,
+        userId: members[0],
         actorId: actorId ?? null,
-        eventKey: `duo-pair:${firstUserId}:${secondUserId}:${Date.now()}`,
+        eventKey: `duo-pair:${members.join(":")}:${Date.now()}`,
         type: PAIR,
-        details: { userIds: [firstUserId, secondUserId] }
+        details: { userIds: members }
       }
     });
   });
@@ -176,6 +178,7 @@ export function planMerge(pairs: DuoPair[], registrations: MergeRegistration[]) 
   const merges: { leadId: string; parkedId: string }[] = [];
 
   for (const pair of pairs) {
+    if (pair.userIds.length < 2) continue;
     const [first, second] = pair.userIds.map((userId) => alive(userId));
     if (first.length && second.length) {
       const [lead, parked] = first[0].checkedInAt! <= second[0].checkedInAt! ? [first[0], second[0]] : [second[0], first[0]];
@@ -286,12 +289,12 @@ export async function duoPlayerState(tournamentId: string, userId: string, now =
   const [pairs, merged, events] = await Promise.all([activePairs(prisma, tournamentId), isMerged(prisma, tournamentId), cardEvents(prisma, tournamentId)]);
   const pair = pairs.find((item) => item.userIds.includes(userId));
   if (!pair) return { merged, mergeOpensAt: duoMergeOpensAt(tournament.startsAt), team: null };
-  const partnerId = pair.userIds.find((id) => id !== userId) as string;
+  const partnerId = pair.userIds.find((id) => id !== userId);
   const [partner, registrations] = await Promise.all([
-    prisma.user.findUnique({ where: { id: partnerId } }),
+    partnerId ? prisma.user.findUnique({ where: { id: partnerId } }) : null,
     prisma.registration.findMany({ where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: pair.userIds } }, select: { liveStatus: true, checkedInAt: true } })
   ]);
-  const name = partner ? partner.displayName || [partner.firstName, partner.lastName].filter(Boolean).join(" ") || partner.username || "Партнёр" : "Партнёр";
+  const name = partner ? partner.displayName || [partner.firstName, partner.lastName].filter(Boolean).join(" ") || partner.username || "Партнёр" : null;
   return {
     merged,
     mergeOpensAt: duoMergeOpensAt(tournament.startsAt),

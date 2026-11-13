@@ -57,10 +57,10 @@ export function DuoCards({ tournamentId }: { tournamentId: string }) {
       {!team ? (
         <p className="text-sm text-slate-300">Пары назначаются на перерыве после 10 уровня. Пока вы играете сами.</p>
       ) : !data.merged ? (
-        <p className="text-sm text-slate-300">Ваш партнёр: <strong className="text-white">{team.partnerName}</strong>. Карточки появятся, когда команды объединят.</p>
+        <p className="text-sm text-slate-300">{team.partnerName ? <>Ваш партнёр: <strong className="text-white">{team.partnerName}</strong>. </> : "Вы играете один. "}Карточки появятся, когда команды объединят.</p>
       ) : (
         <>
-          <p className="text-sm text-slate-300">Ваш партнёр: <strong className="text-white">{team.partnerName}</strong>. Карточки общие на двоих.</p>
+          <p className="text-sm text-slate-300">{team.partnerName ? <>Ваш партнёр: <strong className="text-white">{team.partnerName}</strong>. Карточки общие на двоих.</> : "Вы играете один, карточки у вас те же."}</p>
           {running && (
             <div className="rounded-[0.75rem] bg-emerald/15 p-3 text-center" role="status">
               <p className="text-xs font-bold text-emerald">{running.card === "timeout" ? "Тайм-аут идёт" : "Подсказка партнёра идёт"}</p>

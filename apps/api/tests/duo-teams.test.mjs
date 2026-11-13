@@ -44,6 +44,12 @@ test("one partner out before the merge: no one is parked and no bonus is given",
   assert.equal(duoMergeOpensAt(new Date("2026-11-13T12:00:00Z")).toISOString(), "2026-11-13T14:40:00.000Z");
 });
 
+test("a team of one is left alone by the merge", () => {
+  const plan = planMerge([{ eventId: "solo", userIds: ["a"] }], [reg("ra", "a", "IN_GAME", 5)]);
+  assert.deepEqual(plan.merges, []);
+  assert.equal(partnerOf([{ eventId: "solo", userIds: ["a"] }], "a"), null);
+});
+
 test("both out, or a player who never checked in: nothing to merge", () => {
   const plan = planMerge([pair("p", "a", "b"), pair("q", "c", "d")], [
     reg("ra", "a", "ELIMINATED", 1), reg("rb", "b", "ELIMINATED", 2),

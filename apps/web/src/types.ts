@@ -200,7 +200,7 @@ export type DuoCards = { timeoutLeft: number; hintLeft: number; active: { card: 
 export type DuoPlayerState = {
   merged: boolean;
   mergeOpensAt: string;
-  team: (DuoCards & { partnerName: string; inGame: boolean; seconds: Record<DuoCardType, number> }) | null;
+  team: (DuoCards & { partnerName: string | null; inGame: boolean; seconds: Record<DuoCardType, number> }) | null;
 };
 export type DuoState = {
   merged: boolean;

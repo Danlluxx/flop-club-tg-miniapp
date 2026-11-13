@@ -323,7 +323,7 @@ adminRouter.post("/tournaments/:id/live/final-table", async (req, res, next) => 
   }
 });
 
-const duoPairSchema = z.object({ userIds: z.tuple([z.string().min(1), z.string().min(1)]) });
+const duoPairSchema = z.object({ userIds: z.array(z.string().min(1)).min(1).max(2) });
 
 adminRouter.get("/tournaments/:id/duo", async (req, res, next) => {
   try {
@@ -336,7 +336,7 @@ adminRouter.get("/tournaments/:id/duo", async (req, res, next) => {
 adminRouter.post("/tournaments/:id/duo/pairs", async (req, res, next) => {
   try {
     const payload = duoPairSchema.parse(req.body);
-    await createPair(req.params.id, payload.userIds[0], payload.userIds[1], req.user?.id);
+    await createPair(req.params.id, payload.userIds, req.user?.id);
     res.status(201).json(await duoState(req.params.id));
   } catch (error) {
     next(error);

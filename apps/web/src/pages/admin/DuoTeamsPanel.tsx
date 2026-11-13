@@ -27,8 +27,8 @@ export function DuoTeamsPanel({ tournamentId }: { tournamentId: string }) {
   const onError = (error: Error) => showToast(error.message, "error");
 
   const pair = useMutation({
-    mutationFn: (userIds: [string, string]) => api.duoPair(tournamentId, userIds),
-    onSuccess: async () => { setPicked([]); showToast("Команда собрана"); await refresh(); },
+    mutationFn: (userIds: string[]) => api.duoPair(tournamentId, userIds),
+    onSuccess: async () => { setPicked([]); showToast(picked.length === 1 ? "Игрок играет один" : "Команда собрана"); await refresh(); },
     onError
   });
   const unpair = useMutation({
@@ -76,7 +76,7 @@ export function DuoTeamsPanel({ tournamentId }: { tournamentId: string }) {
         <ul className="space-y-1.5">
           {data.teams.map((team) => (
             <li key={team.id} className="flex items-center gap-2 text-sm font-semibold text-white">
-              <span className="min-w-0 flex-1 truncate">{team.players.map((player) => player.name).join(" + ")}</span>
+              <span className="min-w-0 flex-1 truncate">{team.players.map((player) => player.name).join(" + ")}{team.players.length === 1 ? " (один)" : ""}</span>
               {data.merged && (
                 <span className="shrink-0 text-xs font-bold text-slate-300">
                   {team.cards.active ? `${team.cards.active.card === "timeout" ? "Тайм-аут" : "Подсказка"} · ${Math.max(0, Math.ceil((new Date(team.cards.active.endsAt).getTime() - now) / 1000))} с` : `Т ${team.cards.timeoutLeft}/2 · П ${team.cards.hintLeft}/2`}
@@ -94,7 +94,7 @@ export function DuoTeamsPanel({ tournamentId }: { tournamentId: string }) {
 
       {!data.merged && data.solo.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-400">Без пары: отметьте двоих и соберите команду</p>
+          <p className="text-xs font-semibold text-slate-400">Без пары: отметьте двоих и соберите команду. Если остался один, отметьте его и поставьте играть одного</p>
           <div className="flex flex-wrap gap-1.5">
             {data.solo.map((player) => (
               <button
@@ -109,8 +109,8 @@ export function DuoTeamsPanel({ tournamentId }: { tournamentId: string }) {
             ))}
           </div>
           <div className="flex gap-2">
-            <button type="button" className="app-button-primary flex-1" disabled={busy || picked.length !== 2} onClick={() => pair.mutate(picked as [string, string])}>
-              Собрать команду
+            <button type="button" className="app-button-primary flex-1" disabled={busy || picked.length === 0} onClick={() => pair.mutate(picked)}>
+              {picked.length === 1 ? "Играет один" : "Собрать команду"}
             </button>
             <button type="button" className="tap inline-flex h-11 items-center gap-1.5 rounded-[0.75rem] bg-white/5 px-3 text-sm font-bold text-slate-100" disabled={busy || data.solo.length < 2} onClick={() => draw.mutate()}>
               <Shuffle className="h-4 w-4" />
