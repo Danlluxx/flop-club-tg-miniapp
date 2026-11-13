@@ -7,6 +7,7 @@ import { dateKey } from "../services/tournamentSchedule.js";
 import {
   exportPendingShifts,
   getMasterWorkbook,
+  IMPORT_FROM,
   readRoster,
   saveMasterWorkbook,
   shiftHours
@@ -83,8 +84,8 @@ payrollRouter.get("/staff", async (_req, res, next) => {
 
 payrollRouter.get("/tournaments", async (_req, res, next) => {
   try {
-    const since = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
-    const until = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const since = new Date(`${IMPORT_FROM}T00:00:00+07:00`);
+    const until = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const tournaments = await prisma.tournament.findMany({
       where: { startsAt: { gte: since, lte: until }, status: { not: "CANCELLED" } },
       orderBy: { startsAt: "desc" },
@@ -186,7 +187,7 @@ payrollRouter.put("/workbook", requireAnalyticsOwner, express.raw({ type: () => 
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw new AppError(400, "Файл не передан", "PAYROLL_BAD_FILE");
     const fileName = typeof req.query.name === "string" && req.query.name.trim() ? req.query.name.trim().slice(0, 120) : "ЗП FLOP CLUB.xlsx";
     const saved = await saveMasterWorkbook(fileName, req.body);
-    res.json({ fileName: saved.fileName, updatedAt: saved.updatedAt });
+    res.json({ fileName: saved.fileName, updatedAt: saved.updatedAt, ...saved.sync });
   } catch (error) {
     next(error);
   }

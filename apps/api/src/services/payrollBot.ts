@@ -117,9 +117,10 @@ export async function handlePayrollDocument(message: TelegramDocumentMessage | u
     if (!info.ok || !info.result?.file_path) throw new Error("getFile failed");
     const file = await fetch(`${config.TELEGRAM_API_BASE_URL}/file/bot${config.BOT_TOKEN}/${info.result.file_path}`);
     if (!file.ok) throw new Error(`file download failed: ${file.status}`);
-    await saveMasterWorkbook(document.file_name!, Buffer.from(await file.arrayBuffer()));
+    const saved = await saveMasterWorkbook(document.file_name!, Buffer.from(await file.arrayBuffer()));
     const pending = await prisma.staffShift.count({ where: { exportedAt: null } });
-    await sendText(message.chat.id, `Таблица принята. Новые смены (${pending}) попадут в неё при следующей отправке.`);
+    const skipped = saved.sync.skipped ? ` Строк без турнира в этот день пропущено: ${saved.sync.skipped}.` : "";
+    await sendText(message.chat.id, `Таблица принята, смен в приложении: ${saved.sync.imported}.${skipped} Новые смены (${pending}) попадут в неё при следующей отправке.`);
   } catch (error) {
     console.error("[payroll] workbook upload failed", error);
     await sendText(message.chat.id, error instanceof Error && "statusCode" in error ? error.message : "Не удалось принять таблицу, попробуйте ещё раз.");

@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { api, type PayrollShift, type PayrollShiftInput } from "../../lib/api";
 import { formatBarnaulDateTime } from "../../lib/barnaulDate";
 import { useToast } from "../../components/Toast";
+import { PayrollCalendar } from "../../components/PayrollCalendar";
 
 const fieldClass = "w-full rounded-[0.75rem] border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-electric";
 const STATUSES: PayrollShiftInput["status"][] = ["Отработана", "Запланирована", "Неявка"];
@@ -58,7 +59,7 @@ export function PayrollPage() {
   });
   const upload = useMutation({
     mutationFn: (file: File) => api.uploadPayrollWorkbook(file),
-    onSuccess: () => { void refresh(); showToast("Таблица загружена"); },
+    onSuccess: (result) => { void refresh(); showToast(`Таблица загружена, смен в приложении: ${result.imported}${result.skipped ? `, без турнира пропущено: ${result.skipped}` : ""}`); },
     onError
   });
 
@@ -95,13 +96,7 @@ export function PayrollPage() {
         </div>
       )}
 
-      <label className="grid gap-1.5 text-xs font-semibold text-slate-400">Турнир
-        <select className={fieldClass} value={selected} onChange={(event) => { setTournamentId(event.target.value); reset(); }}>
-          {(tournaments.data ?? []).map((item) => (
-            <option key={item.id} value={item.id}>{item.title} · {item.date}{item.shifts ? ` · смен: ${item.shifts}` : ""}</option>
-          ))}
-        </select>
-      </label>
+      <PayrollCalendar tournaments={tournaments.data ?? []} selectedId={selected} onSelect={(id) => { setTournamentId(id); reset(); }} />
       {tournament && <p className="text-sm text-slate-400">{tournament.title.toUpperCase()} · {formatBarnaulDateTime(tournament.startsAt)}</p>}
 
       <div className="space-y-3">
@@ -208,7 +203,7 @@ export function PayrollPage() {
               <Upload className="h-4 w-4" /> Заменить файл
             </button>
           </div>
-          <p className="text-xs text-slate-500">Скачивание дописывает новые смены в таблицу, этот файл становится основным. Загружайте только файл, полученный от бота или отсюда: старая копия сотрёт уже записанные смены.</p>
+          <p className="text-xs text-slate-500">Скачивание дописывает новые смены в таблицу, этот файл становится основным. При загрузке смены с 1 сентября подтягиваются из таблицы в приложение: правки в Excel попадают сюда, а старая копия сотрёт более свежие смены.</p>
         </div>
       )}
     </section>

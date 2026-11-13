@@ -8,8 +8,9 @@
 - Смены лежат в `StaffShift` (турнир, сотрудник, дата турнира по Барнаулу, начало/конец, перерыв, часы вручную, статус, `exportedAt`). `exportedAt` null = ещё не в файле.
 - `apps/api/src/services/payrollWorkbook.ts`: `appendShifts` правит XML листа `Смены` напрямую (jszip), а не пересохраняет книгу через exceljs: иначе пропадают выпадающие списки (x14 dataValidation) со списком сотрудников. Пишет B, D, E, F, G, H, M, N в первую свободную строку после последней заполненной (шаблонные строки 6–2005 уже с формулами). Формулы Excel пересчитает сам (`fullCalcOnLoad`).
 - `exportPendingShifts` дописывает все новые смены, сохраняет результат как новый основной файл и ставит `exportedAt`. Всё в одной транзакции, под очередью в процессе.
+- Обратный импорт: при каждой загрузке основного файла (приложение или бот, `saveMasterWorkbook` → `syncShiftsFromWorkbook`) смены с `IMPORT_FROM` (2026-09-01) из листа `Смены` пересоздаются в `StaffShift` с `exportedAt`; ещё не записанные в файл смены приложения не трогаются. Смена привязывается к первому турниру того дня (по `startsAt`); строки без турнира в этот день, а также строки без времени и без ненулевых часов (штрафы/премии) пропускаются и считаются в `skipped`. Импорт идемпотентен.
 - Имя сотрудника проверяется по листу `Сотрудники` основного файла; уволенные в списке не показываются.
-- Экран: `apps/web/src/pages/admin/PayrollPage.tsx`, `/admin/payroll`. API: `apps/api/src/routes/payroll.ts`, `/api/admin/payroll/*`.
+- Экран: `apps/web/src/pages/admin/PayrollPage.tsx`, `/admin/payroll`; выбор турнира — календарь `components/PayrollCalendar.tsx` (список турниров с `IMPORT_FROM` до +30 дней). API: `apps/api/src/routes/payroll.ts`, `/api/admin/payroll/*`.
 
 ## Бот (`services/payrollBot.ts`)
 

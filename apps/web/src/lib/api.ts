@@ -193,7 +193,7 @@ export const api = {
   deletePayrollShift: (id: string) => request<void>(`/api/admin/payroll/shifts/${id}`, { method: "DELETE" }),
   downloadPayrollWorkbook: (fileName: string) => download("/api/admin/payroll/workbook", fileName),
   uploadPayrollWorkbook: (file: File) =>
-    request<{ fileName: string }>(`/api/admin/payroll/workbook?name=${encodeURIComponent(file.name)}`, {
+    request<{ fileName: string; imported: number; skipped: number }>(`/api/admin/payroll/workbook?name=${encodeURIComponent(file.name)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/octet-stream" },
       body: file

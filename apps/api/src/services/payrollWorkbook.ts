@@ -2,12 +2,16 @@ import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { prisma } from "../prisma.js";
 import { AppError } from "../utils/errors.js";
+import { dateKey } from "./tournamentSchedule.js";
 
 const WORKBOOK_KEY = "master";
 const SHIFTS_SHEET = "Смены";
 const STAFF_SHEET = "Сотрудники";
 const FIRST_ROW = 6;
 const LAST_ROW = 2005;
+// Shifts dated earlier than this are not mirrored into the app.
+export const IMPORT_FROM = "2026-09-01";
+const STATUS_VALUES = ["Отработана", "Запланирована", "Неявка"];
 
 export type ShiftInput = {
   workDate: string;
@@ -135,17 +139,106 @@ export async function appendShifts(buffer: Buffer, shifts: ShiftInput[]) {
   return { buffer: output, written: shifts.length };
 }
 
+function cellDate(value: unknown) {
+  if (value instanceof Date) return value;
+  if (typeof value === "number") return new Date(Math.round((value - 25569) * 86_400_000));
+  return null;
+}
+
+function cellTime(value: unknown) {
+  const minutes = value instanceof Date
+    ? value.getUTCHours() * 60 + value.getUTCMinutes() + Math.round(value.getUTCSeconds() / 60)
+    : typeof value === "number" ? Math.round((value % 1) * 1440) : null;
+  if (minutes == null) return null;
+  const wrapped = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+}
+
+function cellNumber(value: unknown) {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : NaN;
+  return Number.isFinite(number) ? number : null;
+}
+
+function cellText(value: unknown) {
+  if (value == null) return "";
+  if (typeof value === "object" && "richText" in (value as object)) return (value as { richText: Array<{ text: string }> }).richText.map((part) => part.text).join("").trim();
+  if (typeof value === "object" && "result" in (value as object)) return String((value as { result: unknown }).result ?? "").trim();
+  return String(value).trim();
+}
+
+// Reads the shift rows the owner keeps in the table (sheet «Смены») from IMPORT_FROM on.
+// Rows with neither start/end nor non-zero manual hours (fines, bonuses) are not shifts and are skipped.
+export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+  const sheet = workbook.getWorksheet(SHIFTS_SHEET);
+  if (!sheet) return [];
+  const shifts: ShiftInput[] = [];
+  for (let row = FIRST_ROW; row <= LAST_ROW; row += 1) {
+    const date = cellDate(sheet.getCell(`B${row}`).value);
+    const employeeName = cellText(sheet.getCell(`D${row}`).value);
+    if (!date || !employeeName) continue;
+    const workDate = date.toISOString().slice(0, 10);
+    if (workDate < IMPORT_FROM) continue;
+    const startTime = cellTime(sheet.getCell(`E${row}`).value);
+    const endTime = cellTime(sheet.getCell(`F${row}`).value);
+    const hasTimes = Boolean(startTime && endTime);
+    const manual = cellNumber(sheet.getCell(`H${row}`).value);
+    if (!hasTimes && !manual) continue;
+    const status = cellText(sheet.getCell(`M${row}`).value);
+    shifts.push({
+      workDate,
+      employeeName,
+      startTime: hasTimes ? startTime : null,
+      endTime: hasTimes ? endTime : null,
+      breakHours: cellNumber(sheet.getCell(`G${row}`).value) || null,
+      manualHours: hasTimes ? null : manual,
+      status: STATUS_VALUES.includes(status) ? status : "Отработана",
+      comment: cellText(sheet.getCell(`N${row}`).value).slice(0, 200) || null
+    });
+  }
+  return shifts;
+}
+
+// Makes the app mirror the table: shifts already written to the table are replaced by what the file holds
+// (so edits made in Excel show up here), shifts still waiting for export are left alone. A shift is attached
+// to the tournament played that day; rows for days without a tournament cannot be shown and are only counted.
+export async function syncShiftsFromWorkbook(buffer: Buffer) {
+  const rows = await readWorkbookShifts(buffer);
+  const tournaments = await prisma.tournament.findMany({
+    where: { startsAt: { gte: new Date(`${IMPORT_FROM}T00:00:00+07:00`) }, status: { not: "CANCELLED" } },
+    orderBy: { startsAt: "asc" },
+    select: { id: true, startsAt: true }
+  });
+  const byDate = new Map<string, string>();
+  for (const tournament of tournaments) {
+    const key = dateKey(tournament.startsAt);
+    if (!byDate.has(key)) byDate.set(key, tournament.id);
+  }
+  const now = new Date();
+  const data = rows.flatMap((row) => {
+    const tournamentId = byDate.get(row.workDate);
+    return tournamentId ? [{ ...row, tournamentId, exportedAt: now }] : [];
+  });
+  await prisma.$transaction([
+    prisma.staffShift.deleteMany({ where: { exportedAt: { not: null }, workDate: { gte: IMPORT_FROM } } }),
+    prisma.staffShift.createMany({ data })
+  ]);
+  return { imported: data.length, skipped: rows.length - data.length };
+}
+
 export async function getMasterWorkbook() {
   return prisma.payrollWorkbook.findUnique({ where: { key: WORKBOOK_KEY } });
 }
 
 export async function saveMasterWorkbook(fileName: string, data: Buffer) {
   await validateWorkbook(data);
-  return prisma.payrollWorkbook.upsert({
+  const saved = await prisma.payrollWorkbook.upsert({
     where: { key: WORKBOOK_KEY },
     create: { key: WORKBOOK_KEY, fileName, data },
     update: { fileName, data }
   });
+  return { ...saved, sync: await syncShiftsFromWorkbook(data) };
 }
 
 let exporting: Promise<unknown> = Promise.resolve();
