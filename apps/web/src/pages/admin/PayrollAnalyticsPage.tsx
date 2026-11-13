@@ -12,7 +12,8 @@ const PERIODS: Array<{ id: PayrollPeriod; label: string }> = [
 const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 const MONTHS_NOMINATIVE = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 
-const money = (value: number) => `${Math.round(value).toLocaleString("ru-RU")} ₽`;
+const money = (value: number) => `${value < 0 ? "−" : ""}${Math.abs(Math.round(value)).toLocaleString("ru-RU")} ₽`;
+const signed = (value: number) => `${value > 0 ? "+" : ""}${money(value)}`;
 const hoursText = (value: number) => `${String(Math.round(value * 100) / 100).replace(".", ",")} ч`;
 const dayText = (key: string) => `${+key.slice(8, 10)} ${MONTHS[+key.slice(5, 7) - 1]}`;
 
@@ -33,9 +34,10 @@ export function PayrollAnalyticsPage() {
   const access = useQuery({ queryKey: ["admin", "analytics-access"], queryFn: api.analyticsAccess });
   const [period, setPeriod] = useState<PayrollPeriod>("week");
   const [date, setDate] = useState<string | undefined>();
+  const [withFines, setWithFines] = useState(true);
   const analytics = useQuery({
-    queryKey: ["admin", "payroll", "analytics", period, date ?? "today"],
-    queryFn: () => api.payrollAnalytics(period, date),
+    queryKey: ["admin", "payroll", "analytics", period, date ?? "today", withFines],
+    queryFn: () => api.payrollAnalytics(period, date, withFines),
     enabled: access.data?.allowed === true,
     placeholderData: (previous) => previous
   });
@@ -62,6 +64,15 @@ export function PayrollAnalyticsPage() {
             ))}
           </div>
 
+          <div className="grid grid-cols-2 gap-2">
+            {[{ value: true, label: "Со штрафами" }, { value: false, label: "Без штрафов" }].map((item) => (
+              <button key={item.label} type="button" onClick={() => setWithFines(item.value)}
+                className={`tap rounded-[0.55rem] px-3 py-2.5 text-xs font-black ${withFines === item.value ? "bg-white text-graphite" : "bg-white/8 text-white"}`}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between">
             <button type="button" aria-label="Назад" disabled={!data || data.from <= data.importFrom} onClick={() => data && setDate(shiftDate(data.from, period, -1))}
               className="tap grid h-10 w-10 place-items-center rounded-[0.55rem] bg-white/8 text-white disabled:opacity-30">
@@ -78,7 +89,7 @@ export function PayrollAnalyticsPage() {
             <>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: "Заработано", value: money(data.totals.earned) },
+                  { label: data.withFines ? "К выплате" : "Заработано", value: money(data.totals.earned) },
                   { label: "Часов", value: hoursText(data.totals.hours) },
                   { label: "Смен", value: String(data.totals.shifts) }
                 ].map((item) => (
@@ -89,6 +100,9 @@ export function PayrollAnalyticsPage() {
                 ))}
               </div>
 
+              {data.withFines && data.totals.adjustment !== 0 && (
+                <p className="text-xs font-semibold text-slate-400">Работа {money(data.totals.pay)}, штрафы и премии {signed(data.totals.adjustment)}.</p>
+              )}
               {data.employees.length === 0 && <div className="app-panel p-5 text-sm font-semibold text-slate-400">За этот период отработанных смен нет.</div>}
               <div className="space-y-2">
                 {data.employees.map((row) => (
@@ -99,6 +113,7 @@ export function PayrollAnalyticsPage() {
                     </div>
                     <p className="mt-1 text-xs font-semibold text-slate-400">
                       смен: {row.shifts} · {hoursText(row.hours)}{row.days !== row.shifts ? ` · дней: ${row.days}` : ""}
+                      {row.adjustment !== 0 && <span className={row.adjustment < 0 ? "text-rose-300" : "text-emerald-300"}> · {data.withFines ? "в т. ч. штрафы/премии" : "не учтено: штрафы/премии"} {signed(row.adjustment)}</span>}
                     </p>
                     <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
                       <div className="h-full rounded-full bg-white/70" style={{ width: `${Math.max(3, (row.earned / top) * 100)}%` }} />
@@ -106,7 +121,20 @@ export function PayrollAnalyticsPage() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-500">Считается по ставкам из листа «Сотрудники», без премий и штрафов. Неявки и запланированные смены не учитываются. Данные с {dayText(data.importFrom)}.</p>
+              <div className="space-y-2">
+                <p className="text-sm font-black text-white">Штрафы и вычеты за период</p>
+                {data.adjustments.length === 0 && <div className="app-panel p-4 text-sm font-semibold text-slate-400">Штрафов и премий за этот период нет.</div>}
+                {data.adjustments.map((item) => (
+                  <div key={item.id} className="app-panel flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-white">{item.name}</p>
+                      <p className="truncate text-xs font-semibold text-slate-400">{dayText(item.date)} · {item.comment}</p>
+                    </div>
+                    <p className={`shrink-0 text-sm font-black ${item.amount < 0 ? "text-rose-300" : "text-emerald-300"}`}>{signed(item.amount)}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500">Часы считаются по ставкам из листа «Сотрудники». Неявки и запланированные смены не учитываются. Штрафы, вычеты за ре-энтри и аддоны, премии берутся из колонки «Премия / штраф» таблицы или вносятся в смене. Данные с {dayText(data.importFrom)}.</p>
             </>
           )}
         </>

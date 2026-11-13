@@ -9,7 +9,7 @@ import { PayrollCalendar } from "../../components/PayrollCalendar";
 
 const fieldClass = "w-full rounded-[0.75rem] border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-electric";
 const STATUSES: PayrollShiftInput["status"][] = ["Отработана", "Запланирована", "Неявка"];
-const emptyForm = { employeeName: "", startTime: "", endTime: "", breakHours: "", manualHours: "", status: "Отработана" as PayrollShiftInput["status"], comment: "" };
+const emptyForm = { employeeName: "", startTime: "", endTime: "", breakHours: "", manualHours: "", adjustment: "", status: "Отработана" as PayrollShiftInput["status"], comment: "" };
 
 const formatHours = (value: number) => `${String(Math.round(value * 100) / 100).replace(".", ",")} ч`;
 
@@ -20,6 +20,7 @@ function toInput(form: typeof emptyForm): PayrollShiftInput {
     endTime: form.endTime || null,
     breakHours: form.breakHours ? Number(form.breakHours.replace(",", ".")) : null,
     manualHours: form.manualHours ? Number(form.manualHours.replace(",", ".")) : null,
+    adjustment: form.adjustment ? Number(form.adjustment.replace(",", ".").replace("−", "-")) : null,
     status: form.status,
     comment: form.comment.trim() || null
   };
@@ -76,6 +77,7 @@ export function PayrollPage() {
       endTime: shift.endTime ?? "",
       breakHours: shift.breakHours != null ? String(shift.breakHours) : "",
       manualHours: shift.manualHours != null ? String(shift.manualHours) : "",
+      adjustment: shift.adjustment ? String(shift.adjustment) : "",
       status: shift.status,
       comment: shift.comment ?? ""
     });
@@ -114,9 +116,10 @@ export function PayrollPage() {
             <div className="min-w-0">
               <p className="truncate font-black text-white">{shift.employeeName}</p>
               <p className="mt-1 text-xs font-semibold text-slate-400">
-                {shift.startTime && shift.endTime ? `${shift.startTime}–${shift.endTime}` : "часы вручную"}
+                {shift.startTime && shift.endTime ? `${shift.startTime}–${shift.endTime}` : shift.hours > 0 ? "часы вручную" : "без часов"}
                 {shift.breakHours ? ` · перерыв ${formatHours(shift.breakHours)}` : ""} · {shift.status}
               </p>
+              {shift.adjustment ? <p className={`mt-1 text-xs font-bold ${shift.adjustment < 0 ? "text-rose-300" : "text-emerald-300"}`}>{shift.adjustment < 0 ? "Штраф / вычет" : "Премия"} {shift.adjustment > 0 ? "+" : "−"}{Math.abs(shift.adjustment).toLocaleString("ru-RU")} ₽</p> : null}
               {shift.comment && <p className="mt-1 truncate text-xs text-slate-500">{shift.comment}</p>}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -167,6 +170,9 @@ export function PayrollPage() {
               <input className={fieldClass} inputMode="decimal" placeholder="вместо времени" value={form.manualHours} onChange={(event) => setForm({ ...form, manualHours: event.target.value })} />
             </label>
           </div>
+          <label className="grid gap-1.5 text-xs font-semibold text-slate-400">Премия (+) / штраф (−), ₽
+            <input className={fieldClass} inputMode="decimal" placeholder="например, −500" value={form.adjustment} onChange={(event) => setForm({ ...form, adjustment: event.target.value })} />
+          </label>
           <label className="grid gap-1.5 text-xs font-semibold text-slate-400">Статус
             <select className={fieldClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as PayrollShiftInput["status"] })}>
               {STATUSES.map((value) => <option key={value} value={value}>{value}</option>)}
@@ -175,8 +181,8 @@ export function PayrollPage() {
           <label className="grid gap-1.5 text-xs font-semibold text-slate-400">Комментарий
             <input className={fieldClass} maxLength={200} value={form.comment} onChange={(event) => setForm({ ...form, comment: event.target.value })} />
           </label>
-          {counted && !form.manualHours && !(form.startTime && form.endTime) && (
-            <p className="text-xs font-semibold text-slate-500">Укажите начало и конец смены или число часов.</p>
+          {counted && !form.manualHours && !form.adjustment && !(form.startTime && form.endTime) && (
+            <p className="text-xs font-semibold text-slate-500">Укажите начало и конец смены, число часов или сумму штрафа.</p>
           )}
           <div className="flex gap-3">
             <button type="submit" disabled={save.isPending} className="tap flex-1 rounded-[0.55rem] bg-white px-4 py-3 text-sm font-black text-graphite disabled:opacity-50">

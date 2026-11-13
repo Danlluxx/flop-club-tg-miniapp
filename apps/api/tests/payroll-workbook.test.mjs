@@ -35,6 +35,7 @@ const shift = (patch = {}) => ({
   endTime: "01:00",
   breakHours: 0.5,
   manualHours: null,
+  adjustment: null,
   status: "Отработана",
   comment: null,
   ...patch
@@ -81,7 +82,7 @@ test("validateWorkbook rejects files that are not the salary table", async () =>
   await assert.rejects(validateWorkbook(Buffer.from(await empty.xlsx.writeBuffer())), /Смены/);
 });
 
-test("readWorkbookShifts reads shifts from September on, skipping fines and older rows", async () => {
+test("readWorkbookShifts reads shifts from September on, keeping fines and skipping empty and older rows", async () => {
   const { readWorkbookShifts } = await import("../dist/services/payrollWorkbook.js");
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Смены");
@@ -94,14 +95,16 @@ test("readWorkbookShifts reads shifts from September on, skipping fines and olde
   put(6, [2026, 7, 30], "Старая", { H: 5 });
   put(7, [2026, 8, 3], "Гриша", { H: 4, M: "Отработана" });
   put(8, [2026, 9, 2], "Арсений", { E: new Date(Date.UTC(1899, 11, 30, 19, 0)), F: 23 / 24, G: 0.5, M: "Неявка", N: "заметка" });
-  put(9, [2026, 10, 12], "Гриша", { H: 0, K: -500 });
+  put(9, [2026, 10, 12], "Гриша", { H: 0, K: -500, N: "Штраф" });
+  put(10, [2026, 10, 12], "Лиля", { H: 0 });
   const shifts = await readWorkbookShifts(Buffer.from(await workbook.xlsx.writeBuffer()));
-  assert.equal(shifts.length, 2);
-  assert.deepEqual(shifts[0], { workDate: "2026-09-03", employeeName: "Гриша", startTime: null, endTime: null, breakHours: null, manualHours: 4, status: "Отработана", comment: null });
+  assert.equal(shifts.length, 3);
+  assert.deepEqual(shifts[0], { workDate: "2026-09-03", employeeName: "Гриша", startTime: null, endTime: null, breakHours: null, manualHours: 4, adjustment: null, status: "Отработана", comment: null });
   assert.equal(shifts[1].startTime, "19:00");
   assert.equal(shifts[1].endTime, "23:00");
   assert.equal(shifts[1].breakHours, 0.5);
   assert.equal(shifts[1].status, "Неявка");
+  assert.deepEqual([shifts[2].employeeName, shifts[2].manualHours, shifts[2].adjustment, shifts[2].comment], ["Гриша", null, -500, "Штраф"]);
 });
 
 test("periodRange and shiftEarnings follow the table rules", async () => {

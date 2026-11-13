@@ -20,6 +20,7 @@ export type ShiftInput = {
   endTime: string | null;
   breakHours: number | null;
   manualHours: number | null;
+  adjustment: number | null;
   status: string;
   comment: string | null;
 };
@@ -131,7 +132,10 @@ export async function appendShifts(buffer: Buffer, shifts: ShiftInput[]) {
     row = setCell(row, "E", number, hasTimes ? { number: toMinutes(shift.startTime!) / 1440 } : null);
     row = setCell(row, "F", number, hasTimes ? { number: toMinutes(shift.endTime!) / 1440 } : null);
     row = setCell(row, "G", number, shift.breakHours ? { number: shift.breakHours } : null);
-    row = setCell(row, "H", number, shift.manualHours != null ? { number: shift.manualHours } : null);
+    // A bonus/fine without hours is written with 0 manual hours, like the rows kept by hand, so the table does not flag it.
+    const manual = shift.manualHours ?? (hasTimes || !shift.adjustment ? null : 0);
+    row = setCell(row, "H", number, manual != null ? { number: manual } : null);
+    row = setCell(row, "K", number, shift.adjustment ? { number: shift.adjustment } : null);
     row = setCell(row, "M", number, { text: shift.status });
     row = setCell(row, "N", number, shift.comment ? { text: shift.comment } : null);
     xml = xml.replace(original, () => row!);
@@ -170,7 +174,7 @@ function cellText(value: unknown) {
 }
 
 // Reads the shift rows the owner keeps in the table (sheet «Смены») from IMPORT_FROM on.
-// Rows with neither start/end nor non-zero manual hours (fines, bonuses) are not shifts and are skipped.
+// A row with a bonus/fine in column K and no hours is kept as an adjustment-only entry; rows with nothing are skipped.
 export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
@@ -187,7 +191,8 @@ export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> 
     const endTime = cellTime(sheet.getCell(`F${row}`).value);
     const hasTimes = Boolean(startTime && endTime);
     const manual = cellNumber(sheet.getCell(`H${row}`).value);
-    if (!hasTimes && !manual) continue;
+    const adjustment = cellNumber(sheet.getCell(`K${row}`).value) || null;
+    if (!hasTimes && !manual && !adjustment) continue;
     const status = cellText(sheet.getCell(`M${row}`).value);
     shifts.push({
       workDate,
@@ -195,7 +200,8 @@ export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> 
       startTime: hasTimes ? startTime : null,
       endTime: hasTimes ? endTime : null,
       breakHours: cellNumber(sheet.getCell(`G${row}`).value) || null,
-      manualHours: hasTimes ? null : manual,
+      manualHours: hasTimes || !manual ? null : manual,
+      adjustment,
       status: STATUS_VALUES.includes(status) ? status : "Отработана",
       comment: cellText(sheet.getCell(`N${row}`).value).slice(0, 200) || null
     });
@@ -264,6 +270,7 @@ export function exportPendingShifts() {
       endTime: shift.endTime,
       breakHours: shift.breakHours,
       manualHours: shift.manualHours,
+      adjustment: shift.adjustment,
       status: shift.status,
       comment: [shift.tournament.title, shift.comment].filter(Boolean).join(" · ") || null
     })));

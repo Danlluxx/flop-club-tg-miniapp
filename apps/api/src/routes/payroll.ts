@@ -26,18 +26,19 @@ const shiftSchema = z.object({
   endTime: time.nullish(),
   breakHours: z.number().min(0).max(12).nullish(),
   manualHours: z.number().min(0).max(24).nullish(),
+  adjustment: z.number().min(-100000).max(100000).nullish(),
   status: z.enum(STATUSES).default("Отработана"),
   comment: z.string().trim().max(200).nullish()
 }).superRefine((value, ctx) => {
   const counted = value.status === "Отработана";
-  if (counted && value.manualHours == null && !(value.startTime && value.endTime)) {
-    ctx.addIssue({ code: "custom", message: "Укажите начало и конец смены или число часов", path: ["startTime"] });
+  if (counted && value.manualHours == null && !value.adjustment && !(value.startTime && value.endTime)) {
+    ctx.addIssue({ code: "custom", message: "Укажите начало и конец смены, число часов или сумму премии/штрафа", path: ["startTime"] });
   }
 });
 
 const shiftView = (shift: {
   id: string; employeeName: string; workDate: string; startTime: string | null; endTime: string | null;
-  breakHours: number | null; manualHours: number | null; status: string; comment: string | null; exportedAt: Date | null;
+  breakHours: number | null; manualHours: number | null; adjustment: number | null; status: string; comment: string | null; exportedAt: Date | null;
 }) => ({
   id: shift.id,
   employeeName: shift.employeeName,
@@ -46,6 +47,7 @@ const shiftView = (shift: {
   endTime: shift.endTime,
   breakHours: shift.breakHours,
   manualHours: shift.manualHours,
+  adjustment: shift.adjustment,
   status: shift.status,
   comment: shift.comment,
   hours: shift.status === "Отработана" ? shiftHours(shift) : 0,
@@ -122,6 +124,7 @@ payrollRouter.post("/tournaments/:id/shifts", async (req, res, next) => {
         endTime: body.endTime || null,
         breakHours: body.breakHours ?? null,
         manualHours: body.manualHours ?? null,
+        adjustment: body.adjustment || null,
         status: body.status,
         comment: body.comment || null
       }
@@ -147,6 +150,7 @@ payrollRouter.patch("/shifts/:id", async (req, res, next) => {
         endTime: body.endTime || null,
         breakHours: body.breakHours ?? null,
         manualHours: body.manualHours ?? null,
+        adjustment: body.adjustment || null,
         status: body.status,
         comment: body.comment || null
       }
@@ -171,14 +175,15 @@ payrollRouter.delete("/shifts/:id", async (req, res, next) => {
 
 const analyticsQuery = z.object({
   period: z.enum(["day", "week", "month"]).default("week"),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  fines: z.enum(["with", "without"]).default("with")
 });
 
 // Pay figures are owner-only, same as the table itself.
 payrollRouter.get("/analytics", requireAnalyticsOwner, async (req, res, next) => {
   try {
     const query = analyticsQuery.parse(req.query);
-    res.json(await payrollAnalytics(query.period, query.date ?? dateKey(new Date())));
+    res.json(await payrollAnalytics(query.period, query.date ?? dateKey(new Date()), query.fines === "with"));
   } catch (error) {
     next(error);
   }

@@ -171,6 +171,7 @@ export type PayrollShift = {
   endTime: string | null;
   breakHours: number | null;
   manualHours: number | null;
+  adjustment: number | null;
   status: "Отработана" | "Запланирована" | "Неявка";
   comment: string | null;
   hours: number;
@@ -179,9 +180,10 @@ export type PayrollShift = {
 
 export type PayrollPeriod = "day" | "week" | "month";
 export type PayrollAnalytics = {
-  period: PayrollPeriod; from: string; to: string; importFrom: string; today: string;
-  totals: { shifts: number; hours: number; earned: number; employees: number };
-  employees: Array<{ name: string; shifts: number; days: number; hours: number; earned: number }>;
+  period: PayrollPeriod; from: string; to: string; importFrom: string; today: string; withFines: boolean;
+  totals: { shifts: number; hours: number; pay: number; adjustment: number; earned: number; employees: number };
+  employees: Array<{ name: string; shifts: number; days: number; hours: number; pay: number; adjustment: number; earned: number }>;
+  adjustments: Array<{ id: string; date: string; name: string; amount: number; comment: string }>;
 };
 
 export type PayrollShiftInput = Omit<PayrollShift, "id" | "workDate" | "hours" | "exported">;
@@ -192,8 +194,8 @@ export const api = {
   payrollStatus: () => request<PayrollStatus>("/api/admin/payroll/status"),
   payrollStaff: () => request<Array<{ name: string; position: string }>>("/api/admin/payroll/staff"),
   payrollTournaments: () => request<Array<{ id: string; title: string; startsAt: string; date: string; shifts: number }>>("/api/admin/payroll/tournaments"),
-  payrollAnalytics: (period: PayrollPeriod, date?: string) =>
-    request<PayrollAnalytics>(`/api/admin/payroll/analytics?period=${period}${date ? `&date=${date}` : ""}`),
+  payrollAnalytics: (period: PayrollPeriod, date: string | undefined, withFines: boolean) =>
+    request<PayrollAnalytics>(`/api/admin/payroll/analytics?period=${period}&fines=${withFines ? "with" : "without"}${date ? `&date=${date}` : ""}`),
   payrollShifts: (tournamentId: string) => request<PayrollShift[]>(`/api/admin/payroll/tournaments/${tournamentId}/shifts`),
   addPayrollShift: (tournamentId: string, data: PayrollShiftInput) =>
     request<PayrollShift>(`/api/admin/payroll/tournaments/${tournamentId}/shifts`, { method: "POST", body: JSON.stringify(data) }),

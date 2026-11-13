@@ -32,39 +32,59 @@ export function shiftEarnings(hours: number, status: string, employee: RosterEnt
   return Math.round(hours * employee.hourlyRate * 100) / 100;
 }
 
-export async function payrollAnalytics(period: PayrollPeriod, date: string) {
+export async function payrollAnalytics(period: PayrollPeriod, date: string, withFines = true) {
   const range = periodRange(period, date);
   const master = await getMasterWorkbook();
   const roster = master ? await readRoster(Buffer.from(master.data)) : [];
   const shifts = await prisma.staffShift.findMany({
     where: { workDate: { gte: range.from, lte: range.to }, status: "Отработана" },
-    orderBy: [{ workDate: "asc" }]
+    orderBy: [{ workDate: "asc" }, { createdAt: "asc" }]
   });
   const byName = new Map(roster.map((employee) => [employee.name, employee]));
-  const rows = new Map<string, { name: string; shifts: number; hours: number; earned: number; days: Set<string> }>();
+  const rows = new Map<string, { name: string; shifts: number; hours: number; pay: number; adjustment: number; days: Set<string> }>();
+  const adjustments: Array<{ id: string; date: string; name: string; amount: number; comment: string }> = [];
   for (const shift of shifts) {
     const hours = shiftHours(shift);
-    const row = rows.get(shift.employeeName) ?? { name: shift.employeeName, shifts: 0, hours: 0, earned: 0, days: new Set<string>() };
-    row.shifts += 1;
-    row.hours += hours;
-    row.earned += shiftEarnings(hours, shift.status, byName.get(shift.employeeName));
-    row.days.add(shift.workDate);
+    const amount = shift.adjustment ?? 0;
+    const row = rows.get(shift.employeeName) ?? { name: shift.employeeName, shifts: 0, hours: 0, pay: 0, adjustment: 0, days: new Set<string>() };
+    if (hours > 0) {
+      row.shifts += 1;
+      row.hours += hours;
+      row.pay += shiftEarnings(hours, shift.status, byName.get(shift.employeeName));
+      row.days.add(shift.workDate);
+    }
+    row.adjustment += amount;
     rows.set(shift.employeeName, row);
+    if (amount) adjustments.push({ id: shift.id, date: shift.workDate, name: shift.employeeName, amount, comment: shift.comment ?? (amount < 0 ? "Штраф" : "Премия") });
   }
+  const round = (value: number) => Math.round(value * 100) / 100;
   const employees = [...rows.values()]
-    .map((row) => ({ name: row.name, shifts: row.shifts, days: row.days.size, hours: Math.round(row.hours * 100) / 100, earned: Math.round(row.earned) }))
+    .map((row) => ({
+      name: row.name,
+      shifts: row.shifts,
+      days: row.days.size,
+      hours: round(row.hours),
+      pay: Math.round(row.pay),
+      adjustment: Math.round(row.adjustment),
+      earned: Math.round(row.pay + (withFines ? row.adjustment : 0))
+    }))
     .sort((a, b) => b.earned - a.earned || b.hours - a.hours || a.name.localeCompare(b.name, "ru"));
+  const sum = (pick: (row: (typeof employees)[number]) => number) => employees.reduce((total, row) => total + pick(row), 0);
   return {
     period,
     ...range,
+    withFines,
     importFrom: IMPORT_FROM,
     today: dateKey(new Date()),
     totals: {
-      shifts: employees.reduce((sum, row) => sum + row.shifts, 0),
-      hours: Math.round(employees.reduce((sum, row) => sum + row.hours, 0) * 100) / 100,
-      earned: employees.reduce((sum, row) => sum + row.earned, 0),
+      shifts: sum((row) => row.shifts),
+      hours: round(sum((row) => row.hours)),
+      pay: sum((row) => row.pay),
+      adjustment: sum((row) => row.adjustment),
+      earned: sum((row) => row.earned),
       employees: employees.length
     },
-    employees
+    employees,
+    adjustments
   };
 }

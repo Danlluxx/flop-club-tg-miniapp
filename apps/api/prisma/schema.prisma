@@ -280,6 +280,7 @@ model StaffShift {
   endTime      String?
   breakHours   Float?
   manualHours  Float?
+  adjustment   Float?
   status       String      @default("Отработана")
   comment      String?
   exportedAt   DateTime?
