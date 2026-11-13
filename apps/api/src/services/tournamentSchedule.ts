@@ -400,9 +400,7 @@ export function scheduledTournamentForDate(dateKeyValue: string): Prisma.Tournam
   const buyIn = eventOverride?.buyIn ?? (freeBuyInDates.has(dateKeyValue) ? 0 : pricing.buyIn);
   const eventReEntry = eventOverride?.reEntry ?? pricing.reEntry;
   const startsAt = new Date(`${dateKeyValue}T${specialTimes[dateKeyValue] ?? timesByWeekday[weekdayIndex]}:00+07:00`);
-  // FLOP DUO merges the teams when late registration closes, 3.5 hours after the start (22:30 for 19:00).
-  const lateRegistrationHours = title === "FLOP DUO 2x2" ? 3.5 : 3;
-  const lateRegistrationEndsAt = new Date(startsAt.getTime() + lateRegistrationHours * 60 * 60 * 1000);
+  const lateRegistrationEndsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
   const profile = tournamentProfiles[title] ?? TournamentProfile.BASE;
   const addOn = tournamentAddOnConfigFor(title);
 

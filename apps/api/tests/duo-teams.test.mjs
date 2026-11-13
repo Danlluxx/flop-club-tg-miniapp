@@ -22,7 +22,7 @@ test("Friday 2026-11-13 is FLOP DUO with the agreed terms", () => {
   assert.equal(duo.ratingPool, 15000);
   assert.equal(duo.addOnEnabled, false);
   assert.equal(duo.startsAt.toISOString(), "2026-11-13T12:00:00.000Z");
-  assert.equal(duo.lateRegistrationEndsAt.toISOString(), "2026-11-13T15:30:00.000Z");
+  assert.equal(duo.lateRegistrationEndsAt.toISOString(), "2026-11-13T15:00:00.000Z");
   assert.equal(tournamentEntryChipsFor("FLOP DUO 2x2"), 50000);
 });
 
@@ -41,7 +41,7 @@ test("one partner out before the merge: no one is parked and no bonus is given",
   const plan = planMerge([pair("p", "a", "b")], [reg("ra", "a", "ELIMINATED", 1), reg("rb", "b", "IN_GAME", 5)]);
   assert.deepEqual(plan.merges, []);
   assert.equal("bonuses" in plan, false);
-  assert.equal(duoMergeOpensAt(new Date("2026-11-13T12:00:00Z")).toISOString(), "2026-11-13T14:30:00.000Z");
+  assert.equal(duoMergeOpensAt(new Date("2026-11-13T12:00:00Z")).toISOString(), "2026-11-13T14:40:00.000Z");
 });
 
 test("both out, or a player who never checked in: nothing to merge", () => {

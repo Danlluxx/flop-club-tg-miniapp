@@ -9,12 +9,13 @@ import { AppError, notFound } from "../utils/errors.js";
 // ELIMINATED without a place, so every existing count (players in game, final table, clock average)
 // already counts teams. When the team goes out, every registration of both partners gets its place.
 export const DUO_TITLE = "FLOP DUO 2x2";
-export const DUO_MERGE_AFTER_LEVELS = 10;
-const LEVEL_MINUTES = 15;
+// Standard blind structure of the club: five 15-minute levels, a 10-minute break, five more levels, then the
+// late-registration break. Level 10 ends 160 minutes after the start (21:40 for 19:00).
+export const DUO_MERGE_AFTER_MINUTES = 5 * 15 + 10 + 5 * 15;
 
 // Earliest moment the teams may merge: the end of level 10 counted from the scheduled start.
 export function duoMergeOpensAt(startsAt: Date) {
-  return new Date(startsAt.getTime() + DUO_MERGE_AFTER_LEVELS * LEVEL_MINUTES * 60_000);
+  return new Date(startsAt.getTime() + DUO_MERGE_AFTER_MINUTES * 60_000);
 }
 
 const PAIR = "DUO_PAIR";
