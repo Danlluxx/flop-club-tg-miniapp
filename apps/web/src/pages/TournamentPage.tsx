@@ -9,6 +9,7 @@ import { haptic, requestBotWriteAccess } from "../lib/telegram";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/Toast";
 import { DevilDealPanel } from "../components/DevilDealPanel";
+import { DuoCards } from "../components/DuoCards";
 import { formatBarnaulDateTime } from "../lib/barnaulDate";
 import { CheckInQr } from "../components/CheckInQr";
 import { tournamentEventImage } from "../lib/tournamentAssets";
@@ -174,6 +175,7 @@ export function TournamentPage() {
       </div>
 
       {data.mechanics && <DevilDealPanel id={id} />}
+      {data.title === "FLOP DUO 2x2" && isRegistered && data.status !== "FINISHED" && <DuoCards tournamentId={id} />}
       {data.status === "FINISHED" && <section className="app-panel p-5"><h2 className="text-xl font-bold mb-4">Результаты турнира</h2>{resultsQuery.isError ? <p>Не удалось загрузить результаты.</p> : resultsQuery.data?.map(result => <div className="flex justify-between gap-3 border-b border-white/10 py-3 text-sm" key={result.userId}><span>{result.place ?? "—"}. {result.name}</span><strong>{result.points.toLocaleString("ru-RU")} очков</strong></div>)}</section>}
 
       <button type="button" onClick={() => setView("participants")} className="participants-open-button tap">

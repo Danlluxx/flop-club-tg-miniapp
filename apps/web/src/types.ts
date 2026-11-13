@@ -195,10 +195,16 @@ export type DevilState = {
 };
 
 export type DuoPlayer = { userId: string; name: string; inGame: boolean };
+export type DuoCardType = "timeout" | "hint";
+export type DuoCards = { timeoutLeft: number; hintLeft: number; active: { card: DuoCardType; endsAt: string } | null };
+export type DuoPlayerState = {
+  merged: boolean;
+  mergeOpensAt: string;
+  team: (DuoCards & { partnerName: string; inGame: boolean; seconds: Record<DuoCardType, number> }) | null;
+};
 export type DuoState = {
   merged: boolean;
-  lateRegistrationEndsAt: string | null;
-  survivorBonusChips: number;
-  teams: { id: string; players: DuoPlayer[] }[];
+  mergeOpensAt: string;
+  teams: { id: string; players: DuoPlayer[]; cards: DuoCards }[];
   solo: DuoPlayer[];
 };

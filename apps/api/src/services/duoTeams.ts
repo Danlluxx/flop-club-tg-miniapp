@@ -3,18 +3,33 @@ import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 
 // FLOP DUO 2x2: players start alone, pairs are written down as ledger events (no schema change),
-// and after late registration closes the pairs merge into teams.
+// and at the break after level 10 (still inside late registration) the pairs merge into teams.
 //
 // A merged team plays on the seat of its lead registration. The partner's registration is parked as
 // ELIMINATED without a place, so every existing count (players in game, final table, clock average)
 // already counts teams. When the team goes out, every registration of both partners gets its place.
 export const DUO_TITLE = "FLOP DUO 2x2";
-export const DUO_SURVIVOR_BONUS_CHIPS = 25000;
+export const DUO_MERGE_AFTER_LEVELS = 10;
+const LEVEL_MINUTES = 15;
+
+// Earliest moment the teams may merge: the end of level 10 counted from the scheduled start.
+export function duoMergeOpensAt(startsAt: Date) {
+  return new Date(startsAt.getTime() + DUO_MERGE_AFTER_LEVELS * LEVEL_MINUTES * 60_000);
+}
 
 const PAIR = "DUO_PAIR";
 const UNPAIR = "DUO_UNPAIR";
 const MERGE = "DUO_MERGE";
-const SURVIVOR_BONUS = "DUO_SURVIVOR_BONUS";
+const CARD = "DUO_CARD";
+
+// Each team has two cards of each kind, played from the app instead of cardboard: "Тайм-аут" gives the team
+// one more minute for a decision, "Подсказка партнёра" gives the partner 30 seconds to advise.
+export const DUO_CARD_SECONDS = { timeout: 60, hint: 30 } as const;
+export type DuoCardType = keyof typeof DUO_CARD_SECONDS;
+export const DUO_CARDS_PER_TEAM = 2;
+export function isDuoCardType(value: string): value is DuoCardType {
+  return value === "timeout" || value === "hint";
+}
 
 export function isDuoTournament(title: string) {
   return title === DUO_TITLE;
@@ -150,34 +165,31 @@ type MergeRegistration = {
   issuedChips: number;
 };
 
-// Pure plan for the merge: who is the lead, who is parked, who receives the survivor bonus.
+// Pure plan for the merge: who is the lead and who is parked. A pair with one partner out needs no change:
+// the survivor simply plays for the team alone, with no extra chips.
 export function planMerge(pairs: DuoPair[], registrations: MergeRegistration[]) {
   const alive = (userId: string) =>
     registrations
       .filter((item) => item.userId === userId && item.liveStatus === "IN_GAME" && item.checkedInAt)
       .sort((left, right) => (left.checkedInAt as Date).getTime() - (right.checkedInAt as Date).getTime());
   const merges: { leadId: string; parkedId: string }[] = [];
-  const bonuses: { registrationId: string; userId: string }[] = [];
 
   for (const pair of pairs) {
     const [first, second] = pair.userIds.map((userId) => alive(userId));
     if (first.length && second.length) {
       const [lead, parked] = first[0].checkedInAt! <= second[0].checkedInAt! ? [first[0], second[0]] : [second[0], first[0]];
       merges.push({ leadId: lead.id, parkedId: parked.id });
-    } else if (first.length || second.length) {
-      const survivor = (first.length ? first : second)[0];
-      bonuses.push({ registrationId: survivor.id, userId: survivor.userId });
     }
   }
-  return { merges, bonuses };
+  return { merges };
 }
 
 export async function mergeTeams(tournamentId: string, actorId?: string, now = new Date()) {
   return prisma.$transaction(async (tx) => {
     const tournament = await loadDuoTournament(tx, tournamentId);
     await assertNotMerged(tx, tournamentId);
-    if (tournament.lateRegistrationEndsAt && now < tournament.lateRegistrationEndsAt) {
-      throw new AppError(409, "Объединять команды можно после окончания поздней регистрации", "DUO_LATE_REGISTRATION_OPEN");
+    if (now < duoMergeOpensAt(tournament.startsAt)) {
+      throw new AppError(409, "Объединять команды можно после 10 уровня, на перерыве", "DUO_TOO_EARLY");
     }
     const pairs = await activePairs(tx, tournamentId);
     const registrations = await tx.registration.findMany({
@@ -192,30 +204,16 @@ export async function mergeTeams(tournamentId: string, actorId?: string, now = n
         data: { liveStatus: "ELIMINATED", eliminatedAt: now, tableNumber: null, seatNumber: null, finishPlace: null }
       });
     }
-    for (const bonus of plan.bonuses) {
-      await tx.registration.update({ where: { id: bonus.registrationId }, data: { issuedChips: { increment: DUO_SURVIVOR_BONUS_CHIPS } } });
-      await tx.tournamentGameEvent.create({
-        data: {
-          tournamentId,
-          userId: bonus.userId,
-          registrationId: bonus.registrationId,
-          actorId: actorId ?? null,
-          eventKey: `duo-bonus:${bonus.registrationId}`,
-          type: SURVIVOR_BONUS,
-          chips: DUO_SURVIVOR_BONUS_CHIPS
-        }
-      });
-    }
     await tx.tournamentGameEvent.create({
       data: {
         tournamentId,
         actorId: actorId ?? null,
         eventKey: `duo-merge:${tournamentId}`,
         type: MERGE,
-        details: { teams: plan.merges.length, survivorBonuses: plan.bonuses.length }
+        details: { teams: plan.merges.length }
       }
     });
-    return { teams: plan.merges.length, survivorBonuses: plan.bonuses.length };
+    return { teams: plan.merges.length };
   });
 }
 
@@ -231,9 +229,10 @@ export async function teamUserIdsForElimination(tx: Prisma.TransactionClient, to
 export async function duoState(tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) throw notFound("Tournament");
-  const [pairs, merged, registrations] = await Promise.all([
+  const [pairs, merged, events, registrations] = await Promise.all([
     activePairs(prisma, tournamentId),
     isMerged(prisma, tournamentId),
+    cardEvents(prisma, tournamentId),
     prisma.registration.findMany({
       where: { tournamentId, status: RegistrationStatus.ACTIVE },
       include: { user: true },
@@ -251,9 +250,82 @@ export async function duoState(tournamentId: string) {
   const paired = new Set(pairs.flatMap((pair) => pair.userIds));
   return {
     merged,
-    lateRegistrationEndsAt: tournament.lateRegistrationEndsAt,
-    survivorBonusChips: DUO_SURVIVOR_BONUS_CHIPS,
-    teams: pairs.map((pair) => ({ id: pair.eventId, players: pair.userIds.map((id) => players.get(id)).filter(Boolean) })),
+    mergeOpensAt: duoMergeOpensAt(tournament.startsAt),
+    teams: pairs.map((pair) => ({ id: pair.eventId, players: pair.userIds.map((id) => players.get(id)).filter(Boolean), cards: teamCards(events, pair.eventId) })),
     solo: [...players.values()].filter((player) => !paired.has(player.userId))
   };
+}
+
+type CardEvent = { details: unknown };
+type CardDetails = { pairId?: string; card?: string; endsAt?: string };
+
+// Pure: what is left of a team's cards and which card is still running.
+export function teamCards(events: CardEvent[], pairId: string, now = new Date()) {
+  const mine = events.map((event) => event.details as CardDetails | null).filter((details): details is CardDetails => details?.pairId === pairId);
+  const left = (card: DuoCardType) => Math.max(0, DUO_CARDS_PER_TEAM - mine.filter((details) => details.card === card).length);
+  const running = mine
+    .filter((details) => isDuoCardType(String(details.card)) && details.endsAt && new Date(details.endsAt) > now)
+    .sort((a, b) => new Date(b.endsAt as string).getTime() - new Date(a.endsAt as string).getTime())[0];
+  return {
+    timeoutLeft: left("timeout"),
+    hintLeft: left("hint"),
+    active: running ? { card: running.card as DuoCardType, endsAt: running.endsAt as string } : null
+  };
+}
+
+async function cardEvents(db: Db, tournamentId: string) {
+  return db.tournamentGameEvent.findMany({ where: { tournamentId, type: CARD }, select: { details: true } });
+}
+
+// What a player sees on the tournament card: the partner and the team's cards.
+export async function duoPlayerState(tournamentId: string, userId: string, now = new Date()) {
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament) throw notFound("Tournament");
+  if (!isDuoTournament(tournament.title)) throw new AppError(409, "Команды есть только в FLOP DUO", "NOT_DUO_TOURNAMENT");
+  const [pairs, merged, events] = await Promise.all([activePairs(prisma, tournamentId), isMerged(prisma, tournamentId), cardEvents(prisma, tournamentId)]);
+  const pair = pairs.find((item) => item.userIds.includes(userId));
+  if (!pair) return { merged, mergeOpensAt: duoMergeOpensAt(tournament.startsAt), team: null };
+  const partnerId = pair.userIds.find((id) => id !== userId) as string;
+  const [partner, registrations] = await Promise.all([
+    prisma.user.findUnique({ where: { id: partnerId } }),
+    prisma.registration.findMany({ where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: pair.userIds } }, select: { liveStatus: true, checkedInAt: true } })
+  ]);
+  const name = partner ? partner.displayName || [partner.firstName, partner.lastName].filter(Boolean).join(" ") || partner.username || "Партнёр" : "Партнёр";
+  return {
+    merged,
+    mergeOpensAt: duoMergeOpensAt(tournament.startsAt),
+    team: {
+      partnerName: name,
+      inGame: registrations.some((item) => item.liveStatus === "IN_GAME" && item.checkedInAt),
+      ...teamCards(events, pair.eventId, now),
+      seconds: DUO_CARD_SECONDS
+    }
+  };
+}
+
+export async function playDuoCard(tournamentId: string, userId: string, card: DuoCardType, now = new Date()) {
+  await prisma.$transaction(async (tx) => {
+    await loadDuoTournament(tx, tournamentId);
+    if (!(await isMerged(tx, tournamentId))) throw new AppError(409, "Карточки доступны после объединения команд", "DUO_NOT_MERGED");
+    const pair = (await activePairs(tx, tournamentId)).find((item) => item.userIds.includes(userId));
+    if (!pair) throw new AppError(409, "Вы играете без команды", "DUO_NO_TEAM");
+    const alive = await tx.registration.count({
+      where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: pair.userIds }, liveStatus: "IN_GAME", checkedInAt: { not: null } }
+    });
+    if (!alive) throw new AppError(409, "Команда уже выбыла", "DUO_TEAM_OUT");
+    const state = teamCards(await cardEvents(tx, tournamentId), pair.eventId, now);
+    if (state.active) throw new AppError(409, "Карточка уже действует", "DUO_CARD_RUNNING");
+    const left = card === "timeout" ? state.timeoutLeft : state.hintLeft;
+    if (!left) throw new AppError(409, "Эти карточки закончились", "DUO_CARD_SPENT");
+    await tx.tournamentGameEvent.create({
+      data: {
+        tournamentId,
+        userId,
+        eventKey: `duo-card:${pair.eventId}:${card}:${DUO_CARDS_PER_TEAM - left + 1}`,
+        type: CARD,
+        details: { pairId: pair.eventId, card, endsAt: new Date(now.getTime() + DUO_CARD_SECONDS[card] * 1000).toISOString() }
+      }
+    });
+  });
+  return duoPlayerState(tournamentId, userId, now);
 }

@@ -1,6 +1,8 @@
 import type {
   ClubAward,
   DevilState,
+  DuoCardType,
+  DuoPlayerState,
   DuoState,
   GameEvent,
   TournamentMechanics,
@@ -272,6 +274,9 @@ export const api = {
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/reseat`, { method: "POST" }),
   finalTable: (tournamentId: string) =>
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/final-table`, { method: "POST" }),
+  duoPlayerState: (tournamentId: string) => request<DuoPlayerState>(`/api/tournaments/${tournamentId}/duo`),
+  duoPlayCard: (tournamentId: string, card: DuoCardType) =>
+    request<DuoPlayerState>(`/api/tournaments/${tournamentId}/duo/cards/${card}`, { method: "POST", body: "{}" }),
   duoState: (tournamentId: string) => request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo`),
   duoPair: (tournamentId: string, userIds: [string, string]) =>
     request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo/pairs`, { method: "POST", body: JSON.stringify({ userIds }) }),
@@ -280,7 +285,7 @@ export const api = {
   duoDraw: (tournamentId: string) =>
     request<{ paired: number; left: string | null; state: DuoState }>(`/api/admin/tournaments/${tournamentId}/duo/draw`, { method: "POST" }),
   duoMerge: (tournamentId: string) =>
-    request<{ teams: number; survivorBonuses: number; state: DuoState }>(`/api/admin/tournaments/${tournamentId}/duo/merge`, { method: "POST" }),
+    request<{ teams: number; state: DuoState }>(`/api/admin/tournaments/${tournamentId}/duo/merge`, { method: "POST" }),
   addOn: (registrationId: string) =>
     request<Registration>(`/api/admin/registrations/${registrationId}/add-on`, { method: "POST" }),
   removeAddOn: (registrationId: string) =>

@@ -6,6 +6,7 @@ import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { TOURNAMENT_MAX_PARTICIPANTS, cancelRegistration, getTournament, registerForTournament, tournamentInclude } from "../services/tournaments.js";
 import { ensureScheduledTournaments } from "../services/tournamentSchedule.js";
 import { AppError, notFound } from "../utils/errors.js";
+import { duoPlayerState, isDuoCardType, playDuoCard } from "../services/duoTeams.js";
 
 import { mechanicsSchema } from "../services/tournamentMechanics.js";
 import { assertDevilCanFinish, lockTournament } from "../services/devilDeal.js";
@@ -158,6 +159,24 @@ tournamentsRouter.delete("/:id", requireAuth, requireAdmin, async (req, res, nex
     });
     console.log(`[tournament:delete] admin=${req.user!.id} tournament=${id}`);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+tournamentsRouter.get("/:id/duo", requireAuth, async (req, res, next) => {
+  try {
+    res.json(await duoPlayerState(String(req.params.id), req.user!.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+tournamentsRouter.post("/:id/duo/cards/:card", requireAuth, async (req, res, next) => {
+  try {
+    const card = String(req.params.card);
+    if (!isDuoCardType(card)) throw new AppError(400, "Неизвестная карточка", "DUO_UNKNOWN_CARD");
+    res.json(await playDuoCard(String(req.params.id), req.user!.id, card));
   } catch (error) {
     next(error);
   }

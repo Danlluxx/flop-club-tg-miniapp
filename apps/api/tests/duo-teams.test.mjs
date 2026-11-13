@@ -6,7 +6,7 @@ process.env.BOT_TOKEN = "test";
 process.env.JWT_SECRET = "test-secret-for-duo-tests";
 process.env.FRONTEND_URL = "http://localhost:5173";
 
-const { planMerge, shufflePairs, partnerOf, DUO_SURVIVOR_BONUS_CHIPS } = await import("../dist/services/duoTeams.js");
+const { planMerge, shufflePairs, partnerOf, duoMergeOpensAt, teamCards } = await import("../dist/services/duoTeams.js");
 const { scheduledTournamentForDate } = await import("../dist/services/tournamentSchedule.js");
 const { tournamentEntryChipsFor } = await import("../dist/services/tournamentRules.js");
 
@@ -35,14 +35,13 @@ test("Thursday 2026-11-12 is Flop Mystery Knockout", () => {
 test("both partners alive: the earlier check-in leads, the other is parked", () => {
   const plan = planMerge([pair("p", "a", "b")], [reg("ra", "a", "IN_GAME", 10), reg("rb", "b", "IN_GAME", 5)]);
   assert.deepEqual(plan.merges, [{ leadId: "rb", parkedId: "ra" }]);
-  assert.deepEqual(plan.bonuses, []);
 });
 
-test("one partner out before the merge: the survivor gets the bonus and no one is parked", () => {
+test("one partner out before the merge: no one is parked and no bonus is given", () => {
   const plan = planMerge([pair("p", "a", "b")], [reg("ra", "a", "ELIMINATED", 1), reg("rb", "b", "IN_GAME", 5)]);
   assert.deepEqual(plan.merges, []);
-  assert.deepEqual(plan.bonuses, [{ registrationId: "rb", userId: "b" }]);
-  assert.equal(DUO_SURVIVOR_BONUS_CHIPS, 25000);
+  assert.equal("bonuses" in plan, false);
+  assert.equal(duoMergeOpensAt(new Date("2026-11-13T12:00:00Z")).toISOString(), "2026-11-13T14:30:00.000Z");
 });
 
 test("both out, or a player who never checked in: nothing to merge", () => {
@@ -51,7 +50,6 @@ test("both out, or a player who never checked in: nothing to merge", () => {
     reg("rc", "c", "IN_GAME", null), reg("rd", "d", "IN_GAME", 3)
   ]);
   assert.deepEqual(plan.merges, []);
-  assert.deepEqual(plan.bonuses, [{ registrationId: "rd", userId: "d" }]);
 });
 
 test("a re-entered player counts as alive through the new registration", () => {
@@ -72,4 +70,14 @@ test("the draw pairs everyone and leaves one out for an odd count", () => {
 test("partnerOf finds the partner", () => {
   assert.equal(partnerOf([pair("p", "a", "b")], "a"), "b");
   assert.equal(partnerOf([pair("p", "a", "b")], "z"), null);
+});
+
+test("team cards: two of each kind, one running at a time", () => {
+  const now = new Date("2026-11-13T15:00:00Z");
+  const event = (card, endsAt, pairId = "p") => ({ details: { pairId, card, endsAt } });
+  assert.deepEqual(teamCards([], "p", now), { timeoutLeft: 2, hintLeft: 2, active: null });
+  const used = [event("timeout", "2026-11-13T14:50:00Z"), event("hint", "2026-11-13T14:40:00Z"), event("timeout", "2026-11-13T14:55:00Z"), event("hint", "2026-11-13T15:00:30Z", "other")];
+  assert.deepEqual(teamCards(used, "p", now), { timeoutLeft: 0, hintLeft: 1, active: null });
+  const running = teamCards([event("hint", "2026-11-13T15:00:20Z")], "p", now);
+  assert.deepEqual(running.active, { card: "hint", endsAt: "2026-11-13T15:00:20Z" });
 });
