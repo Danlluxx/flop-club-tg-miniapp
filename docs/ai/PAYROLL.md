@@ -12,6 +12,11 @@
 - Имя сотрудника проверяется по листу `Сотрудники` основного файла; уволенные в списке не показываются.
 - Экран: `apps/web/src/pages/admin/PayrollPage.tsx`, `/admin/payroll`; выбор турнира — календарь `components/PayrollCalendar.tsx` (список турниров с `IMPORT_FROM` до +30 дней). API: `apps/api/src/routes/payroll.ts`, `/api/admin/payroll/*`.
 
+## Аналитика
+
+- Экран `pages/admin/PayrollAnalyticsPage.tsx` (`/admin/payroll/analytics`, ссылка с «Смен» только владельцу), API `GET /api/admin/payroll/analytics?period=day|week|month&date=` (`requireAnalyticsOwner`), логика в `services/payrollAnalytics.ts`.
+- Считаются только смены «Отработана» за период по `workDate` (неделя Пн–Вс). Заработок = часы × ставка из листа `Сотрудники` (колонка G) или ставка за смену (H) при типе оплаты «За смену», как формула колонки L таблицы. Премии и штрафы (колонка K) не учитываются: в `StaffShift` их нет. Ставки читаются из основного файла при каждом запросе (`readRoster`).
+
 ## Бот (`services/payrollBot.ts`)
 
 - Планировщик каждые 10 минут; после `PAYROLL_REPORT_HOUR` (6:00 Барнаул) раз в сутки: если есть новые смены, дописывает и отправляет файл адресатам `PAYROLL_TELEGRAM_USERNAMES` (по умолчанию `danlluxx`; им нужно хоть раз запустить бота, иначе нет `TelegramSubscriber`). Без новых смен ничего не шлёт.

@@ -103,3 +103,18 @@ test("readWorkbookShifts reads shifts from September on, skipping fines and olde
   assert.equal(shifts[1].breakHours, 0.5);
   assert.equal(shifts[1].status, "Неявка");
 });
+
+test("periodRange and shiftEarnings follow the table rules", async () => {
+  const { periodRange, shiftEarnings } = await import("../dist/services/payrollAnalytics.js");
+  assert.deepEqual(periodRange("day", "2026-11-12"), { from: "2026-11-12", to: "2026-11-12" });
+  assert.deepEqual(periodRange("week", "2026-11-12"), { from: "2026-11-09", to: "2026-11-15" });
+  assert.deepEqual(periodRange("week", "2026-11-15"), { from: "2026-11-09", to: "2026-11-15" });
+  assert.deepEqual(periodRange("month", "2026-02-10"), { from: "2026-02-01", to: "2026-02-28" });
+  assert.deepEqual(periodRange("month", "2026-12-31"), { from: "2026-12-01", to: "2026-12-31" });
+  const hourly = { name: "Гриша", position: "", status: "", payType: "Почасовая", hourlyRate: 350, shiftRate: 0 };
+  const flat = { ...hourly, payType: "За смену", shiftRate: 1500 };
+  assert.equal(shiftEarnings(4.5, "Отработана", hourly), 1575);
+  assert.equal(shiftEarnings(4.5, "Отработана", flat), 1500);
+  assert.equal(shiftEarnings(4, "Неявка", hourly), 0);
+  assert.equal(shiftEarnings(4, "Отработана", undefined), 0);
+});

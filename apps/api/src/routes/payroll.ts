@@ -4,6 +4,7 @@ import { prisma } from "../prisma.js";
 import { requireAdmin, requireAnalyticsOwner, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { dateKey } from "../services/tournamentSchedule.js";
+import { payrollAnalytics } from "../services/payrollAnalytics.js";
 import {
   exportPendingShifts,
   getMasterWorkbook,
@@ -163,6 +164,21 @@ payrollRouter.delete("/shifts/:id", async (req, res, next) => {
     if (existing.exportedAt) throw new AppError(409, "Смена уже в таблице зарплат — удалите её там", "PAYROLL_SHIFT_EXPORTED");
     await prisma.staffShift.delete({ where: { id: existing.id } });
     res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+const analyticsQuery = z.object({
+  period: z.enum(["day", "week", "month"]).default("week"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+});
+
+// Pay figures are owner-only, same as the table itself.
+payrollRouter.get("/analytics", requireAnalyticsOwner, async (req, res, next) => {
+  try {
+    const query = analyticsQuery.parse(req.query);
+    res.json(await payrollAnalytics(query.period, query.date ?? dateKey(new Date())));
   } catch (error) {
     next(error);
   }

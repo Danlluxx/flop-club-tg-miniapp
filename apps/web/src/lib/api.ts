@@ -177,6 +177,13 @@ export type PayrollShift = {
   exported: boolean;
 };
 
+export type PayrollPeriod = "day" | "week" | "month";
+export type PayrollAnalytics = {
+  period: PayrollPeriod; from: string; to: string; importFrom: string; today: string;
+  totals: { shifts: number; hours: number; earned: number; employees: number };
+  employees: Array<{ name: string; shifts: number; days: number; hours: number; earned: number }>;
+};
+
 export type PayrollShiftInput = Omit<PayrollShift, "id" | "workDate" | "hours" | "exported">;
 
 export type PayrollStatus = { hasWorkbook: boolean; fileName: string | null; updatedAt: string | null; pending: number };
@@ -185,6 +192,8 @@ export const api = {
   payrollStatus: () => request<PayrollStatus>("/api/admin/payroll/status"),
   payrollStaff: () => request<Array<{ name: string; position: string }>>("/api/admin/payroll/staff"),
   payrollTournaments: () => request<Array<{ id: string; title: string; startsAt: string; date: string; shifts: number }>>("/api/admin/payroll/tournaments"),
+  payrollAnalytics: (period: PayrollPeriod, date?: string) =>
+    request<PayrollAnalytics>(`/api/admin/payroll/analytics?period=${period}${date ? `&date=${date}` : ""}`),
   payrollShifts: (tournamentId: string) => request<PayrollShift[]>(`/api/admin/payroll/tournaments/${tournamentId}/shifts`),
   addPayrollShift: (tournamentId: string, data: PayrollShiftInput) =>
     request<PayrollShift>(`/api/admin/payroll/tournaments/${tournamentId}/shifts`, { method: "POST", body: JSON.stringify(data) }),

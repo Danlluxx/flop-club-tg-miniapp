@@ -24,7 +24,7 @@ export type ShiftInput = {
   comment: string | null;
 };
 
-export type RosterEntry = { name: string; position: string; status: string };
+export type RosterEntry = { name: string; position: string; status: string; payType: string; hourlyRate: number; shiftRate: number };
 
 function escapeXml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -83,7 +83,10 @@ export async function readRoster(buffer: Buffer): Promise<RosterEntry[]> {
     roster.push({
       name,
       position: String(sheet.getCell(`D${row}`).text ?? "").trim(),
-      status: String(sheet.getCell(`J${row}`).text ?? "").trim()
+      status: String(sheet.getCell(`J${row}`).text ?? "").trim(),
+      payType: String(sheet.getCell(`F${row}`).text ?? "").trim(),
+      hourlyRate: cellNumber(sheet.getCell(`G${row}`).value) ?? 0,
+      shiftRate: cellNumber(sheet.getCell(`H${row}`).value) ?? 0
     });
   }
   return roster;

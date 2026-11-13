@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Pencil, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Pencil, Trash2, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, type PayrollShift, type PayrollShiftInput } from "../../lib/api";
 import { formatBarnaulDateTime } from "../../lib/barnaulDate";
@@ -89,6 +89,13 @@ export function PayrollPage() {
       <div>
         <h2 className="page-title text-[2.4rem]">Смены</h2>
       </div>
+
+      {isOwner && (
+        <Link to="/admin/payroll/analytics" className="app-panel tap flex items-center justify-between p-4">
+          <span className="text-sm font-black text-white">Аналитика: часы и заработок</span>
+          <ChevronRight className="h-4 w-4 text-slate-400" />
+        </Link>
+      )}
 
       {status.data && !status.data.hasWorkbook && (
         <div className="app-panel p-4 text-sm font-semibold text-amber-200">
