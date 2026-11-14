@@ -1,11 +1,12 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
-import { requireAdmin, requireAnalyticsOwner, requireAuth } from "../middleware/auth.js";
+import { isAnalyticsOwner, requireAdmin, requireAnalyticsOwner, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { dateKey } from "../services/tournamentSchedule.js";
 import { payrollAnalytics } from "../services/payrollAnalytics.js";
 import {
+  deleteShift,
   exportPendingShifts,
   getMasterWorkbook,
   IMPORT_FROM,
@@ -165,8 +166,11 @@ payrollRouter.delete("/shifts/:id", async (req, res, next) => {
   try {
     const existing = await prisma.staffShift.findUnique({ where: { id: req.params.id } });
     if (!existing) throw notFound("Shift");
-    if (existing.exportedAt) throw new AppError(409, "Смена уже в таблице зарплат — удалите её там", "PAYROLL_SHIFT_EXPORTED");
-    await prisma.staffShift.delete({ where: { id: existing.id } });
+    // A shift already written to the table is also cleared from the table file: that is the owner's file.
+    if (existing.exportedAt && !isAnalyticsOwner(req.user?.username)) {
+      throw new AppError(403, "Смена уже в таблице зарплат — удалить её может только владелец", "PAYROLL_SHIFT_EXPORTED");
+    }
+    await deleteShift(existing.id);
     res.status(204).end();
   } catch (error) {
     next(error);

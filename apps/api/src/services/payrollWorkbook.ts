@@ -173,14 +173,16 @@ function cellText(value: unknown) {
   return String(value).trim();
 }
 
-// Reads the shift rows the owner keeps in the table (sheet «Смены») from IMPORT_FROM on.
+export type SheetShift = { row: number; shift: ShiftInput };
+
+// Reads the shift rows the owner keeps in the table (sheet «Смены») from IMPORT_FROM on, with their row numbers.
 // A row with a bonus/fine in column K and no hours is kept as an adjustment-only entry; rows with nothing are skipped.
-export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> {
+export async function readSheetShifts(buffer: Buffer): Promise<SheetShift[]> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
   const sheet = workbook.getWorksheet(SHIFTS_SHEET);
   if (!sheet) return [];
-  const shifts: ShiftInput[] = [];
+  const shifts: SheetShift[] = [];
   for (let row = FIRST_ROW; row <= LAST_ROW; row += 1) {
     const date = cellDate(sheet.getCell(`B${row}`).value);
     const employeeName = cellText(sheet.getCell(`D${row}`).value);
@@ -192,28 +194,77 @@ export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> 
     const hasTimes = Boolean(startTime && endTime);
     const manual = cellNumber(sheet.getCell(`H${row}`).value);
     const adjustment = cellNumber(sheet.getCell(`K${row}`).value) || null;
-    if (!hasTimes && !manual && !adjustment) continue;
     const status = cellText(sheet.getCell(`M${row}`).value);
+    // An empty «Отработана» row is not a shift; a no-show or planned shift legitimately has no hours.
+    if (!hasTimes && !manual && !adjustment && (!status || status === "Отработана")) continue;
     shifts.push({
-      workDate,
-      employeeName,
-      startTime: hasTimes ? startTime : null,
-      endTime: hasTimes ? endTime : null,
-      breakHours: cellNumber(sheet.getCell(`G${row}`).value) || null,
-      manualHours: hasTimes || !manual ? null : manual,
-      adjustment,
-      status: STATUS_VALUES.includes(status) ? status : "Отработана",
-      comment: cellText(sheet.getCell(`N${row}`).value).slice(0, 200) || null
+      row,
+      shift: {
+        workDate,
+        employeeName,
+        startTime: hasTimes ? startTime : null,
+        endTime: hasTimes ? endTime : null,
+        breakHours: cellNumber(sheet.getCell(`G${row}`).value) || null,
+        manualHours: manual || null,
+        adjustment,
+        status: STATUS_VALUES.includes(status) ? status : "Отработана",
+        comment: cellText(sheet.getCell(`N${row}`).value).slice(0, 200) || null
+      }
     });
   }
   return shifts;
 }
 
-// Makes the app mirror the table: shifts already written to the table are replaced by what the file holds
-// (so edits made in Excel show up here), shifts still waiting for export are left alone. A shift is attached
-// to the tournament played that day; rows for days without a tournament cannot be shown and are only counted.
+export async function readWorkbookShifts(buffer: Buffer): Promise<ShiftInput[]> {
+  return (await readSheetShifts(buffer)).map((item) => item.shift);
+}
+
+const round2 = (value: number | null | undefined) => Math.round((value ?? 0) * 100) / 100;
+
+// Identity of a shift for matching the app against the table. The comment is left out: the export prefixes it with
+// the tournament name and the owner may reword it in Excel.
+export function shiftKey(shift: Pick<ShiftInput, "workDate" | "employeeName" | "startTime" | "endTime" | "breakHours" | "manualHours" | "adjustment" | "status">) {
+  return [shift.workDate, shift.employeeName, shift.startTime ?? "", shift.endTime ?? "", round2(shift.breakHours), round2(shift.manualHours), round2(shift.adjustment), shift.status].join("|");
+}
+
+type MergeRow = { id: string; shift: ShiftInput };
+
+// Plans how a table (file rows) and the app (shifts already written to the table) are brought together.
+// Per day and employee: identical rows stay; the rest are paired up as edits made in Excel (the file wins);
+// extra rows in the file are added to the app; extra rows in the app are written to the table again,
+// so an older copy of the file never erases what the app already recorded.
+export function planMerge(fileRows: ShiftInput[], appRows: MergeRow[]) {
+  const group = (date: string, name: string) => `${date}|${name}`;
+  const fileGroups = new Map<string, ShiftInput[]>();
+  const appGroups = new Map<string, MergeRow[]>();
+  for (const row of fileRows) fileGroups.set(group(row.workDate, row.employeeName), [...(fileGroups.get(group(row.workDate, row.employeeName)) ?? []), row]);
+  for (const row of appRows) appGroups.set(group(row.shift.workDate, row.shift.employeeName), [...(appGroups.get(group(row.shift.workDate, row.shift.employeeName)) ?? []), row]);
+
+  const plan = { matched: 0, updates: [] as Array<{ id: string; shift: ShiftInput }>, adds: [] as ShiftInput[], restore: [] as string[] };
+  for (const name of new Set([...fileGroups.keys(), ...appGroups.keys()])) {
+    const fileLeft = [...(fileGroups.get(name) ?? [])];
+    const appLeft = [...(appGroups.get(name) ?? [])];
+    for (let index = fileLeft.length - 1; index >= 0; index -= 1) {
+      const match = appLeft.findIndex((row) => shiftKey(row.shift) === shiftKey(fileLeft[index]));
+      if (match >= 0) {
+        appLeft.splice(match, 1);
+        fileLeft.splice(index, 1);
+        plan.matched += 1;
+      }
+    }
+    while (fileLeft.length && appLeft.length) {
+      plan.updates.push({ id: appLeft.shift()!.id, shift: fileLeft.shift()! });
+    }
+    plan.adds.push(...fileLeft);
+    plan.restore.push(...appLeft.map((row) => row.id));
+  }
+  return plan;
+}
+
+// Merges the uploaded table into the app (see planMerge). Shifts still waiting for export are not touched.
+// A shift is attached to the tournament played that day; file rows for days without a tournament are only counted.
 export async function syncShiftsFromWorkbook(buffer: Buffer) {
-  const rows = await readWorkbookShifts(buffer);
+  const fileRows = await readWorkbookShifts(buffer);
   const tournaments = await prisma.tournament.findMany({
     where: { startsAt: { gte: new Date(`${IMPORT_FROM}T00:00:00+07:00`) }, status: { not: "CANCELLED" } },
     orderBy: { startsAt: "asc" },
@@ -224,46 +275,10 @@ export async function syncShiftsFromWorkbook(buffer: Buffer) {
     const key = dateKey(tournament.startsAt);
     if (!byDate.has(key)) byDate.set(key, tournament.id);
   }
-  const now = new Date();
-  const data = rows.flatMap((row) => {
-    const tournamentId = byDate.get(row.workDate);
-    return tournamentId ? [{ ...row, tournamentId, exportedAt: now }] : [];
-  });
-  await prisma.$transaction([
-    prisma.staffShift.deleteMany({ where: { exportedAt: { not: null }, workDate: { gte: IMPORT_FROM } } }),
-    prisma.staffShift.createMany({ data })
-  ]);
-  return { imported: data.length, skipped: rows.length - data.length };
-}
-
-export async function getMasterWorkbook() {
-  return prisma.payrollWorkbook.findUnique({ where: { key: WORKBOOK_KEY } });
-}
-
-export async function saveMasterWorkbook(fileName: string, data: Buffer) {
-  await validateWorkbook(data);
-  const saved = await prisma.payrollWorkbook.upsert({
-    where: { key: WORKBOOK_KEY },
-    create: { key: WORKBOOK_KEY, fileName, data },
-    update: { fileName, data }
-  });
-  return { ...saved, sync: await syncShiftsFromWorkbook(data) };
-}
-
-let exporting: Promise<unknown> = Promise.resolve();
-
-// Writes every pending shift into the master file and stores the result as the new master, so a file that
-// was handed out is always the one the next export continues from.
-export function exportPendingShifts() {
-  const run = exporting.then(async () => {
-    const master = await getMasterWorkbook();
-    if (!master) throw new AppError(409, "Сначала загрузите таблицу зарплат", "PAYROLL_NO_WORKBOOK");
-    const pending = await prisma.staffShift.findMany({
-      where: { exportedAt: null },
-      orderBy: [{ workDate: "asc" }, { createdAt: "asc" }],
-      include: { tournament: { select: { title: true } } }
-    });
-    const result = await appendShifts(Buffer.from(master.data), pending.map((shift) => ({
+  const existing = await prisma.staffShift.findMany({ where: { exportedAt: { not: null }, workDate: { gte: IMPORT_FROM } } });
+  const plan = planMerge(fileRows, existing.map((shift) => ({
+    id: shift.id,
+    shift: {
       workDate: shift.workDate,
       employeeName: shift.employeeName,
       startTime: shift.startTime,
@@ -272,16 +287,129 @@ export function exportPendingShifts() {
       manualHours: shift.manualHours,
       adjustment: shift.adjustment,
       status: shift.status,
-      comment: [shift.tournament.title, shift.comment].filter(Boolean).join(" · ") || null
-    })));
-    if (pending.length) {
-      await prisma.$transaction([
-        prisma.payrollWorkbook.update({ where: { key: WORKBOOK_KEY }, data: { data: result.buffer } }),
-        prisma.staffShift.updateMany({ where: { id: { in: pending.map((shift) => shift.id) } }, data: { exportedAt: new Date() } })
-      ]);
+      comment: shift.comment
     }
-    return { fileName: master.fileName, data: result.buffer, written: result.written };
-  });
-  exporting = run.catch(() => undefined);
+  })));
+
+  const now = new Date();
+  const creatable = plan.adds.filter((row) => byDate.has(row.workDate));
+  await prisma.$transaction([
+    ...plan.updates.map(({ id, shift }) => prisma.staffShift.update({ where: { id }, data: shift })),
+    prisma.staffShift.createMany({ data: creatable.map((row) => ({ ...row, tournamentId: byDate.get(row.workDate)!, exportedAt: now })) }),
+    prisma.staffShift.updateMany({ where: { id: { in: plan.restore } }, data: { exportedAt: null } })
+  ]);
+  const skipped = plan.adds.length - creatable.length;
+  return {
+    imported: fileRows.length - skipped,
+    skipped,
+    added: creatable.length,
+    updated: plan.updates.length,
+    restored: plan.restore.length
+  };
+}
+
+// Clears the cells of one shift row (the formula columns stay), so the row reads as empty.
+export async function removeShiftRows(buffer: Buffer, shifts: ShiftInput[]) {
+  if (!shifts.length) return { buffer, removed: 0 };
+  const rows = await readSheetShifts(buffer);
+  const zip = await JSZip.loadAsync(buffer);
+  const path = await sheetPath(zip, SHIFTS_SHEET);
+  let xml = await zip.file(path)!.async("string");
+  const taken = new Set<number>();
+  let removed = 0;
+  for (const shift of shifts) {
+    const found = rows.find((item) => !taken.has(item.row) && shiftKey(item.shift) === shiftKey(shift));
+    if (!found) continue;
+    taken.add(found.row);
+    const match = xml.match(new RegExp(`<row r="${found.row}"[^>]*>.*?</row>`, "s"));
+    if (!match) continue;
+    let rowXml = match[0];
+    for (const column of ["B", "D", "E", "F", "G", "H", "K", "M", "N"]) rowXml = setCell(rowXml, column, found.row, null);
+    xml = xml.replace(match[0], () => rowXml);
+    removed += 1;
+  }
+  if (!removed) return { buffer, removed: 0 };
+  zip.file(path, xml);
+  return { buffer: await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }), removed };
+}
+
+export async function getMasterWorkbook() {
+  return prisma.payrollWorkbook.findUnique({ where: { key: WORKBOOK_KEY } });
+}
+
+let queue: Promise<unknown> = Promise.resolve();
+
+// Everything that rewrites the master file runs one after another, so a download, an upload and a delete never mix.
+function serialize<T>(task: () => Promise<T>) {
+  const run = queue.then(task);
+  queue = run.catch(() => undefined);
   return run;
+}
+
+// Replaces the master file with an uploaded one and merges it with the app. Anything the app already wrote to the
+// table that the uploaded copy lacks is written back right away, so the saved file is complete.
+export function saveMasterWorkbook(fileName: string, data: Buffer) {
+  return serialize(async () => {
+    await validateWorkbook(data);
+    const saved = await prisma.payrollWorkbook.upsert({
+      where: { key: WORKBOOK_KEY },
+      create: { key: WORKBOOK_KEY, fileName, data },
+      update: { fileName, data }
+    });
+    const sync = await syncShiftsFromWorkbook(data);
+    if (sync.restored) await exportPendingNow();
+    return { ...saved, sync };
+  });
+}
+
+// Writes every pending shift into the master file and stores the result as the new master, so a file that
+// was handed out is always the one the next export continues from.
+async function exportPendingNow() {
+  const master = await getMasterWorkbook();
+  if (!master) throw new AppError(409, "Сначала загрузите таблицу зарплат", "PAYROLL_NO_WORKBOOK");
+  const pending = await prisma.staffShift.findMany({
+    where: { exportedAt: null },
+    orderBy: [{ workDate: "asc" }, { createdAt: "asc" }],
+    include: { tournament: { select: { title: true } } }
+  });
+  const result = await appendShifts(Buffer.from(master.data), pending.map((shift) => ({
+    workDate: shift.workDate,
+    employeeName: shift.employeeName,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    breakHours: shift.breakHours,
+    manualHours: shift.manualHours,
+    adjustment: shift.adjustment,
+    status: shift.status,
+    comment: [shift.tournament.title, shift.comment].filter(Boolean).join(" · ") || null
+  })));
+  if (pending.length) {
+    await prisma.$transaction([
+      prisma.payrollWorkbook.update({ where: { key: WORKBOOK_KEY }, data: { data: result.buffer } }),
+      prisma.staffShift.updateMany({ where: { id: { in: pending.map((shift) => shift.id) } }, data: { exportedAt: new Date() } })
+    ]);
+  }
+  return { fileName: master.fileName, data: result.buffer, written: result.written };
+}
+
+export function exportPendingShifts() {
+  return serialize(exportPendingNow);
+}
+
+// Deletes a shift. One already written to the table is removed from the table file as well, otherwise the next
+// upload would bring it back.
+export function deleteShift(id: string) {
+  return serialize(async () => {
+    const shift = await prisma.staffShift.findUnique({ where: { id } });
+    if (!shift) return { deleted: false, fromTable: false };
+    if (shift.exportedAt) {
+      const master = await getMasterWorkbook();
+      if (master) {
+        const result = await removeShiftRows(Buffer.from(master.data), [shift]);
+        if (result.removed) await prisma.payrollWorkbook.update({ where: { key: WORKBOOK_KEY }, data: { data: result.buffer } });
+      }
+    }
+    await prisma.staffShift.delete({ where: { id } });
+    return { deleted: true, fromTable: Boolean(shift.exportedAt) };
+  });
 }

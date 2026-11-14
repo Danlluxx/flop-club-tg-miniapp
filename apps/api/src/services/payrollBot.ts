@@ -1,7 +1,8 @@
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { dateKey } from "./tournamentSchedule.js";
-import { exportPendingShifts, getMasterWorkbook, saveMasterWorkbook } from "./payrollWorkbook.js";
+import { parsePayrollCommand, PAYROLL_HELP, type PayrollCommand } from "./payrollCommands.js";
+import { deleteShift, exportPendingShifts, getMasterWorkbook, readRoster, saveMasterWorkbook } from "./payrollWorkbook.js";
 
 const sentDateKey = "payroll:lastSentDate";
 const unsentKey = "payroll:unsent";
@@ -94,16 +95,99 @@ export function startPayrollScheduler() {
   setInterval(() => { void run(); }, 10 * 60_000).unref();
 }
 
-export type TelegramDocumentMessage = {
+export type TelegramPayrollMessage = {
   chat: { id: number; type: string };
   from?: { username?: string };
+  text?: string;
   document?: { file_id: string; file_name?: string; file_size?: number };
 };
 
-// The owner sends the corrected table back to the bot: it becomes the file new shifts are written into.
-export async function handlePayrollDocument(message: TelegramDocumentMessage | undefined) {
-  const document = message?.document;
-  if (!message || !document || message.chat.type !== "private" || !isPayrollUsername(message.from?.username)) return;
+const undoKey = (chatId: number) => `payroll:undo:${chatId}`;
+const money = (value: number) => `${value < 0 ? "−" : "+"}${Math.abs(value).toLocaleString("ru-RU")} ₽`;
+const dayLabel = (key: string) => `${key.slice(8, 10)}.${key.slice(5, 7)}`;
+
+// Entries made from the bot go to the tournament of the current club day: a night game that ends after midnight
+// still belongs to the day it started, so the day changes at 06:00 Barnaul time.
+export const clubDay = (now = new Date()) => dateKey(new Date(now.getTime() - 6 * 60 * 60 * 1000));
+
+async function rememberEntry(chatId: number, id: string) {
+  const previous = JSON.parse((await getState(undoKey(chatId))) ?? "[]") as string[];
+  await setState(undoKey(chatId), JSON.stringify([...previous, id].slice(-20)));
+}
+
+async function tournamentOn(date: string) {
+  return prisma.tournament.findFirst({
+    where: { startsAt: { gte: new Date(`${date}T00:00:00+07:00`), lt: new Date(new Date(`${date}T00:00:00+07:00`).getTime() + 86_400_000) }, status: { not: "CANCELLED" } },
+    orderBy: { startsAt: "asc" },
+    select: { id: true, title: true }
+  });
+}
+
+async function runCommand(chatId: number, command: PayrollCommand) {
+  if (command.kind === "error") return sendText(chatId, command.message);
+  if (command.kind === "help") return sendText(chatId, PAYROLL_HELP);
+  if (command.kind === "table") {
+    const { fileName, data } = await exportPendingShifts();
+    return sendWorkbook(String(chatId), fileName, data, "Актуальная таблица зарплат.");
+  }
+  if (command.kind === "undo") {
+    const stack = JSON.parse((await getState(undoKey(chatId))) ?? "[]") as string[];
+    while (stack.length) {
+      const id = stack.pop()!;
+      const shift = await prisma.staffShift.findUnique({ where: { id } });
+      await setState(undoKey(chatId), JSON.stringify(stack));
+      if (!shift) continue;
+      const result = await deleteShift(id);
+      const what = shift.adjustment ? `${shift.comment ?? "Запись"} ${money(shift.adjustment)}` : "смена";
+      return sendText(chatId, `Отменено: ${shift.employeeName}, ${dayLabel(shift.workDate)}, ${what}.${result.fromTable ? " Убрал и из таблицы." : ""}`);
+    }
+    return sendText(chatId, "Нечего отменять: последних записей из бота нет.");
+  }
+
+  const date = command.date ?? clubDay();
+  const tournament = await tournamentOn(date);
+  if (!tournament) return sendText(chatId, `На ${dayLabel(date)} нет турнира. Укажите другую дату, например 12.11 или вчера.`);
+  const base = { tournamentId: tournament.id, workDate: date, employeeName: command.employee, status: "Отработана" };
+  const shift = command.kind === "adjust"
+    ? await prisma.staffShift.create({ data: { ...base, adjustment: command.amount, comment: command.comment } })
+    : await prisma.staffShift.create({ data: { ...base, startTime: command.startTime, endTime: command.endTime, manualHours: command.manualHours, comment: command.comment } });
+  await rememberEntry(chatId, shift.id);
+  const detail = command.kind === "adjust"
+    ? `${command.comment} ${money(command.amount)}`
+    : `смена ${command.startTime ? `${command.startTime}–${command.endTime}` : `${String(command.manualHours).replace(".", ",")} ч`}`;
+  await sendText(chatId, `✅ ${command.employee} · ${dayLabel(date)} · ${tournament.title}\n${detail}\nОтменить: /отмена`);
+}
+
+async function handleCommand(message: TelegramPayrollMessage) {
+  const text = message.text?.trim();
+  if (!text?.startsWith("/")) return;
+  const master = await getMasterWorkbook();
+  const roster = master ? (await readRoster(Buffer.from(master.data))).filter((employee) => !/уволен/i.test(employee.status)).map((employee) => employee.name) : [];
+  const command = parsePayrollCommand(text, roster, clubDay());
+  if (!command) return;
+  if (!master && command.kind !== "help") return sendText(message.chat.id, "Сначала пришлите таблицу зарплат (.xlsx) этим сообщением.");
+  await runCommand(message.chat.id, command);
+}
+
+// The owner talks to the bot in private: commands add fines/re-entries/shifts, and a table file replaces the master
+// (merged with what the app already recorded).
+export async function handlePayrollMessage(message: TelegramPayrollMessage | undefined) {
+  if (!message || message.chat.type !== "private" || !isPayrollUsername(message.from?.username)) return;
+  if (message.text) {
+    try {
+      await handleCommand(message);
+    } catch (error) {
+      console.error("[payroll] command failed", error);
+      await sendText(message.chat.id, "Не получилось записать, попробуйте ещё раз.");
+    }
+    return;
+  }
+  await handleDocument(message);
+}
+
+async function handleDocument(message: TelegramPayrollMessage) {
+  const document = message.document;
+  if (!document) return;
   if (!/\.xlsx$/i.test(document.file_name ?? "")) {
     await sendText(message.chat.id, "Пришлите таблицу в формате .xlsx.");
     return;
@@ -118,9 +202,15 @@ export async function handlePayrollDocument(message: TelegramDocumentMessage | u
     const file = await fetch(`${config.TELEGRAM_API_BASE_URL}/file/bot${config.BOT_TOKEN}/${info.result.file_path}`);
     if (!file.ok) throw new Error(`file download failed: ${file.status}`);
     const saved = await saveMasterWorkbook(document.file_name!, Buffer.from(await file.arrayBuffer()));
-    const pending = await prisma.staffShift.count({ where: { exportedAt: null } });
-    const skipped = saved.sync.skipped ? ` Строк без турнира в этот день пропущено: ${saved.sync.skipped}.` : "";
-    await sendText(message.chat.id, `Таблица принята, смен в приложении: ${saved.sync.imported}.${skipped} Новые смены (${pending}) попадут в неё при следующей отправке.`);
+    const { added, updated, restored, skipped } = saved.sync;
+    const lines = [`Таблица принята. Из файла в приложение: добавлено ${added}, обновлено ${updated}.`];
+    if (skipped) lines.push(`Строк без турнира в этот день пропущено: ${skipped}.`);
+    if (restored) lines.push(`В вашем файле не хватало записей, которые уже были в приложении (${restored}). Я вернул их в таблицу, высылаю итоговый файл: используйте его как основной.`);
+    await sendText(message.chat.id, lines.join("\n"));
+    if (restored) {
+      const merged = await getMasterWorkbook();
+      if (merged) await sendWorkbook(String(message.chat.id), merged.fileName, merged.data, "Итоговая таблица после объединения.");
+    }
   } catch (error) {
     console.error("[payroll] workbook upload failed", error);
     await sendText(message.chat.id, error instanceof Error && "statusCode" in error ? error.message : "Не удалось принять таблицу, попробуйте ещё раз.");

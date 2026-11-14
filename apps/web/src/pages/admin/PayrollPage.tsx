@@ -60,7 +60,13 @@ export function PayrollPage() {
   });
   const upload = useMutation({
     mutationFn: (file: File) => api.uploadPayrollWorkbook(file),
-    onSuccess: (result) => { void refresh(); showToast(`Таблица загружена, смен в приложении: ${result.imported}${result.skipped ? `, без турнира пропущено: ${result.skipped}` : ""}`); },
+    onSuccess: (result) => {
+      void refresh();
+      const parts = [`из файла добавлено ${result.added}, обновлено ${result.updated}`];
+      if (result.restored) parts.push(`возвращено в таблицу из приложения: ${result.restored} — скачайте итоговый файл`);
+      if (result.skipped) parts.push(`без турнира пропущено: ${result.skipped}`);
+      showToast(`Таблица загружена: ${parts.join("; ")}`);
+    },
     onError
   });
 
@@ -125,7 +131,16 @@ export function PayrollPage() {
             <div className="flex shrink-0 items-center gap-2">
               <span className="text-sm font-black text-white">{formatHours(shift.hours)}</span>
               {shift.exported ? (
-                <span className="rounded-[0.4rem] bg-white/10 px-1.5 py-0.5 text-[0.65rem] font-bold text-slate-300">в таблице</span>
+                <>
+                  <span className="rounded-[0.4rem] bg-white/10 px-1.5 py-0.5 text-[0.65rem] font-bold text-slate-300">в таблице</span>
+                  {isOwner && (
+                    <button type="button" aria-label="Удалить смену из приложения и таблицы" disabled={remove.isPending}
+                      onClick={() => { if (window.confirm("Удалить запись и из таблицы зарплат?")) remove.mutate(shift.id); }}
+                      className="tap grid h-9 w-9 place-items-center rounded-[0.55rem] bg-white/8 text-rose-200">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
               ) : (
                 <>
                   <button type="button" aria-label="Изменить смену" onClick={() => startEdit(shift)} className="tap grid h-9 w-9 place-items-center rounded-[0.55rem] bg-white/8 text-white">
@@ -216,7 +231,7 @@ export function PayrollPage() {
               <Upload className="h-4 w-4" /> Заменить файл
             </button>
           </div>
-          <p className="text-xs text-slate-500">Скачивание дописывает новые смены в таблицу, этот файл становится основным. При загрузке смены с 1 сентября подтягиваются из таблицы в приложение: правки в Excel попадают сюда, а старая копия сотрёт более свежие смены.</p>
+          <p className="text-xs text-slate-500">Скачивание дописывает новые смены в таблицу, этот файл становится основным. При загрузке файл объединяется с приложением: правки из Excel попадают сюда, а записи, которых в вашем файле не хватает, возвращаются в таблицу и не теряются.</p>
         </div>
       )}
     </section>

@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
-import { handlePayrollDocument } from "./payrollBot.js";
+import { handlePayrollMessage } from "./payrollBot.js";
 
 const pollingStateKey = "getUpdatesOffset";
 const retryDelayMs = 60_000;
@@ -126,7 +126,7 @@ async function pollTelegramUpdates() {
       for (const update of payload.result ?? []) {
         await savePrivateSubscriber(update);
         await replyWithEmojiIds(update).catch((error) => console.error("[telegram:subscribers] emoji id reply failed", error));
-        await handlePayrollDocument(update.message).catch((error) => console.error("[telegram:subscribers] payroll document failed", error));
+        await handlePayrollMessage(update.message).catch((error) => console.error("[telegram:subscribers] payroll message failed", error));
         offset = Math.max(offset, update.update_id + 1);
       }
 

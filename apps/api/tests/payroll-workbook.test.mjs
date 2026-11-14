@@ -121,3 +121,76 @@ test("periodRange and shiftEarnings follow the table rules", async () => {
   assert.equal(shiftEarnings(4, "Неявка", hourly), 0);
   assert.equal(shiftEarnings(4, "Отработана", undefined), 0);
 });
+
+test("planMerge keeps identical rows, takes edits from the file and writes missing app rows back", async () => {
+  const { planMerge } = await import("../dist/services/payrollWorkbook.js");
+  const row = (patch = {}) => ({ workDate: "2026-11-10", employeeName: "Гриша", startTime: "19:00", endTime: "23:00", breakHours: null, manualHours: null, adjustment: null, status: "Отработана", comment: null, ...patch });
+  const app = (id, patch) => ({ id, shift: row(patch) });
+
+  // identical
+  let plan = planMerge([row()], [app("a")]);
+  assert.deepEqual([plan.matched, plan.updates.length, plan.adds.length, plan.restore.length], [1, 0, 0, 0]);
+
+  // edited in Excel (hours changed) -> the file wins, no duplicate
+  plan = planMerge([row({ endTime: "23:30" })], [app("a")]);
+  assert.deepEqual([plan.matched, plan.updates.length, plan.adds.length, plan.restore.length], [0, 1, 0, 0]);
+  assert.equal(plan.updates[0].shift.endTime, "23:30");
+
+  // old copy of the file: the app has a row the file lacks -> restored, the file's own rows stay
+  plan = planMerge([row()], [app("a"), app("b", { workDate: "2026-11-11" })]);
+  assert.deepEqual([plan.matched, plan.updates.length, plan.adds.length, plan.restore], [1, 0, 0, ["b"]]);
+
+  // a new row typed in Excel -> added to the app
+  plan = planMerge([row(), row({ employeeName: "Лиля" })], [app("a")]);
+  assert.deepEqual([plan.matched, plan.adds.length, plan.restore.length], [1, 1, 0]);
+
+  // two fines for one person on one day: both survive, each matched once
+  const fine = (amount) => row({ startTime: null, endTime: null, adjustment: amount });
+  plan = planMerge([fine(-500), fine(-175)], [app("x", fine(-175)), app("y", fine(-500))]);
+  assert.deepEqual([plan.matched, plan.updates.length, plan.adds.length, plan.restore.length], [2, 0, 0, 0]);
+});
+
+test("removeShiftRows clears only the matching row", async () => {
+  const { removeShiftRows, appendShifts, readWorkbookShifts } = await import("../dist/services/payrollWorkbook.js");
+  const source = await makeWorkbook();
+  const { buffer } = await appendShifts(source, [shift({ workDate: "2026-11-11" }), shift({ workDate: "2026-11-12", employeeName: "Гриша" })]);
+  const before = await readWorkbookShifts(buffer);
+  assert.equal(before.length, 2);
+  const result = await removeShiftRows(buffer, [shift({ workDate: "2026-11-11" })]);
+  assert.equal(result.removed, 1);
+  const after = await readWorkbookShifts(result.buffer);
+  assert.deepEqual(after.map((item) => item.workDate), ["2026-11-12"]);
+});
+
+test("bot command parser: names, amounts, dates, defaults", async () => {
+  const { parsePayrollCommand, parseDateToken } = await import("../dist/services/payrollCommands.js");
+  const roster = ["Артем", "Арсений", "Гриша", "Никита 1", "Никита 2", "Лиля"];
+  const today = "2026-11-14";
+  const parse = (text) => parsePayrollCommand(text, roster, today);
+
+  assert.deepEqual(parse("/штраф Гриша 500 опоздание"), { kind: "adjust", employee: "Гриша", amount: -500, comment: "Штраф: опоздание", date: null });
+  assert.deepEqual(parse("/Штраф лиля 175"), { kind: "adjust", employee: "Лиля", amount: -175, comment: "Штраф", date: null });
+  assert.deepEqual(parse("/реэнтри Гриша"), { kind: "adjust", employee: "Гриша", amount: -500, comment: "Ре-энтри (вычет из ЗП)", date: null });
+  assert.equal(parse("/реэнтри Гриша 700").amount, -700);
+  assert.equal(parse("/адон Гриша вчера").date, "2026-11-13");
+  assert.equal(parse("/адон Гриша 12.11").date, "2026-11-12");
+  assert.equal(parse("/адон Гриша").amount, -1000);
+  assert.equal(parse("/премия Лиля 1000 за вечер").amount, 1000);
+  assert.equal(parse("/премия Лиля 1000 за вечер").comment, "Премия: за вечер");
+  assert.equal(parse("/штраф Никита 1 300").employee, "Никита 1");
+  assert.equal(parse("/штраф Никита 1 300").amount, -300);
+  assert.equal(parse("/штраф арс 300").employee, "Арсений");
+  assert.match(parse("/штраф Ар 300").message, /несколько/);
+  assert.match(parse("/штраф Никита 300").message, /несколько/);
+  assert.match(parse("/штраф Вася 300").message, /Не нашёл/);
+  assert.match(parse("/штраф Гриша").message, /сумму/);
+  assert.match(parse("/штраф Гриша 9999999").message, /Сумма/);
+  assert.deepEqual(parse("/смена Лиля 19:00 23:30"), { kind: "shift", employee: "Лиля", startTime: "19:00", endTime: "23:30", manualHours: null, comment: null, date: null });
+  assert.equal(parse("/смена Лиля 4,5 вчера").manualHours, 4.5);
+  assert.equal(parse("/смена Лиля 4,5 вчера").date, "2026-11-13");
+  assert.equal(parse("/отмена").kind, "undo");
+  assert.equal(parse("/таблица").kind, "table");
+  assert.equal(parse("/start"), null);
+  assert.equal(parseDateToken("31.02", today), null);
+  assert.equal(parseDateToken("5.1.27", today), "2027-01-05");
+});
