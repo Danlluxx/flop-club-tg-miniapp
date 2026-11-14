@@ -32,6 +32,7 @@ export const PAYROLL_HELP = [
   "/премия Лиля 1000 за хорошую работу",
   "/смена Лиля 19:00 23:30 (или /смена Лиля 4,5 — часы)",
   "/отмена — убрать последнюю запись",
+  "/меню — кнопки внизу экрана (запись без набора команд)",
   "/таблица — прислать актуальный файл",
   "",
   "Запись идёт на сегодняшний турнир (до 6 утра — на вчерашний). Другой день: добавьте дату, например 12.11 или вчера."
@@ -53,8 +54,8 @@ export function parseDateToken(token: string, today: string): string | null {
   return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== key ? null : key;
 }
 
-const isNumber = (token: string) => /^[+\-−]?\d+([.,]\d+)?$/.test(token);
-const toNumber = (token: string) => Math.abs(Number(token.replace(/^[+\-−]/, "").replace(",", ".")));
+export const isNumber = (token: string) => /^[+\-−]?\d+([.,]\d+)?$/.test(token);
+export const toNumber = (token: string) => Math.abs(Number(token.replace(/^[+\-−]/, "").replace(",", ".")));
 
 // Finds the employee at the start of the arguments. Roster names may hold several words ("Никита 1"), so the
 // longest exact match wins; otherwise the first word may be the beginning of a name.
@@ -73,7 +74,7 @@ export function resolveEmployee(tokens: string[], roster: string[]): { name: str
   return { error: `Не нашёл сотрудника «${tokens[0]}». В таблице: ${roster.join(", ")}.` };
 }
 
-function normalizeTime(token: string) {
+export function normalizeTime(token: string) {
   const match = token.match(/^(\d{1,2})[:.](\d{2})$/);
   if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return null;
   return `${match[1].padStart(2, "0")}:${match[2]}`;

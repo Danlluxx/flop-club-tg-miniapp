@@ -1,6 +1,7 @@
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { handlePayrollMessage } from "./payrollBot.js";
+import { handleFlowCallback } from "./payrollFlow.js";
 
 const pollingStateKey = "getUpdatesOffset";
 const retryDelayMs = 60_000;
@@ -23,6 +24,7 @@ type TelegramChat = {
 
 type TelegramUpdate = {
   update_id: number;
+  callback_query?: { id: string; from?: TelegramUser; data?: string; message?: { message_id: number; chat: TelegramChat } };
   message?: {
     text?: string;
     document?: { file_id: string; file_name?: string; file_size?: number };
@@ -113,7 +115,7 @@ async function pollTelegramUpdates() {
       const url = new URL(`${config.TELEGRAM_API_BASE_URL}/bot${config.BOT_TOKEN}/getUpdates`);
       url.searchParams.set("offset", String(offset));
       url.searchParams.set("timeout", "25");
-      url.searchParams.set("allowed_updates", JSON.stringify(["message"]));
+      url.searchParams.set("allowed_updates", JSON.stringify(["message", "callback_query"]));
 
       const abortController = new AbortController();
       const timeout = setTimeout(() => abortController.abort(), config.TELEGRAM_REQUEST_TIMEOUT_MS + 30000);
@@ -126,6 +128,7 @@ async function pollTelegramUpdates() {
       for (const update of payload.result ?? []) {
         await savePrivateSubscriber(update);
         await replyWithEmojiIds(update).catch((error) => console.error("[telegram:subscribers] emoji id reply failed", error));
+        await handleFlowCallback(update.callback_query).catch((error) => console.error("[telegram:subscribers] payroll button failed", error));
         await handlePayrollMessage(update.message).catch((error) => console.error("[telegram:subscribers] payroll message failed", error));
         offset = Math.max(offset, update.update_id + 1);
       }

@@ -2,49 +2,19 @@ import { config } from "../config.js";
 import { prisma } from "../prisma.js";
 import { dateKey } from "./tournamentSchedule.js";
 import { parsePayrollCommand, PAYROLL_HELP, type PayrollCommand } from "./payrollCommands.js";
-import { deleteShift, exportPendingShifts, getMasterWorkbook, readRoster, saveMasterWorkbook } from "./payrollWorkbook.js";
+import { clubDay, createEntry, getState, setState, undoLastEntry } from "./payrollEntries.js";
+import { apiUrl, isPayrollUsername, sendText, sendWorkbook } from "./payrollTelegram.js";
+import { BTN_ADD, BTN_TABLE, BTN_UNDO, handleFlowText, sendMenu, startFlow } from "./payrollFlow.js";
+import { exportPendingShifts, getMasterWorkbook, readRoster, saveMasterWorkbook } from "./payrollWorkbook.js";
+
+export { isPayrollUsername };
 
 const sentDateKey = "payroll:lastSentDate";
 const unsentKey = "payroll:unsent";
-const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-const payrollUsernames = new Set(
-  config.PAYROLL_TELEGRAM_USERNAMES.split(",").map((name) => name.trim().replace(/^@/, "").toLowerCase()).filter(Boolean)
-);
-
-export const isPayrollUsername = (username?: string | null) => Boolean(username) && payrollUsernames.has(username!.toLowerCase());
-
-const apiUrl = (method: string) => `${config.TELEGRAM_API_BASE_URL}/bot${config.BOT_TOKEN}/${method}`;
-
-async function sendText(chatId: string | number, text: string) {
-  await fetch(apiUrl("sendMessage"), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text })
-  });
-}
-
-async function sendWorkbook(chatId: string, fileName: string, data: Uint8Array, caption: string) {
-  const form = new FormData();
-  form.set("chat_id", chatId);
-  form.set("caption", caption);
-  form.set("document", new Blob([Uint8Array.from(data)], { type: XLSX_TYPE }), fileName);
-  const response = await fetch(apiUrl("sendDocument"), { method: "POST", body: form });
-  const payload = await response.json().catch(() => null) as { ok?: boolean; description?: string } | null;
-  if (!response.ok || !payload?.ok) throw new Error(payload?.description || `sendDocument failed: ${response.status}`);
-}
 
 async function recipients() {
   const subscribers = await prisma.telegramSubscriber.findMany({ where: { active: true }, select: { chatId: true, username: true } });
   return subscribers.filter((subscriber) => isPayrollUsername(subscriber.username));
-}
-
-async function getState(key: string) {
-  return (await prisma.telegramBotState.findUnique({ where: { key } }))?.value ?? null;
-}
-
-async function setState(key: string, value: string) {
-  await prisma.telegramBotState.upsert({ where: { key }, create: { key, value }, update: { value } });
 }
 
 // Appends the shifts entered since the last file and sends the new table. When the send fails the table is already
@@ -102,27 +72,6 @@ export type TelegramPayrollMessage = {
   document?: { file_id: string; file_name?: string; file_size?: number };
 };
 
-const undoKey = (chatId: number) => `payroll:undo:${chatId}`;
-const money = (value: number) => `${value < 0 ? "−" : "+"}${Math.abs(value).toLocaleString("ru-RU")} ₽`;
-const dayLabel = (key: string) => `${key.slice(8, 10)}.${key.slice(5, 7)}`;
-
-// Entries made from the bot go to the tournament of the current club day: a night game that ends after midnight
-// still belongs to the day it started, so the day changes at 06:00 Barnaul time.
-export const clubDay = (now = new Date()) => dateKey(new Date(now.getTime() - 6 * 60 * 60 * 1000));
-
-async function rememberEntry(chatId: number, id: string) {
-  const previous = JSON.parse((await getState(undoKey(chatId))) ?? "[]") as string[];
-  await setState(undoKey(chatId), JSON.stringify([...previous, id].slice(-20)));
-}
-
-async function tournamentOn(date: string) {
-  return prisma.tournament.findFirst({
-    where: { startsAt: { gte: new Date(`${date}T00:00:00+07:00`), lt: new Date(new Date(`${date}T00:00:00+07:00`).getTime() + 86_400_000) }, status: { not: "CANCELLED" } },
-    orderBy: { startsAt: "asc" },
-    select: { id: true, title: true }
-  });
-}
-
 async function runCommand(chatId: number, command: PayrollCommand) {
   if (command.kind === "error") return sendText(chatId, command.message);
   if (command.kind === "help") return sendText(chatId, PAYROLL_HELP);
@@ -131,31 +80,13 @@ async function runCommand(chatId: number, command: PayrollCommand) {
     return sendWorkbook(String(chatId), fileName, data, "Актуальная таблица зарплат.");
   }
   if (command.kind === "undo") {
-    const stack = JSON.parse((await getState(undoKey(chatId))) ?? "[]") as string[];
-    while (stack.length) {
-      const id = stack.pop()!;
-      const shift = await prisma.staffShift.findUnique({ where: { id } });
-      await setState(undoKey(chatId), JSON.stringify(stack));
-      if (!shift) continue;
-      const result = await deleteShift(id);
-      const what = shift.adjustment ? `${shift.comment ?? "Запись"} ${money(shift.adjustment)}` : "смена";
-      return sendText(chatId, `Отменено: ${shift.employeeName}, ${dayLabel(shift.workDate)}, ${what}.${result.fromTable ? " Убрал и из таблицы." : ""}`);
-    }
-    return sendText(chatId, "Нечего отменять: последних записей из бота нет.");
+    const text = await undoLastEntry(chatId);
+    return sendText(chatId, text ? `Отменено: ${text}` : "Нечего отменять: последних записей из бота нет.");
   }
 
-  const date = command.date ?? clubDay();
-  const tournament = await tournamentOn(date);
-  if (!tournament) return sendText(chatId, `На ${dayLabel(date)} нет турнира. Укажите другую дату, например 12.11 или вчера.`);
-  const base = { tournamentId: tournament.id, workDate: date, employeeName: command.employee, status: "Отработана" };
-  const shift = command.kind === "adjust"
-    ? await prisma.staffShift.create({ data: { ...base, adjustment: command.amount, comment: command.comment } })
-    : await prisma.staffShift.create({ data: { ...base, startTime: command.startTime, endTime: command.endTime, manualHours: command.manualHours, comment: command.comment } });
-  await rememberEntry(chatId, shift.id);
-  const detail = command.kind === "adjust"
-    ? `${command.comment} ${money(command.amount)}`
-    : `смена ${command.startTime ? `${command.startTime}–${command.endTime}` : `${String(command.manualHours).replace(".", ",")} ч`}`;
-  await sendText(chatId, `✅ ${command.employee} · ${dayLabel(date)} · ${tournament.title}\n${detail}\nОтменить: /отмена`);
+  const result = await createEntry(chatId, command);
+  if (!result.ok) return sendText(chatId, `${result.error} Добавьте дату, например 12.11 или вчера.`);
+  await sendText(chatId, `✅ ${command.employee} · ${result.date.slice(8, 10)}.${result.date.slice(5, 7)} · ${result.tournament}\n${result.detail}\nОтменить: /отмена`);
 }
 
 async function handleCommand(message: TelegramPayrollMessage) {
@@ -174,8 +105,15 @@ async function handleCommand(message: TelegramPayrollMessage) {
 export async function handlePayrollMessage(message: TelegramPayrollMessage | undefined) {
   if (!message || message.chat.type !== "private" || !isPayrollUsername(message.from?.username)) return;
   if (message.text) {
+    const text = message.text.trim();
+    const chatId = message.chat.id;
     try {
-      await handleCommand(message);
+      if (text === BTN_ADD) await startFlow(chatId);
+      else if (text === BTN_UNDO) await runCommand(chatId, { kind: "undo" });
+      else if (text === BTN_TABLE) await runCommand(chatId, { kind: "table" });
+      else if (/^\/(меню|menu)(@\w+)?$/i.test(text)) await sendMenu(chatId);
+      else if (text.startsWith("/")) await handleCommand(message);
+      else await handleFlowText(chatId, text);
     } catch (error) {
       console.error("[payroll] command failed", error);
       await sendText(message.chat.id, "Не получилось записать, попробуйте ещё раз.");
