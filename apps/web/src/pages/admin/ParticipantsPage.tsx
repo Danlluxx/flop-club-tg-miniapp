@@ -102,6 +102,8 @@ export function ParticipantsPage() {
   // Check-ins also arrive from the QR scanner on another phone, so keep the screen fresh.
   const { data } = useQuery({ queryKey: ["participants", id], queryFn: () => api.participants(id), refetchInterval: 15000 });
   const { data: liveState } = useQuery({ queryKey: ["admin", "live", id], queryFn: () => api.liveState(id), enabled: Boolean(id), refetchInterval: 15000 });
+  const isDuoTournament = liveState?.tournament.title === "FLOP DUO 2x2";
+  const { data: duoInfo } = useQuery({ queryKey: ["admin", "duo", id], queryFn: () => api.duoState(id), enabled: Boolean(id) && isDuoTournament });
   const { data: ratingInfo } = useQuery({
     queryKey: ["admin", "rating-results", id, ratingEntriesCount],
     queryFn: () => api.ratingResults(id, ratingEntriesCount),
@@ -193,7 +195,9 @@ export function ParticipantsPage() {
   const reportDate = liveState?.tournament.startsAt ? new Date(liveState.tournament.startsAt).toISOString().slice(0, 10) : "";
   const moveSource = inGameParticipants.find((item) => item.id === moveSourceId) ?? null;
   const canFormFinal = inGameParticipants.length >= 2 && inGameParticipants.length <= 9;
-  const actualEntries = participants.filter((item) => item.checkedInAt).length;
+  // FLOP DUO: a merged team counts as one participant, so the places are taken from the number of teams.
+  const duoMergedTeams = isDuoTournament ? duoInfo?.mergedTeams ?? 0 : 0;
+  const actualEntries = Math.max(0, participants.filter((item) => item.checkedInAt).length - duoMergedTeams);
   const awards = ratingInfo?.awards ?? [];
   const pointsByPlace = new Map(awards.map((award) => [award.place, award.points]));
   function bountyOf(item: Registration) {
@@ -915,7 +919,7 @@ export function ParticipantsPage() {
                   setEntriesCount(String(actualEntries));
                 }}
               >
-                Входов по факту: {actualEntries}. Подставить
+                {duoMergedTeams ? `Участников (команда = один): ${actualEntries}. Подставить` : `Входов по факту: ${actualEntries}. Подставить`}
               </button>
             ) : null}
 

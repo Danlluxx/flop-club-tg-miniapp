@@ -281,7 +281,7 @@ export async function recordElimination(
     });
     if (teamUserIds) {
       await tx.registration.updateMany({
-        where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: teamUserIds }, id: { not: eliminatedRegistrationId } },
+        where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: teamUserIds }, id: { not: eliminatedRegistrationId }, finishPlace: null },
         data: { finishPlace }
       });
     }
@@ -298,7 +298,7 @@ export async function recordElimination(
       const winnerTeam = await teamUserIdsForElimination(tx, tournamentId, remaining[0].userId);
       if (winnerTeam) {
         await tx.registration.updateMany({
-          where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: winnerTeam }, id: { not: remaining[0].id } },
+          where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: winnerTeam }, id: { not: remaining[0].id }, finishPlace: null },
           data: { finishPlace: 1 }
         });
       }

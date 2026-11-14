@@ -208,6 +208,17 @@ export async function mergeTeams(tournamentId: string, actorId?: string, now = n
         data: { liveStatus: "ELIMINATED", eliminatedAt: now, tableNumber: null, seatNumber: null, finishPlace: null }
       });
     }
+    if (plan.merges.length) {
+      // Players who went out before the merge were placed among all players; from now on teams are counted,
+      // so move their places up by the number of parked partners (no gap between the teams and the early exits).
+      const aliveAfter = await tx.registration.count({
+        where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME", checkedInAt: { not: null } }
+      });
+      await tx.$executeRaw`
+        UPDATE "Registration"
+        SET "finishPlace" = GREATEST("finishPlace" - ${plan.merges.length}::int, ${aliveAfter + 1}::int)
+        WHERE "tournamentId" = ${tournamentId} AND "status" = 'ACTIVE' AND "liveStatus" = 'ELIMINATED' AND "finishPlace" > ${aliveAfter}::int`;
+    }
     await tx.tournamentGameEvent.create({
       data: {
         tournamentId,
@@ -233,9 +244,9 @@ export async function teamUserIdsForElimination(tx: Prisma.TransactionClient, to
 export async function duoState(tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) throw notFound("Tournament");
-  const [pairs, merged, events, registrations] = await Promise.all([
+  const [pairs, mergeEvent, events, registrations] = await Promise.all([
     activePairs(prisma, tournamentId),
-    isMerged(prisma, tournamentId),
+    prisma.tournamentGameEvent.findUnique({ where: { tournamentId_eventKey: { tournamentId, eventKey: `duo-merge:${tournamentId}` } } }),
     cardEvents(prisma, tournamentId),
     prisma.registration.findMany({
       where: { tournamentId, status: RegistrationStatus.ACTIVE },
@@ -252,8 +263,11 @@ export async function duoState(tournamentId: string) {
     players.set(registration.userId, { userId: registration.userId, name, inGame: inGame || Boolean(known?.inGame) });
   }
   const paired = new Set(pairs.flatMap((pair) => pair.userIds));
+  const merged = Boolean(mergeEvent);
   return {
     merged,
+    // Teams merged out of two live players: each of them counts one participant less in the rating.
+    mergedTeams: merged ? Number((mergeEvent?.details as { teams?: number } | null)?.teams ?? 0) : 0,
     mergeOpensAt: duoMergeOpensAt(tournament.startsAt),
     teams: pairs.map((pair) => ({ id: pair.eventId, players: pair.userIds.map((id) => players.get(id)).filter(Boolean), cards: teamCards(events, pair.eventId) })),
     solo: [...players.values()].filter((player) => !paired.has(player.userId))

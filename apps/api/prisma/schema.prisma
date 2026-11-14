@@ -216,7 +216,7 @@ model TournamentRatingResult {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  @@unique([tournamentId, place])
+  @@index([tournamentId, place])
   @@unique([tournamentId, userId])
   @@index([userId])
 }

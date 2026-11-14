@@ -87,3 +87,28 @@ test("team cards: two of each kind, one running at a time", () => {
   const running = teamCards([event("hint", "2026-11-13T15:00:20Z")], "p", now);
   assert.deepEqual(running.active, { card: "hint", endsAt: "2026-11-13T15:00:20Z" });
 });
+
+test("rating: partners of a team share a place and both get its full points", async () => {
+  const { prisma } = await import("../dist/prisma.js");
+  const { applyTournamentRatingResults } = await import("../dist/services/rating.js");
+  const created = [];
+  const tournament = {
+    id: "t", title: "FLOP DUO 2x2", ratingPool: 15000, mechanics: null, profile: "BASE", ratingResults: [], chipLeaderAward: null,
+    registrations: ["a", "b", "c"].map((userId) => ({ id: `r-${userId}`, userId })).concat([{ id: "r-a-old", userId: "a" }])
+  };
+  const tx = {
+    $queryRaw: async () => [],
+    tournament: { findUnique: async () => tournament, update: async () => ({}) },
+    tournamentGameEvent: { findMany: async () => [{ id: "p1", type: "DUO_PAIR", createdAt: new Date(), reversesId: null, details: { userIds: ["a", "b"] } }] },
+    tournamentRatingResult: { deleteMany: async () => ({}), create: async ({ data }) => { created.push(data); return data; }, findMany: async () => created },
+    tournamentChipLeaderAward: { deleteMany: async () => ({}) },
+    user: { update: async () => ({}) }
+  };
+  prisma.$transaction = async (fn) => fn(tx);
+  const results = await applyTournamentRatingResults("t", 10, [
+    { registrationId: "r-a", place: 1 }, { registrationId: "r-b", place: 1 }, { registrationId: "r-a-old", place: 1 }, { registrationId: "r-c", place: 2 }
+  ]);
+  assert.equal(results.length, 3);
+  assert.deepEqual(created.map((item) => [item.userId, item.place, item.points]), [["a", 1, 7500], ["b", 1, 7500], ["c", 2, 4500]]);
+  await assert.rejects(applyTournamentRatingResults("t", 10, [{ registrationId: "r-a", place: 1 }, { registrationId: "r-c", place: 1 }]), /duplicated/);
+});

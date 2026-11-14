@@ -204,6 +204,7 @@ export type DuoPlayerState = {
 };
 export type DuoState = {
   merged: boolean;
+  mergedTeams: number;
   mergeOpensAt: string;
   teams: { id: string; players: DuoPlayer[]; cards: DuoCards }[];
   solo: DuoPlayer[];

@@ -3,6 +3,7 @@ import { prisma } from "../prisma.js";
 import { AppError, notFound } from "../utils/errors.js";
 
 import { assertDevilCanFinish } from "./devilDeal.js";
+import { activePairs, isDuoTournament, partnerOf } from "./duoTeams.js";
 
 export const RATING_POOLS: Record<string, number> = {
   "Flop Classic": 10000,
@@ -172,24 +173,35 @@ export async function applyTournamentRatingResults(
     const effectiveEntriesCount = entriesCount ?? Math.max(tournament.registrations.length, inputs.length);
     const awards = getRatingAwards(tournament.ratingPool, effectiveEntriesCount);
     const maxPlace = awards.length;
-    const places = new Set<number>();
+    const placeHolders = new Map<number, string[]>();
     const userIds = new Set<string>();
     const registrationToUser = new Map(tournament.registrations.map((item) => [item.id, item.userId]));
     const activeUserIds = new Set(tournament.registrations.map((item) => item.userId));
+    // FLOP DUO: the two partners of a team share one place and each gets the full points of that place.
+    const duoPairs = isDuoTournament(tournament.title) ? await activePairs(tx, tournamentId) : [];
+    const resolvedInputs = inputs.map((input) => ({ input, userId: input.registrationId ? registrationToUser.get(input.registrationId) : input.userId }));
+    const bestPlaceByUser = new Map<string, number>();
+    if (duoPairs.length) {
+      // A player's earlier lives can carry the team's place as well: only the best place per player counts.
+      for (const { input, userId } of resolvedInputs) {
+        if (userId) bestPlaceByUser.set(userId, Math.min(input.place, bestPlaceByUser.get(userId) ?? Number.MAX_SAFE_INTEGER));
+      }
+    }
 
-    const nextResults = inputs.map((input) => {
+    const nextResults = resolvedInputs.flatMap(({ input, userId }) => {
       if (input.place < 1 || input.place > maxPlace) {
         throw new AppError(400, `Place ${input.place} is outside top-${maxPlace}`, "RATING_PLACE_OUT_OF_RANGE");
       }
-      if (places.has(input.place)) {
-        throw new AppError(400, `Place ${input.place} is duplicated`, "RATING_PLACE_DUPLICATED");
-      }
-      places.add(input.place);
-
-      const userId = input.registrationId ? registrationToUser.get(input.registrationId) : input.userId;
       if (!userId) {
         throw new AppError(404, "Participant registration not found", "PARTICIPANT_NOT_FOUND");
       }
+      if (duoPairs.length && bestPlaceByUser.get(userId) !== input.place) return [];
+      if (duoPairs.length && userIds.has(userId)) return [];
+      const holders = placeHolders.get(input.place) ?? [];
+      if (holders.length && !(duoPairs.length && holders.length === 1 && partnerOf(duoPairs, userId) === holders[0])) {
+        throw new AppError(400, `Place ${input.place} is duplicated`, "RATING_PLACE_DUPLICATED");
+      }
+      placeHolders.set(input.place, [...holders, userId]);
       if (!activeUserIds.has(userId)) {
         throw new AppError(400, "Rating can be assigned only to active tournament participants", "RATING_USER_NOT_ACTIVE");
       }
@@ -199,7 +211,7 @@ export async function applyTournamentRatingResults(
       userIds.add(userId);
 
       const award = awards[input.place - 1];
-      return {
+      return [{
         tournamentId,
         userId,
         place: input.place,
@@ -207,7 +219,7 @@ export async function applyTournamentRatingResults(
         points: award.points,
         knockouts: bountyPoints ? 0 : input.knockouts ?? 0,
         chipLeaderBonus: 0
-      };
+      }];
     });
 
     if (tournament.mechanics) {
