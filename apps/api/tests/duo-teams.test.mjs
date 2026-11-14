@@ -88,7 +88,7 @@ test("team cards: two of each kind, one running at a time", () => {
   assert.deepEqual(running.active, { card: "hint", endsAt: "2026-11-13T15:00:20Z" });
 });
 
-test("rating: partners of a team share a place and both get its full points", async () => {
+test("rating: partners of a team share a place and split its points", async () => {
   const { prisma } = await import("../dist/prisma.js");
   const { applyTournamentRatingResults } = await import("../dist/services/rating.js");
   const created = [];
@@ -109,6 +109,6 @@ test("rating: partners of a team share a place and both get its full points", as
     { registrationId: "r-a", place: 1 }, { registrationId: "r-b", place: 1 }, { registrationId: "r-a-old", place: 1 }, { registrationId: "r-c", place: 2 }
   ]);
   assert.equal(results.length, 3);
-  assert.deepEqual(created.map((item) => [item.userId, item.place, item.points]), [["a", 1, 7500], ["b", 1, 7500], ["c", 2, 4500]]);
+  assert.deepEqual(created.map((item) => [item.userId, item.place, item.points]), [["a", 1, 3750], ["b", 1, 3750], ["c", 2, 4500]]);
   await assert.rejects(applyTournamentRatingResults("t", 10, [{ registrationId: "r-a", place: 1 }, { registrationId: "r-c", place: 1 }]), /duplicated/);
 });

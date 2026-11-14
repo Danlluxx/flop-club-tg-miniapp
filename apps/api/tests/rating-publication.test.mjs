@@ -79,6 +79,26 @@ test('title emoji stay premium in an update post with a heading', async () => {
   const found = premiumEmojiEntities(text).filter((entity) => title.startsWith(text.slice(entity.offset, entity.offset + entity.length)) && text.indexOf(title) <= entity.offset && entity.offset <= text.indexOf(title) + title.length);
   assert.equal(found.length, 2);
 });
+test('FLOP DUO lists a team on one line with the points each partner gets', async () => {
+  const original = tournament;
+  const named = (displayName) => ({ ...user, displayName });
+  tournament = { ...original, title: 'FLOP DUO 2x2', chipLeaderAward: null, gameEvents: [],
+    registrations: [
+      { userId: 'a', user: named('Ангелина'), finishPlace: 1, createdAt: new Date(1) },
+      { userId: 'b', user: named('Baldejnyi'), finishPlace: 1, createdAt: new Date(2) },
+      { userId: 'c', user: named('Daniel'), finishPlace: 2, createdAt: new Date(3) },
+      { userId: 'd', user: named('Диана'), finishPlace: 14, createdAt: new Date(4) }
+    ],
+    ratingResults: [
+      { userId: 'a', user: named('Ангелина'), place: 1, points: 3000, knockouts: 0, chipLeaderBonus: 0 },
+      { userId: 'b', user: named('Baldejnyi'), place: 1, points: 3000, knockouts: 0, chipLeaderBonus: 0 },
+      { userId: 'c', user: named('Daniel'), place: 2, points: 3750, knockouts: 0, chipLeaderBonus: 0 }
+    ] };
+  const text = await getTournamentRatingText('test');
+  assert.match(text, /\u{1F451} - Ангелина \+ Baldejnyi \(3.000\u26A1\uFE0F\)\n\u{1F451} - Daniel \(3.750\u26A1\uFE0F\)\n14 - Диана\n/u);
+  assert.match(text, /\u26A1\uFE0F — рейтинговые очки каждому игроку$/u);
+  tournament = original;
+});
 test('delivery deduplication, updates and retry after failure', async () => {
   assert.equal(await publishTournamentRatingResults('test'),true);
   assert.equal(await publishTournamentRatingResults('test'),false);

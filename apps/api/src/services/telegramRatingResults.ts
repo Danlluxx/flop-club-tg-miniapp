@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { Prisma, RegistrationStatus } from "@prisma/client";
 import { config } from "../config.js";
 import { prisma } from "../prisma.js";
+import { isDuoTournament } from "./duoTeams.js";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("ru-RU").format(value);
@@ -231,16 +232,22 @@ export async function getTournamentRatingText(tournamentId: string) {
   if (!rating) return null;
 
   const apart = listsBountyApart(rating.title);
-  const lines = rating.rows.map((row) => {
+  // FLOP DUO: a team is one line, "place - player + player (points each)".
+  const duo = isDuoTournament(rating.title);
+  const rows = duo
+    ? rating.rows.filter((row, index, all) => all.findIndex((other) => other.place === row.place) === index)
+        .map((row) => ({ ...row, user: row.user, names: rating.rows.filter((other) => other.place === row.place).map((other) => playerName(other.user).replace(/[\r\n]+/g, " ")) }))
+    : rating.rows.map((row) => ({ ...row, names: [playerName(row.user).replace(/[\r\n]+/g, " ")] }));
+  const lines = rows.map((row) => {
     const prefix = row.place <= 3 ? `${EMOJI.crown} -` : `${row.place} -`;
     const shown = apart ? row.basePoints : row.points ?? 0;
     const placement = shown > 0 ? ` (${formatNumber(shown)}${EMOJI.energy})` : "";
     const bounty = apart && row.bonusPoints > 0 ? ` (+${formatNumber(row.bonusPoints)}${EMOJI.glove})` : "";
-    return `${prefix} ${playerName(row.user).replace(/[\r\n]+/g, " ")}${placement}${bounty}`;
+    return `${prefix} ${row.names.join(" + ")}${placement}${bounty}`;
   });
   const legend = apart
     ? [`${EMOJI.energy} — рейтинговые очки за место`, `${EMOJI.glove} — бонусные очки за выбивания`]
-    : [`${EMOJI.energy} — рейтинговые очки`];
+    : [duo ? `${EMOJI.energy} — рейтинговые очки каждому игроку` : `${EMOJI.energy} — рейтинговые очки`];
   const titleEmoji = titleEmojiFor(rating.title).char;
   return [
     EMOJI.star.repeat(5), "", `${titleEmoji} ${rating.title.toUpperCase()} ${titleEmoji}`, "", ...lines,

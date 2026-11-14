@@ -927,7 +927,7 @@ export function ParticipantsPage() {
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {awards.map((award) => (
                   <span key={award.place} className="shrink-0 rounded-[0.55rem] border border-white/10 bg-white/5 px-3 py-2 text-xs font-black">
-                    {award.place} место · {award.percent}% · {award.points.toLocaleString("ru-RU")}
+                    {award.place} место · {award.percent}% · {award.points.toLocaleString("ru-RU")}{isDuoTournament ? ` (по ${Math.round(award.points / 2).toLocaleString("ru-RU")})` : ""}
                   </span>
                 ))}
               </div>
@@ -1003,7 +1003,10 @@ export function ParticipantsPage() {
               const draft = finishPlaceDraft[item.id];
               const saved = item.finishPlace ? String(item.finishPlace) : "";
               const editable = item.liveStatus === "ELIMINATED" && !hasMechanics;
-              const points = item.finishPlace ? pointsByPlace.get(item.finishPlace) : undefined;
+              const placePoints = item.finishPlace ? pointsByPlace.get(item.finishPlace) : undefined;
+              // FLOP DUO: the two partners of a team split the points of their place.
+              const sharedPlace = isDuoTournament && Boolean(item.finishPlace) && new Set(participants.filter((other) => other.finishPlace === item.finishPlace).map((other) => other.userId)).size > 1;
+              const points = placePoints !== undefined && sharedPlace ? Math.round(placePoints / 2) : placePoints;
               return (
                 <div key={item.id} className="app-panel flex items-center gap-2 p-2">
                   {editable ? (

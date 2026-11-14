@@ -177,7 +177,7 @@ export async function applyTournamentRatingResults(
     const userIds = new Set<string>();
     const registrationToUser = new Map(tournament.registrations.map((item) => [item.id, item.userId]));
     const activeUserIds = new Set(tournament.registrations.map((item) => item.userId));
-    // FLOP DUO: the two partners of a team share one place and each gets the full points of that place.
+    // FLOP DUO: the two partners of a team share one place and split the points of that place.
     const duoPairs = isDuoTournament(tournament.title) ? await activePairs(tx, tournamentId) : [];
     const resolvedInputs = inputs.map((input) => ({ input, userId: input.registrationId ? registrationToUser.get(input.registrationId) : input.userId }));
     const bestPlaceByUser = new Map<string, number>();
@@ -221,6 +221,11 @@ export async function applyTournamentRatingResults(
         chipLeaderBonus: 0
       }];
     });
+
+    // The points of a place are shared between the two partners of a team; a team of one keeps all of them.
+    for (const result of nextResults) {
+      if ((placeHolders.get(result.place) ?? []).length === 2) result.points = Math.round(result.points / 2);
+    }
 
     if (tournament.mechanics) {
       const winner = await tx.registration.findFirst({ where: { tournamentId, status: "ACTIVE", liveStatus: "IN_GAME", checkedInAt: { not: null } } });
