@@ -24,6 +24,7 @@ import { api } from "../../lib/api";
 import { formatBarnaulDateTime, formatBarnaulShortDateTime } from "../../lib/barnaulDate";
 import { useToast } from "../../components/Toast";
 import { boosterStackForEntry, isBoosterTournament } from "../../lib/tournamentRules";
+import { ChipLeaderPanel } from "./ChipLeaderPanel";
 import { DuoTeamsPanel } from "./DuoTeamsPanel";
 import type { Registration } from "../../types";
 
@@ -560,6 +561,7 @@ export function ParticipantsPage() {
       {hasMechanics && <Link className="app-button-primary flex items-center justify-center" to={`/admin/tournaments/${id}/devil`}>DEVIL CONTROL · Halloween-механики</Link>}
 
       {liveState?.tournament.title === "FLOP DUO 2x2" && <DuoTeamsPanel tournamentId={id} />}
+      {isChipLeaderTournament && <ChipLeaderPanel tournamentId={id} players={inGameParticipants} />}
 
       <div className="rating-scope-tabs admin-tabs" role="tablist" aria-label="Разделы страницы участников">
         {tabs.map(([value, label]) => (

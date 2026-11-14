@@ -91,6 +91,7 @@ model Tournament {
   registrations          Registration[]
   ratingResults          TournamentRatingResult[]
   chipLeaderAward        TournamentChipLeaderAward?
+  chipLeaderMarks        TournamentChipLeaderMark[]
   knockouts              Knockout[]
   mechanics              Json?
   blindLevelIndex        Int                        @default(0)
@@ -153,6 +154,7 @@ model Registration {
   status                 RegistrationStatus    @default(ACTIVE)
   liveStatus             ParticipantLiveStatus @default(IN_GAME)
   checkInToken           String                @unique @default(uuid())
+  chipLeaderMarks        TournamentChipLeaderMark[]
   checkedInAt            DateTime?
   tableNumber            Int?
   seatNumber             Int?
@@ -217,6 +219,20 @@ model TournamentRatingResult {
   @@unique([tournamentId, place])
   @@unique([tournamentId, userId])
   @@index([userId])
+}
+
+// Live chip leader after break 1 or 2 (breakNumber 1|2); one row per break, replaced when the leader changes.
+model TournamentChipLeaderMark {
+  tournamentId   String
+  breakNumber    Int
+  registrationId String
+  tournament     Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@id([tournamentId, breakNumber])
+  @@index([registrationId])
 }
 
 model TournamentChipLeaderAward {

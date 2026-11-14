@@ -208,3 +208,5 @@ export type DuoState = {
   teams: { id: string; players: DuoPlayer[]; cards: DuoCards }[];
   solo: DuoPlayer[];
 };
+
+export type ChipLeaderMark = { breakNumber: 1 | 2; registrationId: string; userId: string; name: string; markedAt: string };

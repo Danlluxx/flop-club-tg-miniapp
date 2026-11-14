@@ -1,6 +1,7 @@
 import type {
   ClubAward,
   DevilState,
+  ChipLeaderMark,
   DuoCardType,
   DuoPlayerState,
   DuoState,
@@ -277,6 +278,11 @@ export const api = {
   duoPlayerState: (tournamentId: string) => request<DuoPlayerState>(`/api/tournaments/${tournamentId}/duo`),
   duoPlayCard: (tournamentId: string, card: DuoCardType) =>
     request<DuoPlayerState>(`/api/tournaments/${tournamentId}/duo/cards/${card}`, { method: "POST", body: "{}" }),
+  chipLeaderMarks: (tournamentId: string) => request<ChipLeaderMark[]>(`/api/admin/tournaments/${tournamentId}/chip-leader-marks`),
+  setChipLeaderMark: (tournamentId: string, breakNumber: number, registrationId: string) =>
+    request<ChipLeaderMark[]>(`/api/admin/tournaments/${tournamentId}/chip-leader-marks/${breakNumber}`, { method: "PUT", body: JSON.stringify({ registrationId }) }),
+  clearChipLeaderMark: (tournamentId: string, breakNumber: number) =>
+    request<ChipLeaderMark[]>(`/api/admin/tournaments/${tournamentId}/chip-leader-marks/${breakNumber}`, { method: "DELETE" }),
   duoState: (tournamentId: string) => request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo`),
   duoPair: (tournamentId: string, userIds: string[]) =>
     request<DuoState>(`/api/admin/tournaments/${tournamentId}/duo/pairs`, { method: "POST", body: JSON.stringify({ userIds }) }),

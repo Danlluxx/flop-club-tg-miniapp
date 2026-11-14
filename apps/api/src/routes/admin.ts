@@ -20,6 +20,7 @@ import { buildGameDayRatingWorkbook } from "../services/dayReport.js";
 import { dateKey } from "../services/tournamentSchedule.js";
 import { getTournamentRatingText, publishTournamentRatingResults } from "../services/telegramRatingResults.js";
 import { issueDevilAddOn, removeDevilAddOn } from "../services/devilDeal.js";
+import { chipLeaderMarks, clearChipLeaderMark, parseBreakNumber, setChipLeaderMark } from "../services/chipLeaderMarks.js";
 import { createPair, drawPairs, duoState, mergeTeams, removePair } from "../services/duoTeams.js";
 
 export const adminRouter = express.Router();
@@ -318,6 +319,33 @@ adminRouter.post("/tournaments/:id/live/final-table", async (req, res, next) => 
   try {
     const state = await formFinalTable(req.params.id);
     res.json(state);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const chipLeaderMarkSchema = z.object({ registrationId: z.string().min(1) });
+
+adminRouter.get("/tournaments/:id/chip-leader-marks", async (req, res, next) => {
+  try {
+    res.json(await chipLeaderMarks(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.put("/tournaments/:id/chip-leader-marks/:breakNumber", async (req, res, next) => {
+  try {
+    const payload = chipLeaderMarkSchema.parse(req.body);
+    res.json(await setChipLeaderMark(req.params.id, parseBreakNumber(req.params.breakNumber), payload.registrationId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.delete("/tournaments/:id/chip-leader-marks/:breakNumber", async (req, res, next) => {
+  try {
+    res.json(await clearChipLeaderMark(req.params.id, parseBreakNumber(req.params.breakNumber)));
   } catch (error) {
     next(error);
   }
