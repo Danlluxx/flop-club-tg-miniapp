@@ -197,7 +197,8 @@ export function ParticipantsPage() {
   const canFormFinal = inGameParticipants.length >= 2 && inGameParticipants.length <= 9;
   // FLOP DUO: a merged team counts as one participant, so the places are taken from the number of teams.
   const duoMergedTeams = isDuoTournament ? duoInfo?.mergedTeams ?? 0 : 0;
-  const actualEntries = Math.max(0, participants.filter((item) => item.checkedInAt).length - duoMergedTeams);
+  // The rating share (30%) counts every entry: the first one and each re-entry.
+  const actualEntries = Math.max(0, participants.filter((item) => item.checkedInAt).reduce((sum, item) => sum + Math.max(1, item.entryNumber), 0) - duoMergedTeams);
   const awards = ratingInfo?.awards ?? [];
   const pointsByPlace = new Map(awards.map((award) => [award.place, award.points]));
   function bountyOf(item: Registration) {
@@ -542,7 +543,7 @@ export function ParticipantsPage() {
     },
     rating: {
       title: "Начислить рейтинг?",
-      body: `Заполнено призовых мест: ${ratedPlayersCount} из ${awards.length}, расчёт на ${entriesCount || data?.length || 1} участников. Итоги уйдут в канал, если ещё не публиковались.`,
+      body: `Заполнено призовых мест: ${ratedPlayersCount} из ${awards.length}, расчёт на ${entriesCount || data?.length || 1} входов. Итоги уйдут в канал, если ещё не публиковались.`,
       action: "Начислить"
     }
   }[pendingConfirm.kind];
@@ -892,7 +893,7 @@ export function ParticipantsPage() {
 
             <div className="grid grid-cols-[1fr_auto] items-end gap-3">
               <label className="space-y-1">
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Участники для рейтинга</span>
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Входы для рейтинга</span>
                 <input
                   className="w-full rounded-[0.75rem] border border-white/10 bg-white/5 px-3 py-3 text-white outline-none focus:border-rose-400"
                   type="number"
@@ -919,7 +920,7 @@ export function ParticipantsPage() {
                   setEntriesCount(String(actualEntries));
                 }}
               >
-                {duoMergedTeams ? `Участников (команда = один): ${actualEntries}. Подставить` : `Входов по факту: ${actualEntries}. Подставить`}
+                {duoMergedTeams ? `Входов (команда = один): ${actualEntries}. Подставить` : `Входов по факту (с re-entry): ${actualEntries}. Подставить`}
               </button>
             ) : null}
 

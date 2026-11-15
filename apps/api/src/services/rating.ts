@@ -152,7 +152,7 @@ export async function applyTournamentRatingResults(
         chipLeaderAward: true,
         registrations: {
           where: { status: "ACTIVE" },
-          select: { id: true, userId: true }
+          select: { id: true, userId: true, entryNumber: true }
         }
       }
     });
@@ -170,7 +170,9 @@ export async function applyTournamentRatingResults(
       throw new AppError(400, "Select the chip leader", "CHIP_LEADER_REQUIRED");
     }
 
-    const effectiveEntriesCount = entriesCount ?? Math.max(tournament.registrations.length, inputs.length);
+    // Every entry counts, re-entries included.
+    const allEntries = tournament.registrations.reduce((sum, item) => sum + Math.max(1, item.entryNumber), 0);
+    const effectiveEntriesCount = entriesCount ?? Math.max(allEntries, inputs.length);
     const awards = getRatingAwards(tournament.ratingPool, effectiveEntriesCount);
     const maxPlace = awards.length;
     const placeHolders = new Map<number, string[]>();
