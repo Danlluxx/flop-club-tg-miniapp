@@ -47,7 +47,9 @@ function RevenueHero({ data }: { data: AdminAnalytics }) {
   const parts = [
     { key: "buy-in", label: "Входы", count: summary.visits - summary.staffVisits, value: summary.buyInRevenue },
     { key: "add-on", label: "Add-on", count: summary.addOns, value: summary.addOnRevenue },
-    { key: "re-entry", label: "Re-entry", count: summary.reEntries, value: summary.reEntryRevenue }
+    { key: "re-entry", label: "Re-entry", count: summary.reEntries, value: summary.reEntryRevenue },
+    { key: "free", label: "Бесплатные входы", count: summary.staffVisits, value: 0 },
+    { key: "staff-re-entry", label: "Re-entry сотрудников", count: summary.staffReEntries, value: 0, valueLabel: "входят в Re-entry" }
   ];
   return (
     <div className="app-panel space-y-4 p-4">
@@ -71,7 +73,7 @@ function RevenueHero({ data }: { data: AdminAnalytics }) {
           <div key={part.key} className="flex items-center gap-2 text-sm">
             <span className={`analytics-dot analytics-part-${part.key}`} aria-hidden="true" />
             <span className="min-w-0 flex-1 font-semibold text-slate-300">{part.label} · {part.count}</span>
-            <span className="font-bold text-white">{formatRubles(part.value)}</span>
+            <span className={part.valueLabel ? "text-xs font-semibold text-slate-500" : "font-bold text-white"}>{part.valueLabel ?? formatRubles(part.value)}</span>
           </div>
         ))}
       </div>
@@ -165,6 +167,7 @@ function TournamentRow({ item, defaultOpen = false }: { item: AdminAnalytics["to
           <p className="flex justify-between gap-3"><span>Входы: {item.players - item.staffPlayers} × {formatRubles(item.buyIn)}</span><b className="text-white">{formatRubles(item.buyInRevenue)}</b></p>
           {item.staffPlayers > 0 && <p className="flex justify-between gap-3"><span>Сотрудники, первый вход: {item.staffPlayers}</span><b className="text-white">{formatRubles(0)}</b></p>}
           <p className="flex justify-between gap-3"><span>Re-entry: {item.reEntries} × {formatRubles(item.reEntry)}</span><b className="text-white">{formatRubles(item.reEntryRevenue)}</b></p>
+          {item.staffReEntries > 0 && <p className="flex justify-between gap-3"><span>Из них re-entry сотрудников: {item.staffReEntries}</span><b className="text-slate-500">{formatRubles(item.staffReEntries * item.reEntry)}</b></p>}
           <p className="flex justify-between gap-3"><span>Add-on: {item.addOns} × {formatRubles(item.addOnPrice)}</span><b className="text-white">{formatRubles(item.addOnRevenue)}</b></p>
           <p className="flex justify-between gap-3"><span>Записались, но не пришли</span><b className="text-white">{item.registered - item.players}</b></p>
           <Link to={`/admin/tournaments/${item.id}/participants`} className="tap mt-2 flex min-h-10 items-center justify-between rounded-[0.75rem] bg-white/8 px-3 text-xs font-black text-white">

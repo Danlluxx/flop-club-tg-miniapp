@@ -521,6 +521,8 @@ html.soft .analytics-revenue-grid {
 html.soft .analytics-part-buy-in { background: #ef4a60; }
 html.soft .analytics-part-re-entry { background: #c4851a; }
 html.soft .analytics-part-add-on { background: #7d72f2; }
+html.soft .analytics-part-free { background: #3fae7a; }
+html.soft .analytics-part-staff-re-entry { background: #2f8f9d; }
 
 html.soft .analytics-stack {
   display: flex;

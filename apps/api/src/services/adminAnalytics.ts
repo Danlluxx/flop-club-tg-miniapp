@@ -71,6 +71,7 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
   const players = entries.size;
   const totalEntries = [...entries.values()].reduce((sum, count) => sum + count, 0);
   const reEntries = totalEntries - players;
+  const staffReEntries = [...staff].reduce((sum, userId) => sum + ((entries.get(userId) ?? 1) - 1), 0);
   const addOns = [...addOnsByUser.values()].reduce((sum, count) => sum + count, 0);
   const buyInRevenue = (players - staff.size) * tournament.buyIn;
   const reEntryRevenue = reEntries * tournament.reEntry;
@@ -81,6 +82,7 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
     staffPlayers: staff.size,
     entries: totalEntries,
     reEntries,
+    staffReEntries,
     addOns,
     registered: new Set(tournament.registrations.map((registration) => registration.userId)).size,
     buyInRevenue,
@@ -122,6 +124,7 @@ function summarize(held: HeldTournament[], firstVisit: Map<string, string>, rang
     staffVisits: total((figures) => figures.staffPlayers),
     entries: total((figures) => figures.entries),
     reEntries: total((figures) => figures.reEntries),
+    staffReEntries: total((figures) => figures.staffReEntries),
     addOns: total((figures) => figures.addOns),
     registered,
     noShows: registered - visits,
@@ -238,6 +241,7 @@ export function buildAdminAnalytics(tournaments: AnalyticsTournament[], period: 
       players: item.figures.players,
       staffPlayers: item.figures.staffPlayers,
       reEntries: item.figures.reEntries,
+      staffReEntries: item.figures.staffReEntries,
       addOns: item.figures.addOns,
       registered: item.figures.registered,
       capacity: item.maxParticipants,

@@ -75,6 +75,7 @@ type AnalyticsSummary = {
   staffVisits: number;
   entries: number;
   reEntries: number;
+  staffReEntries: number;
   addOns: number;
   registered: number;
   noShows: number;
@@ -107,6 +108,7 @@ export type AdminAnalytics = {
     players: number;
     staffPlayers: number;
     reEntries: number;
+    staffReEntries: number;
     addOns: number;
     registered: number;
     capacity: number;
