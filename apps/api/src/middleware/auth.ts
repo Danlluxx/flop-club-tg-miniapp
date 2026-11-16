@@ -40,11 +40,27 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
-// Revenue is for the club owner only: other admins run tournaments but must not see the money.
+// Revenue is for the club owner and the accounts they trust: other admins run tournaments but must not see the money.
+// Salary data (the payroll table, rates, pay per employee) stays with the owner alone.
 const ANALYTICS_OWNER_USERNAME = "danlluxx";
+const ANALYTICS_VIEWER_USERNAMES = new Set([ANALYTICS_OWNER_USERNAME, "rrrrrr55555588"]);
+
+const normalizeUsername = (username?: string | null) => username?.trim().replace(/^@/, "").toLowerCase() ?? "";
 
 export function isAnalyticsOwner(username?: string | null) {
-  return username?.trim().replace(/^@/, "").toLowerCase() === ANALYTICS_OWNER_USERNAME;
+  return normalizeUsername(username) === ANALYTICS_OWNER_USERNAME;
+}
+
+export function isAnalyticsViewer(username?: string | null) {
+  return ANALYTICS_VIEWER_USERNAMES.has(normalizeUsername(username));
+}
+
+export function requireAnalyticsViewer(req: Request, _res: Response, next: NextFunction) {
+  if (!isAnalyticsViewer(req.user?.username)) {
+    next(new AppError(403, "Analytics access required", "ANALYTICS_ACCESS_REQUIRED"));
+    return;
+  }
+  next();
 }
 
 export function requireAnalyticsOwner(req: Request, _res: Response, next: NextFunction) {

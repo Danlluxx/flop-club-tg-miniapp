@@ -254,7 +254,7 @@ export const api = {
   myStats: () => request<PlayerStats>("/api/me/stats"),
   myAwards: () => request<ClubAward[]>("/api/me/awards"),
   stats: () => request<AdminStats>("/api/admin/stats"),
-  analyticsAccess: () => request<{ allowed: boolean }>("/api/admin/analytics/access"),
+  analyticsAccess: () => request<{ allowed: boolean; owner: boolean }>("/api/admin/analytics/access"),
   analytics: (period: AnalyticsPeriod, anchor?: string) =>
     request<AdminAnalytics>(`/api/admin/analytics?period=${period}${anchor ? `&anchor=${anchor}` : ""}`),
   participants: (id: string) => request<Registration[]>(`/api/tournaments/${id}/participants`),

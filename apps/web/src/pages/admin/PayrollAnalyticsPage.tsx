@@ -38,7 +38,7 @@ export function PayrollAnalyticsPage() {
   const analytics = useQuery({
     queryKey: ["admin", "payroll", "analytics", period, date ?? "today", withFines],
     queryFn: () => api.payrollAnalytics(period, date, withFines),
-    enabled: access.data?.allowed === true,
+    enabled: access.data?.owner === true,
     placeholderData: (previous) => previous
   });
   const data = analytics.data;
@@ -51,9 +51,9 @@ export function PayrollAnalyticsPage() {
       </Link>
       <h2 className="page-title text-[2.4rem]">Аналитика смен</h2>
 
-      {access.data && !access.data.allowed && <div className="app-panel p-5 text-sm font-semibold text-slate-400">Раздел доступен только владельцу.</div>}
+      {access.data && !access.data.owner && <div className="app-panel p-5 text-sm font-semibold text-slate-400">Раздел доступен только владельцу.</div>}
 
-      {access.data?.allowed && (
+      {access.data?.owner && (
         <>
           <div className="grid grid-cols-3 gap-2">
             {PERIODS.map((item) => (

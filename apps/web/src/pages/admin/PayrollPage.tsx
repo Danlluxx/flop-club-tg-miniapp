@@ -30,7 +30,7 @@ export function PayrollPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const access = useQuery({ queryKey: ["admin", "analytics-access"], queryFn: api.analyticsAccess });
-  const isOwner = Boolean(access.data?.allowed);
+  const isOwner = Boolean(access.data?.owner);
   const fileInput = useRef<HTMLInputElement>(null);
   const [tournamentId, setTournamentId] = useState("");
   const [editing, setEditing] = useState<string | null>(null);

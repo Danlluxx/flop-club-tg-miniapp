@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
-import { isAnalyticsOwner, requireAdmin, requireAnalyticsOwner, requireAuth } from "../middleware/auth.js";
+import { isAnalyticsOwner, isAnalyticsViewer, requireAdmin, requireAnalyticsViewer, requireAuth } from "../middleware/auth.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { registerForTournament } from "../services/tournaments.js";
 import { applyTournamentRatingResults, getRatingAwards } from "../services/rating.js";
@@ -32,10 +32,10 @@ const analyticsQuerySchema = z.object({
 });
 
 adminRouter.get("/analytics/access", (req, res) => {
-  res.json({ allowed: isAnalyticsOwner(req.user?.username) });
+  res.json({ allowed: isAnalyticsViewer(req.user?.username), owner: isAnalyticsOwner(req.user?.username) });
 });
 
-adminRouter.get("/analytics", requireAnalyticsOwner, async (req, res, next) => {
+adminRouter.get("/analytics", requireAnalyticsViewer, async (req, res, next) => {
   try {
     const query = analyticsQuerySchema.parse(req.query);
     const today = dateKey(new Date());
