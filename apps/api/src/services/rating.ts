@@ -32,7 +32,7 @@ export const RATING_POOLS: Record<string, number> = {
 export const RATING_TOURNAMENTS = Object.keys(RATING_POOLS);
 
 const RATING_WINNERS_SHARE = 0.3;
-const MAX_RATING_PLACES = 10;
+const MAX_RATING_PLACES = 16;
 
 export const RATING_DISTRIBUTIONS: Record<number, number[]> = {
   1: [100],
@@ -44,7 +44,13 @@ export const RATING_DISTRIBUTIONS: Record<number, number[]> = {
   7: [33, 22, 15, 10, 8, 7, 5],
   8: [30, 20, 14, 10, 8, 7, 6, 5],
   9: [28, 19, 13, 10, 8, 7, 6, 5, 4],
-  10: [26, 18, 13, 10, 8, 7, 6, 5, 4, 3]
+  10: [26, 18, 13, 10, 8, 7, 6, 5, 4, 3],
+  11: [24, 17, 12, 9, 8, 7, 6, 5, 4, 4, 4],
+  12: [23, 16, 12, 9, 8, 7, 6, 5, 4, 4, 3, 3],
+  13: [22, 16, 11, 9, 7, 6, 6, 5, 4, 4, 4, 3, 3],
+  14: [22, 15, 11, 9, 7, 6, 5, 5, 4, 4, 3, 3, 3, 3],
+  15: [22, 15, 11, 8, 7, 6, 5, 4, 4, 3, 3, 3, 3, 3, 3],
+  16: [22, 15, 11, 9, 7, 6, 5, 4, 4, 3, 3, 3, 2, 2, 2, 2]
 };
 
 export type RatingResultInput = {
@@ -152,7 +158,7 @@ export async function applyTournamentRatingResults(
         chipLeaderAward: true,
         registrations: {
           where: { status: "ACTIVE" },
-          select: { id: true, userId: true, entryNumber: true }
+          select: { id: true, userId: true }
         }
       }
     });
@@ -170,9 +176,7 @@ export async function applyTournamentRatingResults(
       throw new AppError(400, "Select the chip leader", "CHIP_LEADER_REQUIRED");
     }
 
-    // Every entry counts, re-entries included.
-    const allEntries = tournament.registrations.reduce((sum, item) => sum + Math.max(1, item.entryNumber), 0);
-    const effectiveEntriesCount = entriesCount ?? Math.max(allEntries, inputs.length);
+    const effectiveEntriesCount = entriesCount ?? Math.max(tournament.registrations.length, inputs.length);
     const awards = getRatingAwards(tournament.ratingPool, effectiveEntriesCount);
     const maxPlace = awards.length;
     const placeHolders = new Map<number, string[]>();
