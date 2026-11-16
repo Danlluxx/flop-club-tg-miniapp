@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma, RegistrationStatus, TournamentProfile, TournamentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { TOURNAMENT_MAX_PARTICIPANTS, cancelRegistration, getTournament, registerForTournament, tournamentInclude } from "../services/tournaments.js";
+import { TOURNAMENT_MAX_PARTICIPANTS, cancelRegistration, getTournament, overflowRegistrationIds, registerForTournament, tournamentInclude } from "../services/tournaments.js";
 import { ensureScheduledTournaments } from "../services/tournamentSchedule.js";
 import { AppError, notFound } from "../utils/errors.js";
 import { duoPlayerState, isDuoCardType, playDuoCard } from "../services/duoTeams.js";
@@ -82,7 +82,8 @@ tournamentsRouter.get("/:id", requireAuth, async (req, res, next) => {
     const myRegistration = await prisma.registration.findFirst({
       where: { tournamentId: id, userId: req.user!.id, status: "ACTIVE", liveStatus: "IN_GAME" }
     });
-    res.json({ ...tournament, myRegistration });
+    const overflow = myRegistration ? await overflowRegistrationIds(prisma, id, tournament.maxParticipants) : null;
+    res.json({ ...tournament, myRegistration: myRegistration ? { ...myRegistration, overflow: overflow!.has(myRegistration.id) } : null });
   } catch (error) {
     next(error);
   }
@@ -243,7 +244,9 @@ tournamentsRouter.get("/:id/participants", requireAuth, requireAdmin, async (req
     });
     if (!participants) throw notFound("Participants");
     const tournament = await getTournament(id);
-    res.json(tournament.mechanics ? participants.filter((r, _, all) => !all.some(x => x.userId === r.userId && x.entryNumber > r.entryNumber)) : participants);
+    const overflow = await overflowRegistrationIds(prisma, id, tournament.maxParticipants);
+    const flagged = participants.map((r) => ({ ...r, overflow: overflow.has(r.id) }));
+    res.json(tournament.mechanics ? flagged.filter((r, _, all) => !all.some(x => x.userId === r.userId && x.entryNumber > r.entryNumber)) : flagged);
   } catch (error) {
     next(error);
   }

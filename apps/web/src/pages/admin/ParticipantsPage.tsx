@@ -61,6 +61,7 @@ function participantName(item: Registration) {
 function participantState(item: Registration) {
   if (item.liveStatus === "ELIMINATED") return { label: "выбыл", className: "bg-slate-500/15 text-slate-400" };
   if (item.checkedInAt) return { label: "в игре", className: "bg-emerald/15 text-emerald" };
+  if (item.overflow) return { label: "после лимита", className: "bg-rose-400/15 text-rose-200" };
   return { label: "записан", className: "bg-amber-300/15 text-amber-200" };
 }
 

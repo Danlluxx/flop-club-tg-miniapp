@@ -42,13 +42,8 @@ export async function registerForTournament(userId: string, tournamentId: string
       throw new AppError(409, "Late registration is closed", "LATE_REGISTRATION_CLOSED");
     }
 
-    const activeCount = await tx.registration.count({
-      where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" }
-    });
-    const seatLimit = Math.min(tournament.maxParticipants, TOURNAMENT_MAX_PARTICIPANTS);
-    if (activeCount >= seatLimit) {
-      throw new AppError(409, "Tournament is full", "TOURNAMENT_FULL");
-    }
+    // Sign-ups beyond the seat limit are accepted (e.g. 56/50); they are flagged via overflowRegistrationIds
+    // so the club seats everyone who registered within the limit first.
 
     const existing = await tx.registration.findFirst({
       where: { userId, tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" }
@@ -84,6 +79,25 @@ export async function registerForTournament(userId: string, tournamentId: string
   });
   if (createdRegistrationId) notifyRegistrationCreated(createdRegistrationId);
   return result;
+}
+
+/** Registrations beyond the seat limit, in sign-up order. Players already checked in keep their seat. */
+export async function overflowRegistrationIds(
+  client: Prisma.TransactionClient | typeof prisma,
+  tournamentId: string,
+  maxParticipants: number
+) {
+  const seatLimit = Math.min(maxParticipants, TOURNAMENT_MAX_PARTICIPANTS);
+  const registrations = await client.registration.findMany({
+    where: { tournamentId, status: RegistrationStatus.ACTIVE, liveStatus: "IN_GAME" },
+    select: { id: true, checkedInAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+  });
+  const overflow = new Set<string>();
+  registrations.forEach((registration, index) => {
+    if (index >= seatLimit && !registration.checkedInAt) overflow.add(registration.id);
+  });
+  return overflow;
 }
 
 export async function assignNextAvailableSeat(

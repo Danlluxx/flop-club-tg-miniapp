@@ -11,9 +11,7 @@ const money = new Intl.NumberFormat("ru-RU");
 
 export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const registered = tournament._count.registrations;
-  const activeSeats = tournament.activeSeatsCount ?? registered;
   const fill = Math.min(100, Math.round((registered / tournament.maxParticipants) * 100));
-  const isFull = activeSeats >= tournament.maxParticipants;
   const reEntryLabel = tournament.profile === "FREEZE" ? "Без re-entry" : `Re-entry ${money.format(tournament.reEntry)} ₽`;
 
   return (
@@ -32,7 +30,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
           <div className="flex flex-wrap gap-2">
             <span className="tournament-pill">
               <UserRound className="h-4 w-4" />
-              {isFull ? "Sold out" : `${registered}/${tournament.maxParticipants} мест`}
+              {`${registered}/${tournament.maxParticipants} мест`}
             </span>
             <span className="tournament-pill">
               <CalendarClock className="h-4 w-4" />

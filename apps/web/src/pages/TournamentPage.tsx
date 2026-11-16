@@ -79,7 +79,7 @@ export function TournamentPage() {
   const isRegistered = Boolean(data.myRegistration);
   const activeSeats = data.activeSeatsCount ?? data._count.registrations;
   const isFull = activeSeats >= data.maxParticipants;
-  const canRegister = (data.registrationOpen ?? data.status === "OPEN") && !isFull;
+  const canRegister = data.registrationOpen ?? data.status === "OPEN";
   const baseRule = tournamentRuleFor(data.title, data.buyIn);
   const m = data.mechanics;
   const rule = m ? { ...baseRule, features: [
@@ -216,6 +216,12 @@ export function TournamentPage() {
         </div>
       </div>
 
+      {data.myRegistration?.overflow ? (
+        <div className="app-panel p-4 text-sm font-bold text-amber-200">
+          Вы записаны после {data.maxParticipants}-го места. Сначала рассаживаем тех, кто записался раньше, — подойдите к администратору перед стартом.
+        </div>
+      ) : null}
+
       {data.myRegistration ? <CheckInQr registration={data.myRegistration} /> : null}
 
       {isRegistered && !data.myRegistration?.checkedInAt ? (
@@ -228,7 +234,7 @@ export function TournamentPage() {
           disabled={!canRegister || register.isPending}
           className="app-button-primary tap w-full disabled:cursor-not-allowed disabled:opacity-45"
         >
-          {isFull ? "Турнир заполнен" : canRegister ? "Записаться" : "Регистрация закрыта"}
+          {canRegister ? (isFull ? "Записаться в очередь после лимита" : "Записаться") : "Регистрация закрыта"}
         </button>
       ) : null}
     </section>
