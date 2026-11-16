@@ -385,6 +385,23 @@ function regularTournamentTitleForDate(dateKeyValue: string) {
   return legacyCycle[cycleOffset];
 }
 
+// Every Monday from this date is a free-entry Booster; a date-specific entry in specialEvents or titleByDate wins.
+const mondayBoosterFrom = "2026-11-16";
+const mondayBoosterEvent = {
+  title: "FLOP BOOSTER RE-ENTRY",
+  buyIn: 0,
+  reEntry: 500,
+  ratingPool: ratingPools["FLOP BOOSTER RE-ENTRY"],
+  addOnEnabled: true,
+  addOnPrice: 1000,
+  addOnChips: 200000
+};
+
+function mondayBoosterFor(dateKeyValue: string) {
+  if (dateKeyValue < mondayBoosterFrom || titleByDate[dateKeyValue]) return undefined;
+  return utcDay(dateKeyValue).getUTCDay() === 1 ? mondayBoosterEvent : undefined;
+}
+
 function ratingSeriesMonthForDate(dateKeyValue: string) {
   if (dateKeyValue >= "2026-08-01" && dateKeyValue <= "2026-08-31") return "2026-09";
   return undefined;
@@ -392,7 +409,7 @@ function ratingSeriesMonthForDate(dateKeyValue: string) {
 
 export function scheduledTournamentForDate(dateKeyValue: string): Prisma.TournamentCreateManyInput | null {
   const weekdayIndex = mondayIndexFromCycleOffset(daysBetween(baseCycleDate, dateKeyValue));
-  const eventOverride = specialEvents[dateKeyValue];
+  const eventOverride = specialEvents[dateKeyValue] ?? mondayBoosterFor(dateKeyValue);
   const title = eventOverride?.title ?? titleByDate[dateKeyValue] ?? regularTournamentTitleForDate(dateKeyValue);
   if (!title) return null;
 

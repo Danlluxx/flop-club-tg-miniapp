@@ -30,3 +30,17 @@ test("2026-11-11 is a free FLOP BOMB POT with a 200 000 chip add-on", () => {
   assert.equal(t.addOnPrice, 1000);
   assert.equal(t.addOnChips, 200000);
 });
+
+test("every Monday from 2026-11-16 is a free Booster with a 200 000 chip add-on", () => {
+  for (const day of ["2026-11-16", "2026-11-23", "2026-11-30"]) {
+    const t = scheduledTournamentForDate(day);
+    assert.equal(t.title, "FLOP BOOSTER RE-ENTRY");
+    assert.equal(t.buyIn, 0);
+    assert.equal(t.reEntry, 500);
+    assert.equal(t.addOnEnabled, true);
+    assert.equal(t.addOnPrice, 1000);
+    assert.equal(t.addOnChips, 200000);
+  }
+  assert.equal(scheduledTournamentForDate("2026-11-02"), null);
+  assert.notEqual(scheduledTournamentForDate("2026-11-17")?.title, "FLOP BOOSTER RE-ENTRY");
+});

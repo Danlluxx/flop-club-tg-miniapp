@@ -2,6 +2,10 @@
 
 Last updated: 2026-11-06.
 
+## Monday Booster rule (local, not committed, 2026-11-16)
+
+- Every Monday from 2026-11-16 is `FLOP BOOSTER RE-ENTRY`: buy-in 0 (20 000 stack), re-entry 500 (45k/60k/75k/90k), add-on 1000 ₽ / 200 000 chips. Rule `mondayBoosterFor` in `tournamentSchedule.ts`; `specialEvents` / `titleByDate` for a date still win. 2026-11-02 stays a `manual-` row. Today's row (2026-11-16) appears through schedule sync only after the API release. Test in `free-entry-stack.test.mjs`.
+
 ## Смены сотрудников (local, not committed, 2026-11-11)
 
 - Admin screen `/admin/payroll`, bot sends the updated salary xlsx daily. Details: `docs/ai/PAYROLL.md`. Migration `20261111120000_staff_shifts` (new tables only).
