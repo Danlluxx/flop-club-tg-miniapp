@@ -10,7 +10,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/Toast";
 import { DevilDealPanel } from "../components/DevilDealPanel";
 import { DuoCards } from "../components/DuoCards";
-import { formatBarnaulDateTime } from "../lib/barnaulDate";
+import { formatBarnaulDateTime, toBarnaulDateTimeInput } from "../lib/barnaulDate";
 import { CheckInQr } from "../components/CheckInQr";
 import { tournamentEventImage } from "../lib/tournamentAssets";
 import { tournamentLegalNote, tournamentPriceFeatures, tournamentRuleFor } from "../lib/tournamentRules";
@@ -82,6 +82,12 @@ export function TournamentPage() {
   const canRegister = data.registrationOpen ?? data.status === "OPEN";
   const baseRule = tournamentRuleFor(data.title, data.buyIn);
   const m = data.mechanics;
+  const lateRegistrationEndsAt = m?.registrationClosesAt ?? data.lateRegistrationEndsAt ?? new Date(new Date(data.startsAt).getTime() + 3 * 60 * 60 * 1000).toISOString();
+  const lateRegistrationClosesAt = toBarnaulDateTimeInput(lateRegistrationEndsAt);
+  const lateRegistrationDate = lateRegistrationClosesAt.slice(0, 10);
+  const startsDate = toBarnaulDateTimeInput(data.startsAt).slice(0, 10);
+  const lateRegistrationDay = new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Barnaul", day: "numeric", month: "long" }).format(new Date(lateRegistrationEndsAt));
+  const lateRegistrationLabel = `Поздняя регистрация до ${lateRegistrationClosesAt.slice(11)}${lateRegistrationDate === startsDate ? "" : ` ${lateRegistrationDay}`}`;
   const rule = m ? { ...baseRule, features: [
     `Стартовый стек ${m.startingStack.toLocaleString("ru-RU")} фишек`, `Уровни по ${m.blindLevelMinutes} минут`,
     "Re-entry доступны до окончания поздней регистрации",
@@ -184,12 +190,11 @@ export function TournamentPage() {
       </button>
 
       <div className="tournament-rule-stack">
-        {data.description ? (
-          <section className="tournament-rule-section">
-            <h2>О турнире</h2>
-            <p>{data.description}</p>
-          </section>
-        ) : null}
+        <section className="tournament-rule-section">
+          <h2>О турнире</h2>
+          {data.description ? <p>{data.description}</p> : null}
+          <p>{lateRegistrationLabel}</p>
+        </section>
 
         <section className="tournament-rule-section">
           <h2>Где проходит турнир?</h2>
