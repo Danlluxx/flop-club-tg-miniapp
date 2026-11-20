@@ -97,6 +97,7 @@ export function ParticipantsPage() {
   const [tableOpen, setTableOpen] = useState<Record<number, boolean>>({});
   const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
   const [finishPlaceDraft, setFinishPlaceDraft] = useState<Record<string, string>>({});
+  const [mysteryPointsDraft, setMysteryPointsDraft] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const parsedEntriesCount = Number(entriesCount);
@@ -192,7 +193,7 @@ export function ParticipantsPage() {
 
   const inGameParticipants = liveState?.inGame ?? [];
   const hasMechanics = Boolean(liveState?.tournament.mechanics);
-  const isKnockoutTournament = liveState?.tournament.profile === "KNOCKOUT";
+  const isBountyTournament = liveState?.tournament.title.trim().toLowerCase() === "flop bounty";
   const isMysteryKnockout = liveState?.tournament.title.trim().toLowerCase() === "flop mystery knockout";
   const isChipLeaderTournament = liveState?.tournament.title.trim().toLowerCase() === "flop chip leader";
   const reportDate = liveState?.tournament.startsAt ? new Date(liveState.tournament.startsAt).toISOString().slice(0, 10) : "";
@@ -331,6 +332,17 @@ export function ParticipantsPage() {
     onError: (error) => showToast(error.message, "error")
   });
 
+  const updateMysteryPoints = useMutation({
+    mutationFn: ({ registrationId, points }: { registrationId: string; points: number }) =>
+      api.updateMysteryCardPoints(registrationId, points),
+    onSuccess: async (registration) => {
+      showToast("Mystery-бонус сохранён");
+      setMysteryPointsDraft((current) => ({ ...current, [registration.id]: String(registration.mysteryCardPoints) }));
+      await invalidateTournamentLive();
+    },
+    onError: (error) => showToast(error.message, "error")
+  });
+
   const checkInParticipant = useMutation({
     mutationFn: api.adminCheckIn,
     onSuccess: async (registration) => {
@@ -373,7 +385,7 @@ export function ParticipantsPage() {
         .map((item) => ({
           registrationId: item.id,
           place: item.finishPlace!,
-          knockouts: liveState?.tournament.mechanics ? 0 : bountyOf(item)
+          knockouts: liveState?.tournament.mechanics || isMysteryKnockout ? 0 : bountyOf(item)
         }))
         .sort((a, b) => a.place - b.place);
 
@@ -420,7 +432,7 @@ export function ParticipantsPage() {
   }
 
   function renderBountyControl(item: Registration) {
-    if (!isKnockoutTournament || hasMechanics) return null;
+    if (!isBountyTournament || hasMechanics) return null;
     const bounty = bountyOf(item);
     return (
       <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-[0.55rem] bg-amber-300/12 text-xs font-black text-amber-200" aria-label={`Bounty: ${participantName(item)}`}>
@@ -439,6 +451,39 @@ export function ParticipantsPage() {
           onClick={() => updateBounty.mutate({ registrationId: item.id, delta: 1 })}
           aria-label="Добавить bounty"
         >+</button>
+      </div>
+    );
+  }
+
+  function renderMysteryPointsControl(item: Registration) {
+    if (!isMysteryKnockout || item.liveStatus !== "ELIMINATED") return null;
+    const saved = String(item.mysteryCardPoints ?? 0);
+    const draft = mysteryPointsDraft[item.id] ?? saved;
+    const points = Number(draft);
+    const valid = draft.trim() !== "" && Number.isInteger(points) && points >= 0 && points <= 1_000_000;
+    return (
+      <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-[0.55rem] bg-electric/15 text-xs font-black text-electric">
+        <input
+          className="h-full w-24 bg-transparent px-3 text-right font-black text-white outline-none"
+          type="number"
+          min={0}
+          max={1_000_000}
+          step={1}
+          inputMode="numeric"
+          value={draft}
+          onChange={(event) => setMysteryPointsDraft((current) => ({ ...current, [item.id]: event.target.value }))}
+          aria-label={`Mystery-бонус: ${participantName(item)}`}
+        />
+        <span className="pr-2">очк.</span>
+        <button
+          className="tap grid h-full w-10 place-items-center border-l border-white/10 disabled:opacity-30"
+          type="button"
+          disabled={updateMysteryPoints.isPending || !valid || draft === saved}
+          onClick={() => updateMysteryPoints.mutate({ registrationId: item.id, points })}
+          aria-label="Сохранить Mystery-бонус"
+        >
+          <Save className="h-4 w-4" />
+        </button>
       </div>
     );
   }
@@ -537,7 +582,7 @@ export function ParticipantsPage() {
   const confirmCopy = pendingConfirm && {
     eliminate: pendingConfirm.kind === "eliminate" ? {
       title: `${participantName(pendingConfirm.item)} выбыл?`,
-      body: `Игрок получит ${inGameParticipants.length} место и освободит бокс. ${isMysteryKnockout ? "Укажите все очки, которые он заработал с mystery-карточек. " : ""}${canUseReEntry(pendingConfirm.item) ? "Вернуть его в игру можно будет через Re-entry." : "В этом турнире нет re-entry, вернуть его в игру будет нельзя."}`,
+      body: `Игрок получит ${inGameParticipants.length} место и освободит бокс. ${isMysteryKnockout ? "Укажите количество бонусных очков Mystery Knockout. " : ""}${canUseReEntry(pendingConfirm.item) ? "Вернуть его в игру можно будет через Re-entry." : "В этом турнире нет re-entry, вернуть его в игру будет нельзя."}`,
       action: "Игрок выбыл"
     } : null,
     remove: pendingConfirm.kind === "remove" ? {
@@ -735,7 +780,7 @@ export function ParticipantsPage() {
                         ) : null}
                         {isMysteryKnockout && item.liveStatus === "ELIMINATED" ? (
                           <span className="rounded-[0.55rem] bg-electric/15 px-2.5 py-1 text-electric">
-                            Карточки: {item.mysteryCardPoints.toLocaleString("ru-RU")} очков
+                            Mystery-бонус: {item.mysteryCardPoints.toLocaleString("ru-RU")} очков
                           </span>
                         ) : null}
                         {!hasMechanics && item.issuedChips > 0 ? (
@@ -747,6 +792,7 @@ export function ParticipantsPage() {
                         {renderReEntryControl(item)}
                         {renderAddOnControl(item)}
                         {renderBountyControl(item)}
+                        {renderMysteryPointsControl(item)}
                         {isSeated ? (
                           <button
                             type="button"
@@ -1047,11 +1093,12 @@ export function ParticipantsPage() {
                     <p className="truncate text-sm font-bold text-white">{participantName(item)}</p>
                     <p className="text-xs font-semibold text-slate-400">
                       {points ? `${points.toLocaleString("ru-RU")} очков` : "без очков"}
-                      {isMysteryKnockout && item.mysteryCardPoints > 0 ? ` · +${item.mysteryCardPoints.toLocaleString("ru-RU")} с карточек` : ""}
+                      {isMysteryKnockout && item.mysteryCardPoints > 0 ? ` · +${item.mysteryCardPoints.toLocaleString("ru-RU")} Mystery-бонус` : ""}
                       {item.liveStatus === "IN_GAME" ? " · ещё в игре" : ""}
                     </p>
                   </div>
                   {renderBountyControl(item)}
+                  {renderMysteryPointsControl(item)}
                   {draft !== undefined && draft !== saved ? (
                     <button
                       className="tap grid h-10 w-10 shrink-0 place-items-center rounded-[0.75rem] bg-white/8 text-white disabled:opacity-50"
@@ -1084,7 +1131,7 @@ export function ParticipantsPage() {
             <p className="text-sm font-semibold text-slate-400">{confirmCopy.body}</p>
             {pendingConfirm?.kind === "eliminate" && isMysteryKnockout ? (
               <label className="grid gap-1.5">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Очки с карточек</span>
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Бонус Mystery Knockout</span>
                 <input
                   className="min-h-12 w-full rounded-[0.75rem] border border-white/10 bg-black/20 px-3 text-lg font-black text-white outline-none focus:border-rose-400"
                   type="number"
@@ -1094,7 +1141,7 @@ export function ParticipantsPage() {
                   inputMode="numeric"
                   value={eliminationCardPoints}
                   onChange={(event) => setEliminationCardPoints(event.target.value)}
-                  aria-label="Очки с mystery-карточек"
+                  aria-label="Бонусные очки Mystery Knockout"
                   autoFocus
                 />
               </label>

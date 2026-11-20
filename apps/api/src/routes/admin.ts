@@ -228,6 +228,10 @@ const bountySchema = z.object({
   delta: z.union([z.literal(1), z.literal(-1)])
 });
 
+const mysteryCardPointsSchema = z.object({
+  points: z.coerce.number().int().min(0).max(1_000_000)
+});
+
 const checkInSchema = z.object({
   token: z.string().min(8)
 });
@@ -547,6 +551,32 @@ adminRouter.patch("/registrations/:registrationId/bounty", async (req, res, next
     if (!changed.count) throw new AppError(409, "Bounty is already 0", "BOUNTY_ALREADY_ZERO");
     const updated = await prisma.registration.findUniqueOrThrow({ where: { id: registration.id } });
     console.log(`[admin:bounty:update] admin=${req.user!.id} registration=${registration.id} delta=${payload.delta} bounty=${updated.bounty}`);
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.patch("/registrations/:registrationId/mystery-card-points", async (req, res, next) => {
+  try {
+    const payload = mysteryCardPointsSchema.parse(req.body);
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.registrationId },
+      include: { tournament: true }
+    });
+    if (!registration) throw notFound("Registration");
+    if (registration.tournament.title.trim().toLowerCase() !== "flop mystery knockout") {
+      throw new AppError(400, "Mystery bonus is available only for Flop Mystery Knockout", "MYSTERY_POINTS_NOT_ALLOWED");
+    }
+    if (registration.status !== RegistrationStatus.ACTIVE || registration.liveStatus !== "ELIMINATED") {
+      throw new AppError(409, "Mystery bonus can be changed after elimination", "ELIMINATION_REQUIRED");
+    }
+
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { mysteryCardPoints: payload.points }
+    });
+    console.log(`[admin:mystery-points:update] admin=${req.user!.id} registration=${registration.id} points=${updated.mysteryCardPoints}`);
     res.json(updated);
   } catch (error) {
     next(error);

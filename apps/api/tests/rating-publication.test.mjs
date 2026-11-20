@@ -59,7 +59,7 @@ test('bounty template lists placement and bounty points apart', async () => {
   for (const entity of entities) assert.equal(entity.length, 2);
   tournament = original;
 });
-test('mystery knockout lists card points separately from place and bounty points', async () => {
+test('mystery knockout lists its numeric bonus separately and never as bounty', async () => {
   const original = tournament;
   tournament = {
     ...original,
@@ -73,9 +73,10 @@ test('mystery knockout lists card points separately from place and bounty points
     ]
   };
   const text = await getTournamentRatingText('test');
-  assert.match(text, /\u{1F451} - Игрок <&> \(3.300\u26A1\uFE0F\) \(\+2\u{1F94A}\) \(\+700\u{1F3B4}\)/u);
+  assert.match(text, /\u{1F451} - Игрок <&> \(3.300\u26A1\uFE0F\) \(\+700\u{1F3B4}\)/u);
   assert.match(text, /8 - Второй \(\+500\u{1F3B4}\)/u);
-  assert.match(text, /\u{1F3B4} — очки с mystery-карточек$/u);
+  assert.doesNotMatch(text, /\u{1F94A}/u);
+  assert.match(text, /\u{1F3B4} — бонус Mystery Knockout$/u);
   tournament = original;
 });
 test('every listed tournament gets its own premium emoji around the title', async () => {

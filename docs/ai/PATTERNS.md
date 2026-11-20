@@ -48,7 +48,7 @@ A marked re-entry on an eliminated player returns them to the game (`addMarkedRe
 
 Flop Bounty (profile KNOCKOUT, no mechanics) counts bounty as `Registration.bounty`, changed ±1 by `PATCH /api/admin/registrations/:id/bounty` from the player card; eliminations no longer record who knocked out whom. Rating publication turns the counter into 100-point `bounty-fix:` events (`syncBountyPointEvents`). The `Knockout` table and `bountyAdjustment` stay as unread history; migration `20261108120000` copied the old tallies into `bounty`.
 
-Flop Mystery Knockout records the eliminated player's total card points in `Registration.mysteryCardPoints` during the elimination confirmation. Saving rating results synchronizes them into idempotent `mystery-card-points:` events, so placement, bounty and card points remain separate in the channel results.
+Flop Mystery Knockout records the eliminated player's numeric bonus in `Registration.mysteryCardPoints` during the elimination confirmation. It has no bounty counter: saving rating results writes `knockouts = 0` and synchronizes the entered value into idempotent `mystery-card-points:` events, so place points and the Mystery bonus stay separate in channel results.
 
 ## Revenue analytics
 

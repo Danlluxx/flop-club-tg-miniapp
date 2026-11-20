@@ -312,6 +312,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ delta })
     }),
+  updateMysteryCardPoints: (registrationId: string, points: number) =>
+    request<Registration>(`/api/admin/registrations/${registrationId}/mystery-card-points`, {
+      method: "PATCH",
+      body: JSON.stringify({ points })
+    }),
   downloadDayReport: (date: string) =>
     download(`/api/admin/reports/day.xlsx?date=${encodeURIComponent(date)}`, `flop-club-rating-${date}.xlsx`),
   ratingResults: (id: string, entriesCount?: number) =>

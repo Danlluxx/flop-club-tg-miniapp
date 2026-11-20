@@ -12,7 +12,7 @@ function formatNumber(value: number) {
 // (Premium) emoji used in the @FlopClub22 results posts; a list is used one id per occurrence in the text
 // (five stars, crowns for places 1-3). An emoji without an id is sent as the plain character.
 // The full catalogue of the channel's emoji is in docs/ai/PREMIUM_EMOJI.md.
-const BOUNTY_TITLES = new Set(["flop bounty", "flop mystery knockout"]);
+const BOUNTY_TITLES = new Set(["flop bounty"]);
 const EMOJI = { star: "\u{1F31F}", crown: "\u{1F451}", energy: "\u26A1\uFE0F", glove: "\u{1F94A}", cards: "\u{1F3B4}" } as const;
 type EmojiIds = Partial<Record<keyof typeof EMOJI, string | string[]>>;
 export const PREMIUM_EMOJI_IDS: EmojiIds = {
@@ -241,8 +241,9 @@ export async function getTournamentRatingText(tournamentId: string) {
   const rating = await getTournamentRatingRows(tournamentId);
   if (!rating) return null;
 
-  const apart = listsBountyApart(rating.title);
+  const bountyApart = listsBountyApart(rating.title);
   const cardsApart = listsMysteryCardsApart(rating.title);
+  const apart = bountyApart || cardsApart;
   // FLOP DUO: a team is one line, "place - player + player (points each)".
   const duo = isDuoTournament(rating.title);
   const rows = duo
@@ -253,15 +254,15 @@ export async function getTournamentRatingText(tournamentId: string) {
     const prefix = row.place <= 3 ? `${EMOJI.crown} -` : `${row.place} -`;
     const shown = apart ? row.basePoints : row.points ?? 0;
     const placement = shown > 0 ? ` (${formatNumber(shown)}${EMOJI.energy})` : "";
-    const bounty = apart && row.bonusPoints > 0 ? ` (+${formatNumber(row.bonusPoints)}${EMOJI.glove})` : "";
+    const bounty = bountyApart && row.bonusPoints > 0 ? ` (+${formatNumber(row.bonusPoints)}${EMOJI.glove})` : "";
     const cards = cardsApart && row.cardPoints > 0 ? ` (+${formatNumber(row.cardPoints)}${EMOJI.cards})` : "";
     return `${prefix} ${row.names.join(" + ")}${placement}${bounty}${cards}`;
   });
   const legend = apart
     ? [
         `${EMOJI.energy} — рейтинговые очки за место`,
-        `${EMOJI.glove} — бонусные очки за выбивания`,
-        ...(cardsApart ? [`${EMOJI.cards} — очки с mystery-карточек`] : [])
+        ...(bountyApart ? [`${EMOJI.glove} — бонусные очки за выбивания`] : []),
+        ...(cardsApart ? [`${EMOJI.cards} — бонус Mystery Knockout`] : [])
       ]
     : [duo ? `${EMOJI.energy} — рейтинговые очки каждому игроку` : `${EMOJI.energy} — рейтинговые очки`];
   const titleEmoji = titleEmojiFor(rating.title).char;
