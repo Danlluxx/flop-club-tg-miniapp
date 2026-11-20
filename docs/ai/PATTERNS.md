@@ -48,6 +48,8 @@ A marked re-entry on an eliminated player returns them to the game (`addMarkedRe
 
 Flop Bounty (profile KNOCKOUT, no mechanics) counts bounty as `Registration.bounty`, changed ±1 by `PATCH /api/admin/registrations/:id/bounty` from the player card; eliminations no longer record who knocked out whom. Rating publication turns the counter into 100-point `bounty-fix:` events (`syncBountyPointEvents`). The `Knockout` table and `bountyAdjustment` stay as unread history; migration `20261108120000` copied the old tallies into `bounty`.
 
+Flop Mystery Knockout records the eliminated player's total card points in `Registration.mysteryCardPoints` during the elimination confirmation. Saving rating results synchronizes them into idempotent `mystery-card-points:` events, so placement, bounty and card points remain separate in the channel results.
+
 ## Revenue analytics
 
 `apps/api/src/services/adminAnalytics.ts` estimates revenue from marks, not payments: checked-in players × `buyIn`, re-entries × `reEntry`, add-ons × `addOnPrice`, at each tournament's own prices, with no prize deduction. Entries come from `entriesByUser` (shared with the clock). A tournament falls in a period by its Barnaul date; weeks start on Monday.

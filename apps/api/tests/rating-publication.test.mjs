@@ -59,6 +59,25 @@ test('bounty template lists placement and bounty points apart', async () => {
   for (const entity of entities) assert.equal(entity.length, 2);
   tournament = original;
 });
+test('mystery knockout lists card points separately from place and bounty points', async () => {
+  const original = tournament;
+  tournament = {
+    ...original,
+    title: 'Flop Mystery Knockout',
+    ratingResults: [{ userId: '1', user, place: 1, points: 3300, knockouts: 2, chipLeaderBonus: 0 }],
+    registrations: original.registrations,
+    chipLeaderAward: null,
+    gameEvents: [
+      { userId: '1', type: 'MYSTERY_CARD_POINTS', ratingPoints: 700 },
+      { userId: '2', type: 'MYSTERY_CARD_POINTS', ratingPoints: 500 }
+    ]
+  };
+  const text = await getTournamentRatingText('test');
+  assert.match(text, /\u{1F451} - Игрок <&> \(3.300\u26A1\uFE0F\) \(\+2\u{1F94A}\) \(\+700\u{1F3B4}\)/u);
+  assert.match(text, /8 - Второй \(\+500\u{1F3B4}\)/u);
+  assert.match(text, /\u{1F3B4} — очки с mystery-карточек$/u);
+  tournament = original;
+});
 test('every listed tournament gets its own premium emoji around the title', async () => {
   const original = tournament;
   const cases = [['Flop Deep Stack', '\u2660\uFE0F', '5264808337781829580'], ['Flop Phoenix', '\u{1F54A}\uFE0F', '5323549454438010650'],

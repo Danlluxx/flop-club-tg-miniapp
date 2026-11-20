@@ -249,12 +249,17 @@ export async function addMarkedReEntry(registrationId: string) {
 
 export async function recordElimination(
   tournamentId: string,
-  eliminatedRegistrationId: string
+  eliminatedRegistrationId: string,
+  mysteryCardPoints?: number
 ) {
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
     const tournament = await ensureTournamentExists(tx, tournamentId);
     if (tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL для выбивания", "DEVIL_CONTROL_REQUIRED");
+    const isMysteryKnockout = tournament.title.trim().toLowerCase() === "flop mystery knockout";
+    if (isMysteryKnockout && mysteryCardPoints === undefined) {
+      throw new AppError(400, "Укажите очки, полученные с карточек", "MYSTERY_CARD_POINTS_REQUIRED");
+    }
 
     const eliminated = await tx.registration.findUnique({ where: { id: eliminatedRegistrationId } });
     if (!eliminated || eliminated.tournamentId !== tournamentId) throw notFound("Eliminated registration");
@@ -275,6 +280,7 @@ export async function recordElimination(
         liveStatus: "ELIMINATED",
         eliminatedAt: new Date(),
         finishPlace,
+        ...(isMysteryKnockout ? { mysteryCardPoints: mysteryCardPoints ?? 0 } : {}),
         tableNumber: null,
         seatNumber: null
       }
@@ -313,7 +319,7 @@ export async function recordElimination(
 }
 
 async function ensureTournamentExists(tx: Prisma.TransactionClient, tournamentId: string) {
-  const tournament = await tx.tournament.findUnique({ where: { id: tournamentId }, select: { id: true, profile: true, mechanics: true } });
+  const tournament = await tx.tournament.findUnique({ where: { id: tournamentId }, select: { id: true, title: true, profile: true, mechanics: true } });
   if (!tournament) throw notFound("Tournament");
   return tournament;
 }

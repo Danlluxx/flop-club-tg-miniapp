@@ -73,6 +73,7 @@ export type Registration = {
   noShowPenaltyAppliedAt?: string | null;
   noShowPenaltyPoints: number;
   bounty: number;
+  mysteryCardPoints: number;
   /** Signed up after the seat limit was reached: seated only after everyone within the limit. */
   overflow?: boolean;
   createdAt: string;

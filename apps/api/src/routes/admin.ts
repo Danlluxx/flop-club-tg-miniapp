@@ -220,7 +220,8 @@ const moveSeatSchema = z.object({
 });
 
 const eliminationSchema = z.object({
-  eliminatedRegistrationId: z.string().min(1)
+  eliminatedRegistrationId: z.string().min(1),
+  mysteryCardPoints: z.coerce.number().int().min(0).max(1_000_000).optional()
 });
 
 const bountySchema = z.object({
@@ -289,7 +290,7 @@ adminRouter.patch("/tournaments/:id/live/registrations/:registrationId/seat", as
 adminRouter.post("/tournaments/:id/live/knockouts", async (req, res, next) => {
   try {
     const payload = eliminationSchema.parse(req.body);
-    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId);
+    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId, payload.mysteryCardPoints);
     res.status(201).json(state);
   } catch (error) {
     next(error);
@@ -299,7 +300,7 @@ adminRouter.post("/tournaments/:id/live/knockouts", async (req, res, next) => {
 adminRouter.post("/tournaments/:id/live/eliminations", async (req, res, next) => {
   try {
     const payload = eliminationSchema.parse(req.body);
-    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId);
+    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId, payload.mysteryCardPoints);
     res.status(201).json(state);
   } catch (error) {
     next(error);

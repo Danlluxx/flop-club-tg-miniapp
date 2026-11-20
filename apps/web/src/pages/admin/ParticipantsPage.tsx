@@ -85,6 +85,7 @@ export function ParticipantsPage() {
   const publicationField = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (publicationText) publicationDialog.current?.showModal(); }, [publicationText]);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [eliminationCardPoints, setEliminationCardPoints] = useState("0");
   const confirmDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (pendingConfirm) confirmDialog.current?.showModal(); }, [pendingConfirm]);
   const [chipLeaderRegistrationId, setChipLeaderRegistrationId] = useState("");
@@ -192,6 +193,7 @@ export function ParticipantsPage() {
   const inGameParticipants = liveState?.inGame ?? [];
   const hasMechanics = Boolean(liveState?.tournament.mechanics);
   const isKnockoutTournament = liveState?.tournament.profile === "KNOCKOUT";
+  const isMysteryKnockout = liveState?.tournament.title.trim().toLowerCase() === "flop mystery knockout";
   const isChipLeaderTournament = liveState?.tournament.title.trim().toLowerCase() === "flop chip leader";
   const reportDate = liveState?.tournament.startsAt ? new Date(liveState.tournament.startsAt).toISOString().slice(0, 10) : "";
   const moveSource = inGameParticipants.find((item) => item.id === moveSourceId) ?? null;
@@ -209,6 +211,11 @@ export function ParticipantsPage() {
     .sort((left, right) => (left.finishPlace ?? Number.MAX_SAFE_INTEGER) - (right.finishPlace ?? Number.MAX_SAFE_INTEGER));
   const missingPlaces = awards.map((award) => award.place).filter((place) => !participants.some((item) => item.finishPlace === place));
   const ratedPlayersCount = participants.filter((item) => item.finishPlace && item.finishPlace <= awards.length).length;
+  const parsedEliminationCardPoints = Number(eliminationCardPoints);
+  const validEliminationCardPoints = eliminationCardPoints.trim() !== ""
+    && Number.isInteger(parsedEliminationCardPoints)
+    && parsedEliminationCardPoints >= 0
+    && parsedEliminationCardPoints <= 1_000_000;
 
   async function invalidateTournamentLive() {
     await Promise.all([
@@ -248,7 +255,8 @@ export function ParticipantsPage() {
   });
 
   const elimination = useMutation({
-    mutationFn: (registrationId: string) => api.recordElimination(id, { eliminatedRegistrationId: registrationId }),
+    mutationFn: ({ registrationId, mysteryCardPoints }: { registrationId: string; mysteryCardPoints?: number }) =>
+      api.recordElimination(id, { eliminatedRegistrationId: registrationId, mysteryCardPoints }),
     onSuccess: async () => {
       showToast("Вылет зафиксирован");
       await invalidateTournamentLive();
@@ -500,15 +508,21 @@ export function ParticipantsPage() {
   }
 
   function askElimination(item: Registration) {
+    setEliminationCardPoints(String(item.mysteryCardPoints ?? 0));
     setPendingConfirm({ kind: "eliminate", item });
   }
 
   function confirmPending() {
     if (!pendingConfirm) return;
     if (pendingConfirm.kind === "eliminate") {
+      const mysteryCardPoints = parsedEliminationCardPoints;
+      if (isMysteryKnockout && !validEliminationCardPoints) return;
       setMoveSourceId(null);
       setExpandedParticipantId(null);
-      elimination.mutate(pendingConfirm.item.id);
+      elimination.mutate({
+        registrationId: pendingConfirm.item.id,
+        ...(isMysteryKnockout ? { mysteryCardPoints } : {})
+      });
     }
     if (pendingConfirm.kind === "remove") {
       setExpandedParticipantId(null);
@@ -523,7 +537,7 @@ export function ParticipantsPage() {
   const confirmCopy = pendingConfirm && {
     eliminate: pendingConfirm.kind === "eliminate" ? {
       title: `${participantName(pendingConfirm.item)} выбыл?`,
-      body: `Игрок получит ${inGameParticipants.length} место и освободит бокс. ${canUseReEntry(pendingConfirm.item) ? "Вернуть его в игру можно будет через Re-entry." : "В этом турнире нет re-entry, вернуть его в игру будет нельзя."}`,
+      body: `Игрок получит ${inGameParticipants.length} место и освободит бокс. ${isMysteryKnockout ? "Укажите все очки, которые он заработал с mystery-карточек. " : ""}${canUseReEntry(pendingConfirm.item) ? "Вернуть его в игру можно будет через Re-entry." : "В этом турнире нет re-entry, вернуть его в игру будет нельзя."}`,
       action: "Игрок выбыл"
     } : null,
     remove: pendingConfirm.kind === "remove" ? {
@@ -718,6 +732,11 @@ export function ParticipantsPage() {
                         ) : null}
                         {liveState?.tournament.addOnEnabled || item.addOnCount > 0 ? (
                           <span className="rounded-[0.55rem] bg-violet/15 px-2.5 py-1 text-violet">Add-on: {item.addOnCount}</span>
+                        ) : null}
+                        {isMysteryKnockout && item.liveStatus === "ELIMINATED" ? (
+                          <span className="rounded-[0.55rem] bg-electric/15 px-2.5 py-1 text-electric">
+                            Карточки: {item.mysteryCardPoints.toLocaleString("ru-RU")} очков
+                          </span>
                         ) : null}
                         {!hasMechanics && item.issuedChips > 0 ? (
                           <span className="rounded-[0.55rem] bg-emerald/15 px-2.5 py-1 text-emerald">+{item.issuedChips.toLocaleString("ru-RU")} к стеку</span>
@@ -1028,6 +1047,7 @@ export function ParticipantsPage() {
                     <p className="truncate text-sm font-bold text-white">{participantName(item)}</p>
                     <p className="text-xs font-semibold text-slate-400">
                       {points ? `${points.toLocaleString("ru-RU")} очков` : "без очков"}
+                      {isMysteryKnockout && item.mysteryCardPoints > 0 ? ` · +${item.mysteryCardPoints.toLocaleString("ru-RU")} с карточек` : ""}
                       {item.liveStatus === "IN_GAME" ? " · ещё в игре" : ""}
                     </p>
                   </div>
@@ -1062,9 +1082,31 @@ export function ParticipantsPage() {
           <div className="space-y-4">
             <h3 id="confirm-title" className="text-lg font-bold">{confirmCopy.title}</h3>
             <p className="text-sm font-semibold text-slate-400">{confirmCopy.body}</p>
+            {pendingConfirm?.kind === "eliminate" && isMysteryKnockout ? (
+              <label className="grid gap-1.5">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Очки с карточек</span>
+                <input
+                  className="min-h-12 w-full rounded-[0.75rem] border border-white/10 bg-black/20 px-3 text-lg font-black text-white outline-none focus:border-rose-400"
+                  type="number"
+                  min={0}
+                  max={1_000_000}
+                  step={1}
+                  inputMode="numeric"
+                  value={eliminationCardPoints}
+                  onChange={(event) => setEliminationCardPoints(event.target.value)}
+                  aria-label="Очки с mystery-карточек"
+                  autoFocus
+                />
+              </label>
+            ) : null}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => confirmDialog.current?.close()} className="tap min-h-12 rounded-md bg-white/8 text-sm font-bold">Отмена</button>
-              <button type="button" onClick={confirmPending} className="tap min-h-12 rounded-md bg-rose-500 text-sm font-bold text-white">{confirmCopy.action}</button>
+              <button
+                type="button"
+                onClick={confirmPending}
+                disabled={pendingConfirm?.kind === "eliminate" && isMysteryKnockout && !validEliminationCardPoints}
+                className="tap min-h-12 rounded-md bg-rose-500 text-sm font-bold text-white disabled:opacity-40"
+              >{confirmCopy.action}</button>
             </div>
           </div>
         )}

@@ -73,9 +73,48 @@ function isChipLeaderTournament(title: string) {
 // bounty goes through game events (as in DEVIL DEAL) instead of the 1-point `knockouts` column.
 const BOUNTY_POINTS_PER_KNOCKOUT = 100;
 const BOUNTY_EVENT_PREFIX = "bounty-fix:";
+const MYSTERY_CARD_EVENT_PREFIX = "mystery-card-points:";
 
 function paysBountyPoints(tournament: { title: string; profile: string; mechanics: unknown }) {
   return tournament.profile === "KNOCKOUT" && !tournament.mechanics && tournament.title.trim().toLowerCase() === "flop bounty";
+}
+
+function isMysteryKnockout(title: string) {
+  return title.trim().toLowerCase() === "flop mystery knockout";
+}
+
+async function syncMysteryCardPointEvents(tx: Prisma.TransactionClient, tournamentId: string) {
+  const previous = await tx.tournamentGameEvent.findMany({
+    where: { tournamentId, eventKey: { startsWith: MYSTERY_CARD_EVENT_PREFIX } },
+    select: { userId: true, ratingPoints: true }
+  });
+  for (const event of previous) {
+    if (!event.userId || !event.ratingPoints) continue;
+    await tx.user.update({ where: { id: event.userId }, data: { ratingPoints: { decrement: event.ratingPoints } } });
+  }
+  await tx.tournamentGameEvent.deleteMany({ where: { tournamentId, eventKey: { startsWith: MYSTERY_CARD_EVENT_PREFIX } } });
+
+  const registrations = await tx.registration.findMany({
+    where: { tournamentId, status: "ACTIVE", mysteryCardPoints: { gt: 0 } },
+    select: { id: true, userId: true, mysteryCardPoints: true }
+  });
+  for (const registration of registrations) {
+    await tx.tournamentGameEvent.create({
+      data: {
+        tournamentId,
+        userId: registration.userId,
+        registrationId: registration.id,
+        eventKey: `${MYSTERY_CARD_EVENT_PREFIX}${registration.id}`,
+        type: "MYSTERY_CARD_POINTS",
+        ratingPoints: registration.mysteryCardPoints,
+        reason: "Mystery Knockout: очки с карточек"
+      }
+    });
+    await tx.user.update({
+      where: { id: registration.userId },
+      data: { ratingPoints: { increment: registration.mysteryCardPoints } }
+    });
+  }
 }
 
 async function syncBountyPointEvents(tx: Prisma.TransactionClient, tournamentId: string) {
@@ -271,6 +310,7 @@ export async function applyTournamentRatingResults(
     }
 
     if (bountyPoints) await syncBountyPointEvents(tx, tournamentId);
+    if (isMysteryKnockout(tournament.title)) await syncMysteryCardPointEvents(tx, tournamentId);
 
     if (chipLeaderAward && chipLeaderUserId) {
       await tx.tournamentChipLeaderAward.create({
