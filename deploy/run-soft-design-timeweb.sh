@@ -16,6 +16,7 @@ EXPECTED_COMMIT="${EXPECTED_COMMIT:-ВСТАВИТЬ_SHA}"
 APPLY="${APPLY:-0}"
 ALLOW_OVERWRITE="${ALLOW_OVERWRITE:-}"
 DB_BACKUP_FILE="${DB_BACKUP_FILE:-}"
+SKIP_PUBLIC_HEALTH="${SKIP_PUBLIC_HEALTH:-0}"
 APP_DIR="${APP_DIR:-/root/flop-club-tg-miniapp}"
 BACKUP_DIR="${BACKUP_DIR:-/root/flop-deploy-backups}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -239,8 +240,12 @@ if [[ "$health_ok" -ne 1 ]]; then
 fi
 
 echo "Проверяем публичный адрес..."
-curl --fail --silent --show-error --retry 6 --retry-delay 3 "$PUBLIC_HEALTH_URL"
-echo
+if [[ "$SKIP_PUBLIC_HEALTH" == "1" ]]; then
+  echo "Внешняя проверка пропущена явно; проверьте $PUBLIC_HEALTH_URL с устройства, которое видит Cloudflare."
+else
+  curl --fail --silent --show-error --retry 6 --retry-delay 3 "$PUBLIC_HEALTH_URL"
+  echo
+fi
 
 "${COMPOSE[@]}" ps api web
 

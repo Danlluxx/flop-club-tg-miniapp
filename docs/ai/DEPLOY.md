@@ -26,5 +26,6 @@
 - With the Mac's VPN on, traffic to the VPS goes through `utun5` and SSH/HTTPS time out at the banner. Use `ssh -o BindInterface=en0 root@<VPS_IP>`. The Timeweb serial web console is the fallback; public mutations through either still require explicit approval.
 - `deploy/run-soft-design-timeweb.sh` releases `origin/main` with a dry run first. It is not on the server's checkout path: extract it with `git show <sha>:deploy/run-soft-design-timeweb.sh > /tmp/flop-release.sh`.
 - `run-soft-design-timeweb.sh` stops on any file deleted in the release. `555013c` went out through a server copy that backs up and removes reviewed deletions under `apps/web/public` only.
+- If the VPS cannot reach the public Cloudflare URL, pass `SKIP_PUBLIC_HEALTH=1`; the script still requires the API container health check and the public `/health` must then be checked from the Mac after the release.
 - When piping a script to `ssh ... bash -s`, give `docker compose exec -T` its own stdin (`</dev/null` or a heredoc), or it consumes the rest of the script. `run-soft-design-timeweb.sh` has this trap in its health check: copy it to a server file and run that, or the run exits 0 right after `Ожидаем API...`, skipping the public check and `.deploy-commit`.
 
