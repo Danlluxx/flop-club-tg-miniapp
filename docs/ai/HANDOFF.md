@@ -1,5 +1,11 @@
 # Current handoff
 
+## Mystery Knockout free entries (release pending, 2026-11-20)
+
+- A Mystery elimination can award one reusable free-entry credit alongside card points. `User.mysteryFreeEntries` stores the remaining balance; `Registration.mysteryFreeEntryAwarded`, `freeBuyInUsed`, and `freeReEntryCount` keep the tournament audit. Migration: `20261120150000_mystery_free_entries`.
+- The next paid initial entry or re-entry consumes one credit atomically; zero-price entries preserve it. Cancelling that registration or removing a marked re-entry restores the credit. Admin revenue analytics excludes covered buy-ins/re-entries.
+- The participants screen shows the checkbox in the elimination dialog, the remaining `×N` balance, the covered re-entry confirmation, and the award in results. API/web builds, 19 focused tests, and the complete mobile mock flow pass.
+
 Last updated: 2026-11-06.
 
 ## Monday Booster rule (local, not committed, 2026-11-16)

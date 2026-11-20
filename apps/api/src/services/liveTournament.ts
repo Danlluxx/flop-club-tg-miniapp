@@ -177,7 +177,8 @@ export async function formFinalTable(tournamentId: string) {
 export async function restoreEliminatedRegistration(
   tx: Prisma.TransactionClient,
   registration: { id: string; tournamentId: string; finishPlace: number | null; checkedInAt: Date | null },
-  maxParticipants: number
+  maxParticipants: number,
+  usesMysteryFreeEntry = false
 ) {
   await tx.registration.updateMany({
     where: {
@@ -206,6 +207,7 @@ export async function restoreEliminatedRegistration(
     where: { id: registration.id },
     data: {
       entryNumber: { increment: 1 },
+      ...(usesMysteryFreeEntry ? { freeReEntryCount: { increment: 1 } } : {}),
       // A knockout is unique per life, so the next elimination must not collide with the previous one.
       lifeNumber: { increment: 1 },
       liveStatus: "IN_GAME",
@@ -236,21 +238,34 @@ export async function addMarkedReEntry(registrationId: string) {
       throw new AppError(409, "Re-entry limit reached", "RE_ENTRY_LIMIT_REACHED");
     }
 
+    const freeEntry = await tx.user.updateMany({
+      where: { id: registration.userId, mysteryFreeEntries: { gte: 1 } },
+      data: { mysteryFreeEntries: { decrement: 1 } }
+    });
+    const usesMysteryFreeEntry = freeEntry.count === 1;
+
     if (registration.liveStatus !== "ELIMINATED") {
-      return tx.registration.update({ where: { id: registration.id }, data: { entryNumber: { increment: 1 } } });
+      return tx.registration.update({
+        where: { id: registration.id },
+        data: {
+          entryNumber: { increment: 1 },
+          ...(usesMysteryFreeEntry ? { freeReEntryCount: { increment: 1 } } : {})
+        }
+      });
     }
 
     if (registration.tournament.status === TournamentStatus.FINISHED || registration.tournament.status === TournamentStatus.CANCELLED) {
       throw new AppError(409, "Турнир завершён, вернуть игрока в игру нельзя", "TOURNAMENT_FINISHED");
     }
-    return restoreEliminatedRegistration(tx, registration, registration.tournament.maxParticipants);
+    return restoreEliminatedRegistration(tx, registration, registration.tournament.maxParticipants, usesMysteryFreeEntry);
   });
 }
 
 export async function recordElimination(
   tournamentId: string,
   eliminatedRegistrationId: string,
-  mysteryCardPoints?: number
+  mysteryCardPoints?: number,
+  mysteryFreeEntry = false
 ) {
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Tournament" WHERE id = ${tournamentId} FOR UPDATE`;
@@ -281,10 +296,19 @@ export async function recordElimination(
         eliminatedAt: new Date(),
         finishPlace,
         ...(isMysteryKnockout ? { mysteryCardPoints: mysteryCardPoints ?? 0 } : {}),
+        ...(isMysteryKnockout && mysteryFreeEntry && !eliminated.mysteryFreeEntryAwarded
+          ? { mysteryFreeEntryAwarded: true }
+          : {}),
         tableNumber: null,
         seatNumber: null
       }
     });
+    if (isMysteryKnockout && mysteryFreeEntry && !eliminated.mysteryFreeEntryAwarded) {
+      await tx.user.update({
+        where: { id: eliminated.userId },
+        data: { mysteryFreeEntries: { increment: 1 } }
+      });
+    }
     if (teamUserIds) {
       await tx.registration.updateMany({
         where: { tournamentId, status: RegistrationStatus.ACTIVE, userId: { in: teamUserIds }, id: { not: eliminatedRegistrationId }, finishPlace: null },

@@ -268,7 +268,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data)
     }),
-  recordElimination: (tournamentId: string, data: { eliminatedRegistrationId: string; mysteryCardPoints?: number }) =>
+  recordElimination: (tournamentId: string, data: { eliminatedRegistrationId: string; mysteryCardPoints?: number; mysteryFreeEntry?: boolean }) =>
     request<TournamentLiveState>(`/api/admin/tournaments/${tournamentId}/live/eliminations`, {
       method: "POST",
       body: JSON.stringify(data)

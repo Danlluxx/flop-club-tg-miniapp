@@ -43,6 +43,7 @@ const player = (id, finishPlace, tableNumber = null, seatNumber = null) => ({
   tableNumber,
   seatNumber,
   entryNumber: 1,
+  freeReEntryCount: 0,
   lifeNumber: 1
 });
 
@@ -55,6 +56,13 @@ test("the returning player is back in game on a free seat with a new entry and l
   assert.equal(restored.entryNumber, 2);
   assert.equal(restored.lifeNumber, 2);
   assert.deepEqual([restored.tableNumber, restored.seatNumber], [1, 2]);
+});
+
+test("a returning player can consume a Mystery free entry", async () => {
+  const rows = [player("in", null, 1, 1), player("out", 2)];
+  const restored = await restoreEliminatedRegistration(fakeTx(rows), rows[1], 40, true);
+  assert.equal(restored.entryNumber, 2);
+  assert.equal(restored.freeReEntryCount, 1);
 });
 
 test("those eliminated later move up a place, those eliminated earlier keep theirs", async () => {

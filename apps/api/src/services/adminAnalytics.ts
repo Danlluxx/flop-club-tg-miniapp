@@ -26,6 +26,8 @@ export type AnalyticsTournament = {
     userId: string;
     entryNumber: number;
     addOnCount: number;
+    freeBuyInUsed: boolean;
+    freeReEntryCount: number;
     checkedInAt: Date | null;
     user: AnalyticsUser;
   }[];
@@ -62,9 +64,16 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
   const checkedIn = tournament.registrations.filter((registration) => registration.checkedInAt);
   const entries = entriesByUser(checkedIn);
   const addOnsByUser = new Map<string, number>();
+  const freeBuyInUsers = new Set<string>();
+  const freeReEntriesByUser = new Map<string, number>();
   const staff = new Set<string>();
   for (const registration of checkedIn) {
     addOnsByUser.set(registration.userId, (addOnsByUser.get(registration.userId) ?? 0) + registration.addOnCount);
+    if (registration.freeBuyInUsed) freeBuyInUsers.add(registration.userId);
+    freeReEntriesByUser.set(
+      registration.userId,
+      (freeReEntriesByUser.get(registration.userId) ?? 0) + (registration.freeReEntryCount ?? 0)
+    );
     if (registration.user.isStaff) staff.add(registration.userId);
   }
 
@@ -73,8 +82,10 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
   const reEntries = totalEntries - players;
   const staffReEntries = [...staff].reduce((sum, userId) => sum + ((entries.get(userId) ?? 1) - 1), 0);
   const addOns = [...addOnsByUser.values()].reduce((sum, count) => sum + count, 0);
-  const buyInRevenue = (players - staff.size) * tournament.buyIn;
-  const reEntryRevenue = reEntries * tournament.reEntry;
+  const freeBuyIns = [...freeBuyInUsers].filter((userId) => !staff.has(userId)).length;
+  const freeReEntries = [...freeReEntriesByUser.values()].reduce((sum, count) => sum + count, 0);
+  const buyInRevenue = Math.max(0, players - staff.size - freeBuyIns) * tournament.buyIn;
+  const reEntryRevenue = Math.max(0, reEntries - freeReEntries) * tournament.reEntry;
   const addOnRevenue = addOns * tournament.addOnPrice;
 
   return {
@@ -83,6 +94,8 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
     entries: totalEntries,
     reEntries,
     staffReEntries,
+    freeBuyIns,
+    freeReEntries,
     addOns,
     registered: new Set(tournament.registrations.map((registration) => registration.userId)).size,
     buyInRevenue,
@@ -91,10 +104,14 @@ export function tournamentFigures(tournament: AnalyticsTournament) {
     revenue: buyInRevenue + reEntryRevenue + addOnRevenue,
     entriesByUser: entries,
     addOnsByUser,
+    freeBuyInUsers,
+    freeReEntriesByUser,
     staff,
     spentByUser: new Map([...entries].map(([userId, count]) => [
       userId,
-      (staff.has(userId) ? 0 : tournament.buyIn) + (count - 1) * tournament.reEntry + (addOnsByUser.get(userId) ?? 0) * tournament.addOnPrice
+      (staff.has(userId) || freeBuyInUsers.has(userId) ? 0 : tournament.buyIn)
+        + Math.max(0, count - 1 - (freeReEntriesByUser.get(userId) ?? 0)) * tournament.reEntry
+        + (addOnsByUser.get(userId) ?? 0) * tournament.addOnPrice
     ]))
   };
 }

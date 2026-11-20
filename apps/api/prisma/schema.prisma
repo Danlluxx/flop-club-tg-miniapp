@@ -52,6 +52,7 @@ model User {
   isStaff                    Boolean                     @default(false)
   ratingPoints               Int                         @default(0)
   knockouts                  Int                         @default(0)
+  mysteryFreeEntries         Int                         @default(0)
   rulesAcceptedAt            DateTime?
   rulesVersion               String?
   personalDataConsentAt      DateTime?
@@ -170,6 +171,9 @@ model Registration {
   bountyAdjustment       Int                   @default(0)
   bounty                 Int                   @default(0)
   mysteryCardPoints      Int                   @default(0)
+  mysteryFreeEntryAwarded Boolean               @default(false)
+  freeBuyInUsed          Boolean               @default(false)
+  freeReEntryCount       Int                   @default(0)
   user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tournament             Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   knockoutsMade          Knockout[]            @relation("KnockoutKiller")

@@ -59,12 +59,23 @@ export async function registerForTournament(userId: string, tournamentId: string
       assertReEntryAllowed(tournament.profile, previousActiveEntries);
     }
 
+    const paidEntry = previousActiveEntries > 0 ? tournament.reEntry > 0 : tournament.buyIn > 0;
+    const freeEntry = paidEntry
+      ? await tx.user.updateMany({
+          where: { id: userId, mysteryFreeEntries: { gte: 1 } },
+          data: { mysteryFreeEntries: { decrement: 1 } }
+        })
+      : { count: 0 };
+    const usedMysteryFreeEntry = freeEntry.count === 1;
+
     const registeredAt = new Date();
     const registration = await tx.registration.create({
       data: {
         userId,
         tournamentId,
         entryNumber: previousActiveEntries + 1,
+        freeBuyInUsed: usedMysteryFreeEntry && previousActiveEntries === 0,
+        freeReEntryCount: usedMysteryFreeEntry && previousActiveEntries > 0 ? 1 : 0,
         createdAt: registeredAt,
         issuedChips: earlyRegistrationBonusFor(tournament, registeredAt, previousActiveEntries + 1)
       }
@@ -147,6 +158,13 @@ export async function cancelRegistration(userId: string, tournamentId: string, i
       where: { id: registration.id },
       data: { status: RegistrationStatus.CANCELLED, tableNumber: null, seatNumber: null, ...(tournament.mechanics ? { issuedChips: 0 } : {}) }
     });
+    const mysteryCreditsToRestore = Number(registration.freeBuyInUsed) + registration.freeReEntryCount;
+    if (mysteryCreditsToRestore > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { mysteryFreeEntries: { increment: mysteryCreditsToRestore } }
+      });
+    }
     if (tournament.mechanics) await tx.tournamentGameEvent.create({ data: { tournamentId, userId, registrationId: registration.id, actorId: userId, eventKey: `cancel:${registration.id}`, type: "REGISTRATION_CANCELLED", chips: -registration.issuedChips } });
     console.log(`[registration:cancel] user=${userId} tournament=${tournamentId}`);
     return updated;

@@ -16,6 +16,7 @@ export type User = {
   role: Role;
   ratingPoints: number;
   knockouts: number;
+  mysteryFreeEntries: number;
   rulesAcceptedAt?: string | null;
   rulesVersion?: string | null;
   personalDataConsentAt?: string | null;
@@ -74,6 +75,9 @@ export type Registration = {
   noShowPenaltyPoints: number;
   bounty: number;
   mysteryCardPoints: number;
+  mysteryFreeEntryAwarded: boolean;
+  freeBuyInUsed: boolean;
+  freeReEntryCount: number;
   /** Signed up after the seat limit was reached: seated only after everyone within the limit. */
   overflow?: boolean;
   createdAt: string;

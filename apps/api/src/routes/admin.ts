@@ -56,6 +56,8 @@ adminRouter.get("/analytics", requireAnalyticsViewer, async (req, res, next) => 
             userId: true,
             entryNumber: true,
             addOnCount: true,
+            freeBuyInUsed: true,
+            freeReEntryCount: true,
             checkedInAt: true,
             user: { select: { displayName: true, firstName: true, lastName: true, username: true, telegramId: true, isStaff: true } }
           }
@@ -221,7 +223,8 @@ const moveSeatSchema = z.object({
 
 const eliminationSchema = z.object({
   eliminatedRegistrationId: z.string().min(1),
-  mysteryCardPoints: z.coerce.number().int().min(0).max(1_000_000).optional()
+  mysteryCardPoints: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  mysteryFreeEntry: z.boolean().optional()
 });
 
 const bountySchema = z.object({
@@ -294,7 +297,12 @@ adminRouter.patch("/tournaments/:id/live/registrations/:registrationId/seat", as
 adminRouter.post("/tournaments/:id/live/knockouts", async (req, res, next) => {
   try {
     const payload = eliminationSchema.parse(req.body);
-    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId, payload.mysteryCardPoints);
+    const state = await recordElimination(
+      req.params.id,
+      payload.eliminatedRegistrationId,
+      payload.mysteryCardPoints,
+      payload.mysteryFreeEntry
+    );
     res.status(201).json(state);
   } catch (error) {
     next(error);
@@ -304,7 +312,12 @@ adminRouter.post("/tournaments/:id/live/knockouts", async (req, res, next) => {
 adminRouter.post("/tournaments/:id/live/eliminations", async (req, res, next) => {
   try {
     const payload = eliminationSchema.parse(req.body);
-    const state = await recordElimination(req.params.id, payload.eliminatedRegistrationId, payload.mysteryCardPoints);
+    const state = await recordElimination(
+      req.params.id,
+      payload.eliminatedRegistrationId,
+      payload.mysteryCardPoints,
+      payload.mysteryFreeEntry
+    );
     res.status(201).json(state);
   } catch (error) {
     next(error);
@@ -466,20 +479,33 @@ adminRouter.post("/registrations/:registrationId/re-entry", async (req, res, nex
 
 adminRouter.delete("/registrations/:registrationId/re-entry", async (req, res, next) => {
   try {
-    const registration = await prisma.registration.findUnique({
-      where: { id: req.params.registrationId },
-      include: { tournament: true }
+    const updated = await prisma.$transaction(async (tx) => {
+      const registration = await tx.registration.findUnique({
+        where: { id: req.params.registrationId },
+        include: { tournament: true }
+      });
+      if (!registration) throw notFound("Registration");
+      if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
+      if (registration.entryNumber <= 1) {
+        throw new AppError(409, "Re-entry is not marked", "RE_ENTRY_NOT_MARKED");
+      }
+      const restoreMysteryCredit = registration.freeReEntryCount > 0;
+      const changed = await tx.registration.update({
+        where: { id: registration.id },
+        data: {
+          entryNumber: { decrement: 1 },
+          ...(restoreMysteryCredit ? { freeReEntryCount: { decrement: 1 } } : {})
+        }
+      });
+      if (restoreMysteryCredit) {
+        await tx.user.update({
+          where: { id: registration.userId },
+          data: { mysteryFreeEntries: { increment: 1 } }
+        });
+      }
+      return changed;
     });
-    if (!registration) throw notFound("Registration");
-    if (registration.tournament.mechanics) throw new AppError(409, "Используйте DEVIL CONTROL", "DEVIL_CONTROL_REQUIRED");
-    if (registration.entryNumber <= 1) {
-      throw new AppError(409, "Re-entry is not marked", "RE_ENTRY_NOT_MARKED");
-    }
-    const updated = await prisma.registration.update({
-      where: { id: registration.id },
-      data: { entryNumber: { decrement: 1 } }
-    });
-    console.log(`[admin:re-entry:remove] registration=${registration.id} tournament=${registration.tournamentId}`);
+    console.log(`[admin:re-entry:remove] registration=${updated.id} tournament=${updated.tournamentId}`);
     res.json(updated);
   } catch (error) {
     next(error);

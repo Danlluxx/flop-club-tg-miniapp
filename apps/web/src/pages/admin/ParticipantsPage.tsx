@@ -13,6 +13,7 @@ import {
   Save,
   Search,
   Skull,
+  Ticket,
   Trophy,
   Trash2,
   UserCheck,
@@ -86,6 +87,7 @@ export function ParticipantsPage() {
   useEffect(() => { if (publicationText) publicationDialog.current?.showModal(); }, [publicationText]);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [eliminationCardPoints, setEliminationCardPoints] = useState("0");
+  const [eliminationFreeEntry, setEliminationFreeEntry] = useState(false);
   const confirmDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (pendingConfirm) confirmDialog.current?.showModal(); }, [pendingConfirm]);
   const [chipLeaderRegistrationId, setChipLeaderRegistrationId] = useState("");
@@ -256,8 +258,8 @@ export function ParticipantsPage() {
   });
 
   const elimination = useMutation({
-    mutationFn: ({ registrationId, mysteryCardPoints }: { registrationId: string; mysteryCardPoints?: number }) =>
-      api.recordElimination(id, { eliminatedRegistrationId: registrationId, mysteryCardPoints }),
+    mutationFn: ({ registrationId, mysteryCardPoints, mysteryFreeEntry }: { registrationId: string; mysteryCardPoints?: number; mysteryFreeEntry?: boolean }) =>
+      api.recordElimination(id, { eliminatedRegistrationId: registrationId, mysteryCardPoints, mysteryFreeEntry }),
     onSuccess: async () => {
       showToast("Вылет зафиксирован");
       await invalidateTournamentLive();
@@ -554,6 +556,7 @@ export function ParticipantsPage() {
 
   function askElimination(item: Registration) {
     setEliminationCardPoints(String(item.mysteryCardPoints ?? 0));
+    setEliminationFreeEntry(false);
     setPendingConfirm({ kind: "eliminate", item });
   }
 
@@ -566,7 +569,7 @@ export function ParticipantsPage() {
       setExpandedParticipantId(null);
       elimination.mutate({
         registrationId: pendingConfirm.item.id,
-        ...(isMysteryKnockout ? { mysteryCardPoints } : {})
+        ...(isMysteryKnockout ? { mysteryCardPoints, mysteryFreeEntry: eliminationFreeEntry } : {})
       });
     }
     if (pendingConfirm.kind === "remove") {
@@ -592,8 +595,8 @@ export function ParticipantsPage() {
     } : null,
     restore: pendingConfirm.kind === "restore" ? {
       title: `Вернуть ${participantName(pendingConfirm.item)} в игру?`,
-      body: `Добавится ещё один вход, игрок сядет в первый свободный бокс.${pendingConfirm.item.finishPlace ? ` Его ${pendingConfirm.item.finishPlace} место освободится, и места вылетевших после него сдвинутся.` : ""} Если это исправление ошибки, потом уберите лишний вход кнопкой «−».`,
-      action: "Вернуть в игру"
+      body: `${(pendingConfirm.item.user?.mysteryFreeEntries ?? 0) > 0 ? "Будет использован бесплатный вход Mystery Knockout. " : "Добавится платный re-entry. "}Игрок сядет в первый свободный бокс.${pendingConfirm.item.finishPlace ? ` Его ${pendingConfirm.item.finishPlace} место освободится, и места вылетевших после него сдвинутся.` : ""} Если это исправление ошибки, потом уберите лишний вход кнопкой «−».`,
+      action: (pendingConfirm.item.user?.mysteryFreeEntries ?? 0) > 0 ? "Использовать вход" : "Вернуть в игру"
     } : null,
     final: {
       title: "Собрать финальный стол?",
@@ -781,6 +784,11 @@ export function ParticipantsPage() {
                         {isMysteryKnockout && item.liveStatus === "ELIMINATED" ? (
                           <span className="rounded-[0.55rem] bg-electric/15 px-2.5 py-1 text-electric">
                             Mystery-бонус: {item.mysteryCardPoints.toLocaleString("ru-RU")} очков
+                          </span>
+                        ) : null}
+                        {(item.user?.mysteryFreeEntries ?? 0) > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-[0.55rem] bg-emerald/15 px-2.5 py-1 text-emerald">
+                            <Ticket className="h-3.5 w-3.5" /> Бесплатный вход: ×{item.user?.mysteryFreeEntries}
                           </span>
                         ) : null}
                         {!hasMechanics && item.issuedChips > 0 ? (
@@ -1094,6 +1102,7 @@ export function ParticipantsPage() {
                     <p className="text-xs font-semibold text-slate-400">
                       {points ? `${points.toLocaleString("ru-RU")} очков` : "без очков"}
                       {isMysteryKnockout && item.mysteryCardPoints > 0 ? ` · +${item.mysteryCardPoints.toLocaleString("ru-RU")} Mystery-бонус` : ""}
+                      {isMysteryKnockout && item.mysteryFreeEntryAwarded ? " · бесплатный вход" : ""}
                       {item.liveStatus === "IN_GAME" ? " · ещё в игре" : ""}
                     </p>
                   </div>
@@ -1130,21 +1139,35 @@ export function ParticipantsPage() {
             <h3 id="confirm-title" className="text-lg font-bold">{confirmCopy.title}</h3>
             <p className="text-sm font-semibold text-slate-400">{confirmCopy.body}</p>
             {pendingConfirm?.kind === "eliminate" && isMysteryKnockout ? (
-              <label className="grid gap-1.5">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Бонус Mystery Knockout</span>
-                <input
-                  className="min-h-12 w-full rounded-[0.75rem] border border-white/10 bg-black/20 px-3 text-lg font-black text-white outline-none focus:border-rose-400"
-                  type="number"
-                  min={0}
-                  max={1_000_000}
-                  step={1}
-                  inputMode="numeric"
-                  value={eliminationCardPoints}
-                  onChange={(event) => setEliminationCardPoints(event.target.value)}
-                  aria-label="Бонусные очки Mystery Knockout"
-                  autoFocus
-                />
-              </label>
+              <div className="space-y-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Бонус Mystery Knockout</span>
+                  <input
+                    className="min-h-12 w-full rounded-[0.75rem] border border-white/10 bg-black/20 px-3 text-lg font-black text-white outline-none focus:border-rose-400"
+                    type="number"
+                    min={0}
+                    max={1_000_000}
+                    step={1}
+                    inputMode="numeric"
+                    value={eliminationCardPoints}
+                    onChange={(event) => setEliminationCardPoints(event.target.value)}
+                    aria-label="Бонусные очки Mystery Knockout"
+                    autoFocus
+                  />
+                </label>
+                <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-[0.75rem] border border-white/10 bg-black/20 px-3">
+                  <input
+                    className="h-5 w-5 accent-emerald"
+                    type="checkbox"
+                    checked={eliminationFreeEntry}
+                    onChange={(event) => setEliminationFreeEntry(event.target.checked)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-black text-white">Бесплатный вход</span>
+                    <span className="block text-xs font-semibold text-slate-500">Сохранить игроку для следующего платного входа или re-entry</span>
+                  </span>
+                </label>
+              </div>
             ) : null}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => confirmDialog.current?.close()} className="tap min-h-12 rounded-md bg-white/8 text-sm font-bold">Отмена</button>

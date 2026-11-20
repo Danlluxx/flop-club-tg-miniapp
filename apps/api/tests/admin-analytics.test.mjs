@@ -30,6 +30,8 @@ const entry = (userId, entryNumber = 1, addOnCount = 0, checkedIn = true, isStaf
   userId,
   entryNumber,
   addOnCount,
+  freeBuyInUsed: false,
+  freeReEntryCount: 0,
   checkedInAt: checkedIn ? new Date(0) : null,
   user: user(userId, isStaff)
 });
@@ -61,6 +63,17 @@ test("a self-service re-entry row is one player with two entries, not two buy-in
   const figures = tournamentFigures(tournament("t", "2026-11-02", [entry("a", 1), entry("a", 2)]));
   assert.equal(figures.players, 1);
   assert.equal(figures.revenue, 800);
+});
+
+test("Mystery free entries are excluded from estimated revenue", () => {
+  const freeBuyIn = { ...entry("a"), freeBuyInUsed: true };
+  const freeReEntry = { ...entry("b", 2), freeReEntryCount: 1 };
+  const figures = tournamentFigures(tournament("t", "2026-11-02", [freeBuyIn, freeReEntry]));
+  assert.equal(figures.freeBuyIns, 1);
+  assert.equal(figures.freeReEntries, 1);
+  assert.equal(figures.buyInRevenue, 500);
+  assert.equal(figures.reEntryRevenue, 0);
+  assert.equal(figures.revenue, 500);
 });
 
 test("players who never checked in add no money and count as no-shows", () => {
