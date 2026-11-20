@@ -134,7 +134,8 @@ const specialTimes: Record<string, string> = {
 const titleByDate: Record<string, string> = {
   "2026-11-10": "Flop Butterfly",
   "2026-11-12": "Flop Mystery Knockout",
-  "2026-11-15": "Flop Deep Stack"
+  "2026-11-15": "Flop Deep Stack",
+  "2026-11-20": "Flop Mystery Knockout"
 };
 // Regular tournaments with a free buy-in on a given date.
 const freeBuyInDates = new Set(["2026-11-09", "2026-11-10"]);
