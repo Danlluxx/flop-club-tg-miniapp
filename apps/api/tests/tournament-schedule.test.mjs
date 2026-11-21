@@ -44,3 +44,17 @@ test("2026-11-08 Deep Stack gives a 200 000 chip add-on, other Deep Stack days k
   assert.equal(today.addOnPrice, 1000);
   assert.equal(scheduledTournamentForDate("2026-09-06").addOnChips, 100000);
 });
+
+test("2026-11-21 is FLOP PRIME EVENT with a 200 000 chip add-on for 1 000 rubles", () => {
+  const tournament = scheduledTournamentForDate("2026-11-21");
+
+  assert.ok(tournament);
+  assert.equal(tournament.id, "2026-11-21-flop-prime-event");
+  assert.equal(tournament.title, "Flop Prime Event");
+  assert.equal(tournament.buyIn, 500);
+  assert.equal(tournament.reEntry, 500);
+  assert.equal(tournament.ratingPool, 15000);
+  assert.equal(tournament.addOnEnabled, true);
+  assert.equal(tournament.addOnPrice, 1000);
+  assert.equal(tournament.addOnChips, 200000);
+});

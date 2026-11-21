@@ -254,6 +254,15 @@ const specialEvents: Record<string, {
     reEntry: 750,
     ratingPool: ratingPools["FLOP DUO 2x2"]
   },
+  "2026-11-21": {
+    title: "Flop Prime Event",
+    buyIn: 500,
+    reEntry: 500,
+    ratingPool: ratingPools["Flop Prime Event"],
+    addOnEnabled: true,
+    addOnPrice: 1000,
+    addOnChips: 200000
+  },
   "2026-11-05": {
     title: "Flop Phoenix",
     buyIn: 500,
